@@ -63,13 +63,20 @@ class ReadMode(Enum):
     BACKEND_DEFINED_MESSAGE = "backend_defined_message"
 
 
+_LENGTH_MODES = frozenset({ReadMode.EXACT_LENGTH, ReadMode.UP_TO_LENGTH})
+
+
 @dataclass(frozen=True)
 class ReadRequest:
     """A bounded read instruction.
 
+    Every field must be applicable to the selected ``mode``. A field that the
+    mode would ignore is rejected rather than silently dropped, so a request
+    never reads differently from the way it looks.
+
     Raises:
-        ConfigurationError: if the requested combination of fields would allow
-            an unbounded or undefined read.
+        ConfigurationError: if the request would allow an unbounded read, or
+            sets a field the selected mode does not use.
     """
 
     mode: ReadMode
@@ -81,7 +88,8 @@ class ReadRequest:
     def __post_init__(self) -> None:
         if self.maximum_size <= 0:
             raise ConfigurationError(f"maximum_size must be positive, got {self.maximum_size}")
-        if self.mode in (ReadMode.EXACT_LENGTH, ReadMode.UP_TO_LENGTH):
+
+        if self.mode in _LENGTH_MODES:
             if self.length is None or self.length <= 0:
                 raise ConfigurationError(
                     f"{self.mode.name} requires a positive length, got {self.length!r}"
@@ -90,8 +98,19 @@ class ReadRequest:
                 raise ConfigurationError(
                     f"length {self.length} exceeds maximum_size {self.maximum_size}"
                 )
-        if self.mode is ReadMode.UNTIL_TERMINATOR and not self.terminator:
-            raise ConfigurationError("UNTIL_TERMINATOR requires a non-empty terminator")
+        elif self.length is not None:
+            raise ConfigurationError(
+                f"{self.mode.name} does not use length; maximum_size bounds the read"
+            )
+
+        if self.mode is ReadMode.UNTIL_TERMINATOR:
+            if not self.terminator:
+                raise ConfigurationError("UNTIL_TERMINATOR requires a non-empty terminator")
+        else:
+            if self.terminator is not None:
+                raise ConfigurationError(f"{self.mode.name} does not use terminator")
+            if self.include_terminator:
+                raise ConfigurationError(f"{self.mode.name} does not use include_terminator")
 
 
 @dataclass(frozen=True)

@@ -139,6 +139,54 @@ def test_read_request_rejects_nonpositive_maximum_size(maximum_size: int) -> Non
         ReadRequest(mode=ReadMode.AVAILABLE, maximum_size=maximum_size)
 
 
+NON_LENGTH_MODES = [
+    ReadMode.UNTIL_TERMINATOR,
+    ReadMode.AVAILABLE,
+    ReadMode.BACKEND_DEFINED_MESSAGE,
+]
+NON_TERMINATOR_MODES = [
+    ReadMode.EXACT_LENGTH,
+    ReadMode.UP_TO_LENGTH,
+    ReadMode.AVAILABLE,
+    ReadMode.BACKEND_DEFINED_MESSAGE,
+]
+
+
+@pytest.mark.parametrize("mode", NON_LENGTH_MODES)
+def test_read_request_rejects_length_for_modes_that_ignore_it(mode: ReadMode) -> None:
+    terminator = b"\n" if mode is ReadMode.UNTIL_TERMINATOR else None
+    with pytest.raises(ConfigurationError):
+        ReadRequest(mode=mode, length=32, terminator=terminator)
+
+
+@pytest.mark.parametrize("mode", NON_TERMINATOR_MODES)
+def test_read_request_rejects_terminator_for_modes_that_ignore_it(mode: ReadMode) -> None:
+    length = 32 if mode in (ReadMode.EXACT_LENGTH, ReadMode.UP_TO_LENGTH) else None
+    with pytest.raises(ConfigurationError):
+        ReadRequest(mode=mode, length=length, terminator=b"\n")
+
+
+@pytest.mark.parametrize("mode", NON_TERMINATOR_MODES)
+def test_read_request_rejects_include_terminator_for_modes_that_ignore_it(
+    mode: ReadMode,
+) -> None:
+    length = 32 if mode in (ReadMode.EXACT_LENGTH, ReadMode.UP_TO_LENGTH) else None
+    with pytest.raises(ConfigurationError):
+        ReadRequest(mode=mode, length=length, include_terminator=True)
+
+
+def test_read_request_accepts_include_terminator_for_until_terminator() -> None:
+    request = ReadRequest(
+        mode=ReadMode.UNTIL_TERMINATOR, terminator=b"\r\n", include_terminator=True
+    )
+    assert request.include_terminator is True
+
+
+@pytest.mark.parametrize("mode", [ReadMode.AVAILABLE, ReadMode.BACKEND_DEFINED_MESSAGE])
+def test_read_request_unparameterized_modes_need_only_a_mode(mode: ReadMode) -> None:
+    assert ReadRequest(mode=mode).maximum_size == 1_048_576
+
+
 def test_write_result_equality() -> None:
     assert WriteResult(bytes_written=7) == WriteResult(bytes_written=7)
     assert WriteResult(bytes_written=7) != WriteResult(bytes_written=8)

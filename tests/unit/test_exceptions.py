@@ -57,6 +57,20 @@ def test_transport_timeout_is_not_an_operation_timeout() -> None:
     assert not issubclass(OperationTimeoutError, TransportError)
 
 
+def test_response_parse_error_retains_raw_response() -> None:
+    error = ResponseParseError("not a float", raw="+9.9E37 VOLT")
+    assert error.raw == "+9.9E37 VOLT"
+    assert str(error) == "not a float"
+
+
+def test_response_parse_error_retains_raw_bytes() -> None:
+    assert ResponseParseError("bad block", raw=b"#\x00\xff").raw == b"#\x00\xff"
+
+
+def test_response_parse_error_raw_defaults_to_none() -> None:
+    assert ResponseParseError("no context").raw is None
+
+
 def test_chaining_preserves_cause() -> None:
     original = ValueError("backend failed")
     with pytest.raises(TransportError) as excinfo:

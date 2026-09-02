@@ -49,7 +49,20 @@ class ProtocolError(ScpiDriverError):
 
 
 class ResponseParseError(ProtocolError):
-    """A response could not be parsed into the requested type."""
+    """A response could not be parsed into the requested type.
+
+    The offending response is retained on ``raw`` so a caller can report what
+    the instrument actually sent, which is frequently the only clue available
+    when a device deviates from its documented format.
+
+    Args:
+        message: description of what could not be parsed.
+        raw: the unmodified response, when available.
+    """
+
+    def __init__(self, message: str, *, raw: str | bytes | None = None) -> None:
+        super().__init__(message)
+        self.raw = raw
 
 
 class ScpiCommandError(ProtocolError):
