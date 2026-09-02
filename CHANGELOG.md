@@ -15,3 +15,7 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `ResponseParseError.raw`, retaining the response that failed to parse.
 - Transport value types: `TransportState`, `TransportDescriptor`, `ReadMode`,
   `ReadRequest`, `WriteResult`, `FlushDirection`, `ReplayPolicy`.
+- `Transport`, the byte-oriented transport protocol.
+- `MockTransport`, a deterministic in-memory transport with failure injection,
+  write fragmentation, and an operation log.
+- A reusable transport conformance suite in `tests/transport_contract/`.

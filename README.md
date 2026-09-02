@@ -17,9 +17,25 @@ Available now:
 - the common error hierarchy (`ScpiDriverError` and its subclasses)
 - transport value types: `TransportState`, `TransportDescriptor`, `ReadMode`,
   `ReadRequest`, `WriteResult`, `FlushDirection`, `ReplayPolicy`
+- the `Transport` protocol, and `MockTransport` as its reference implementation
+- a reusable transport conformance suite every backend must pass
 
-Not yet implemented: the transports themselves, the SCPI client and codec, IEEE-488.2
-helpers, binary blocks, sessions, tracing, and simulation.
+Not yet implemented: the VISA, serial, TCP and UDP backends, the SCPI client and codec,
+IEEE-488.2 helpers, binary blocks, sessions, tracing, and scripted simulation.
+
+```python
+from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest
+
+transport = MockTransport()
+transport.open()
+transport.feed(b"KEYSIGHT,N6700C,MY56000102,D.01.09\n")
+
+reply = transport.transact(
+    b"*IDN?\n",
+    ReadRequest(mode=ReadMode.UNTIL_TERMINATOR, terminator=b"\n"),
+)
+assert reply == b"KEYSIGHT,N6700C,MY56000102,D.01.09"
+```
 
 ## Installation
 
