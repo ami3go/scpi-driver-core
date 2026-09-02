@@ -19,3 +19,9 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `MockTransport`, a deterministic in-memory transport with failure injection,
   write fragmentation, and an operation log.
 - A reusable transport conformance suite in `tests/transport_contract/`.
+- `ScpiTextCodec` for SCPI text framing above the byte transport.
+- `Identity` and `ScpiError` value types.
+- Generic parsers: `parse_float`, `parse_int`, `parse_bool`, `parse_csv`,
+  `parse_identity`, `parse_scpi_error`, `parse_optional_unit_float`,
+  `quote_scpi_string`.
+- `parse_engineering_value` for human-written values such as `500mA` or `2.2k`.
