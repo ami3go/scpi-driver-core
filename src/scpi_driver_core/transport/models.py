@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
+from types import MappingProxyType
 
 from scpi_driver_core.exceptions import ConfigurationError
 
@@ -37,11 +38,19 @@ class TransportDescriptor:
     ``kind`` is the transport family (``"tcp"``, ``"visa"``, ...), ``address``
     the resource it targets. Backend-specific detail belongs in ``metadata``
     rather than in additional fields.
+
+    ``metadata`` is copied into a read-only mapping on construction, so a
+    descriptor cannot be altered through the mapping the caller passed in.
+    Descriptors are hashable; only ``kind`` and ``address`` contribute to the
+    hash, while equality still compares ``metadata``.
     """
 
     kind: str
     address: str
-    metadata: Mapping[str, str] = field(default_factory=dict)
+    metadata: Mapping[str, str] = field(default_factory=dict, hash=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
 
 
 class ReadMode(Enum):

@@ -58,6 +58,32 @@ def test_descriptor_equality_and_immutability() -> None:
         first.kind = "udp"  # type: ignore[misc]
 
 
+def test_descriptor_is_hashable_and_usable_as_a_key() -> None:
+    first = TransportDescriptor(kind="tcp", address="192.0.2.10:5025")
+    second = TransportDescriptor(kind="tcp", address="192.0.2.10:5025")
+    assert hash(first) == hash(second)
+    assert len({first, second}) == 1
+    assert {first: "session"}[second] == "session"
+
+
+def test_descriptor_metadata_does_not_alias_the_caller_mapping() -> None:
+    supplied = {"backend": "@py"}
+    descriptor = TransportDescriptor(kind="visa", address="x", metadata=supplied)
+    supplied["backend"] = "mutated"
+    assert descriptor.metadata == {"backend": "@py"}
+
+
+def test_descriptor_metadata_is_read_only() -> None:
+    descriptor = TransportDescriptor(kind="visa", address="x", metadata={"backend": "@py"})
+    with pytest.raises(TypeError):
+        descriptor.metadata["backend"] = "mutated"  # type: ignore[index]
+
+
+def test_descriptor_equality_compares_metadata() -> None:
+    base = TransportDescriptor(kind="tcp", address="x")
+    assert base != TransportDescriptor(kind="tcp", address="x", metadata={"a": "b"})
+
+
 def test_descriptor_metadata_is_not_shared_between_instances() -> None:
     first = TransportDescriptor(kind="visa", address="GPIB0::22::INSTR")
     second = TransportDescriptor(
