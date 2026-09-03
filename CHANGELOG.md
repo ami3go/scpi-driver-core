@@ -61,6 +61,14 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   an explicit unknown state.
 - `SessionRegistry` with normalized aliases, a deterministic active session,
   and `disconnect_all` that closes every session even when one fails.
+- `ProtocolTraceEvent`, `TraceObserver`, and `Tracer` with sequence numbering,
+  dual UTC/monotonic clocks, and session/operation correlation.
+- `InstrumentedTransport`, a transparent wrapper that traces every backend.
+- `JsonlTraceSink`: append-only JSONL, schema version, base64 payloads, payload
+  truncation, and deterministic finalization.
+- `Redactor` protocol and `PatternRedactor`; redaction rewrites the recorded
+  bytes as well as the text.
+- `ScpiSession` keeps a tracer's alias and generation context current.
 
 ### Fixed
 

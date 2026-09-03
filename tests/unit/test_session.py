@@ -313,3 +313,37 @@ def test_communication_timeout_can_be_cleared() -> None:
     session.set_communication_timeout(2.0)
     session.set_communication_timeout(None)
     assert session.communication_timeout_s is None
+
+
+# -- trace context --------------------------------------------------------
+
+
+def test_session_publishes_its_alias_and_generation_to_the_tracer() -> None:
+    from scpi_driver_core.tracing import RecordingTraceObserver, Tracer
+
+    transport = MockTransport()
+    tracer = Tracer(RecordingTraceObserver())
+    session = ScpiSession("psu1", ScpiClient(transport), tracer=tracer)
+    session.open()
+    assert tracer.context.session_alias == "psu1"
+    assert tracer.context.session_generation == 1
+
+
+def test_reconnecting_advances_the_traced_generation() -> None:
+    """A trace spanning a reconnect must not read as one unbroken connection."""
+    from scpi_driver_core.tracing import RecordingTraceObserver, Tracer
+
+    transport = MockTransport()
+    tracer = Tracer(RecordingTraceObserver())
+    session = ScpiSession("psu1", ScpiClient(transport), tracer=tracer)
+    session.open()
+    session.close()
+    session.open()
+    assert tracer.context.session_generation == 2
+
+
+def test_a_session_without_a_tracer_works_normally() -> None:
+    session, _ = make()
+    session.open()
+    assert session.tracer is None
+    assert session.is_connected is True

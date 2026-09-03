@@ -12,6 +12,8 @@ from scpi_driver_core.models import Identity
 from scpi_driver_core.scpi.client import ScpiClient
 from scpi_driver_core.scpi.ieee488 import Ieee4882
 from scpi_driver_core.session.health import SessionHealth
+from scpi_driver_core.tracing.events import TraceContext
+from scpi_driver_core.tracing.observer import Tracer
 from scpi_driver_core.transport.base import Transport
 from scpi_driver_core.transport.models import TransportState
 
@@ -36,6 +38,9 @@ class ScpiSession:
         client: the SCPI client, which owns the protocol layer.
         health_query: the query used to test responsiveness. ``*IDN?`` suits
             most instruments, but a driver may pick something cheaper or safer.
+        communication_timeout_s: bound for this session's own traffic.
+        tracer: kept in step with this session's alias and generation, so trace
+            records spanning a reconnect cannot be read as one connection.
     """
 
     def __init__(
@@ -45,11 +50,13 @@ class ScpiSession:
         *,
         health_query: str = DEFAULT_HEALTH_QUERY,
         communication_timeout_s: float | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         self._alias = alias
         self._client = client
         self._health_query = health_query
         self._communication_timeout_s = communication_timeout_s
+        self._tracer = tracer
         self._ieee488 = Ieee4882(client)
         self._health = SessionHealth()
         self._generation = 0
@@ -74,6 +81,11 @@ class ScpiSession:
     def ieee488(self) -> Ieee4882:
         """The IEEE-488.2 helpers bound to this session's client."""
         return self._ieee488
+
+    @property
+    def tracer(self) -> Tracer | None:
+        """The tracer whose context this session maintains, if any."""
+        return self._tracer
 
     @property
     def health(self) -> SessionHealth:
@@ -162,6 +174,7 @@ class ScpiSession:
             self._generation += 1
             self._identity = None
             self._health.record_connected()
+            self._publish_trace_context()
 
             if not (probe or validate_identity is not None):
                 return
@@ -204,6 +217,13 @@ class ScpiSession:
             except ScpiDriverError:
                 return False
             return True
+
+    def _publish_trace_context(self) -> None:
+        """Tell the tracer which connection generation events now belong to."""
+        if self._tracer is not None:
+            self._tracer.set_context(
+                TraceContext(session_alias=self._alias, session_generation=self._generation)
+            )
 
     def _probe(self, *, timeout_s: float | None = None) -> None:
         """Run the health query, updating health either way, and re-raise on failure."""

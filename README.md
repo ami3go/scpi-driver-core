@@ -32,6 +32,7 @@ Available now:
 - SCPI error-queue draining with opt-in automatic checking
 - bounded polling, explicit retry/replay policy, and confirmation guards
 - named sessions, connection health, and a session registry
+- protocol tracing, JSONL audit, and redaction hooks
 
 Not yet implemented: sessions, tracing, and
 scripted simulation.
