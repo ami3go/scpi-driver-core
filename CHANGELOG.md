@@ -41,6 +41,11 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `Ieee4882` common-command helpers (`*IDN?`, `*CLS`, `*RST`, `*OPC`/`*OPC?`,
   `*WAI`, `*TRG`, `*TST?`, `*STB?`, `*ESR?`) with per-call timeout bounds.
 - `SelfTestResult`, reporting the `*TST?` code without deciding a verdict.
+- IEEE-488.2 definite-length binary blocks: `encode_definite_length_block`,
+  `decode_definite_length_block`, and `read_definite_length_block`, with
+  `ScpiClient.query_binary_block` and `write_binary_block` built on them.
+- `ScpiTextCodec.encode_block_command` for framing a text prefix around a
+  binary block.
 
 ### Fixed
 

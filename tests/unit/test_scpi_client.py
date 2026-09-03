@@ -7,8 +7,14 @@ from collections.abc import Callable
 
 import pytest
 
-from scpi_driver_core import ConfigurationError, ResponseParseError, ScpiClient
+from scpi_driver_core import (
+    ConfigurationError,
+    ProtocolError,
+    ResponseParseError,
+    ScpiClient,
+)
 from scpi_driver_core.scpi import ScpiTextCodec
+from scpi_driver_core.scpi.binary_block import decode_definite_length_block
 from scpi_driver_core.transport import (
     MockTransport,
     ReadMode,
@@ -263,3 +269,84 @@ def test_client_serializes_separate_operations() -> None:
         thread.join(timeout=2)
     assert all(not thread.is_alive() for thread in threads)
     assert len({op.operation_id for op in transport.operations if op.kind == "write"}) == count
+
+
+# -- binary blocks --------------------------------------------------------
+
+
+def test_query_binary_block_returns_the_payload() -> None:
+    transport = MockTransport()
+    transport.open()
+    transport.feed(b"#14ABCD\n")
+    client = ScpiClient(transport)
+    assert client.query_binary_block("CURVE?") == b"ABCD"
+    assert transport.written == b"CURVE?\n"
+
+
+def test_query_binary_block_consumes_the_terminator_by_default() -> None:
+    """A leftover terminator would corrupt the next query."""
+    transport = MockTransport()
+    transport.open()
+    transport.feed(b"#14ABCD\n")
+    transport.feed(b"1.5\n")
+    client = ScpiClient(transport)
+    assert client.query_binary_block("CURVE?") == b"ABCD"
+    assert client.query_float("MEAS?") == 1.5
+
+
+def test_query_binary_block_can_leave_the_terminator() -> None:
+    transport = MockTransport()
+    transport.open()
+    transport.feed(b"#14ABCD")
+    client = ScpiClient(transport)
+    assert client.query_binary_block("CURVE?", consume_terminator=False) == b"ABCD"
+
+
+def test_query_binary_block_preserves_hostile_bytes() -> None:
+    payload = bytes(range(256)) + b"  \t\x00\r\n  "
+    transport = MockTransport()
+    transport.open()
+    transport.feed(b"#3" + str(len(payload)).encode() + payload + b"\n")
+    client = ScpiClient(transport)
+    assert client.query_binary_block("CURVE?") == payload
+
+
+def test_query_binary_block_honors_maximum_size() -> None:
+    transport = MockTransport()
+    transport.open()
+    transport.feed(b"#42048" + b"x" * 2048)
+    client = ScpiClient(transport)
+    with pytest.raises(ProtocolError):
+        client.query_binary_block("CURVE?", maximum_size=16)
+
+
+def test_write_binary_block_frames_the_command() -> None:
+    transport = MockTransport()
+    transport.open()
+    ScpiClient(transport).write_binary_block("CURVE ", b"ABCD")
+    assert transport.written == b"CURVE #14ABCD\n"
+
+
+def test_write_binary_block_always_appends_the_terminator() -> None:
+    """The payload ends with the terminator byte; it must not be mistaken for one."""
+    transport = MockTransport()
+    transport.open()
+    ScpiClient(transport).write_binary_block("CURVE ", b"AB\n")
+    assert transport.written == b"CURVE #13AB\n\n"
+
+
+def test_write_binary_block_round_trips_through_the_decoder() -> None:
+    payload = bytes(range(256))
+    transport = MockTransport()
+    transport.open()
+    ScpiClient(transport).write_binary_block("DATA:ARB wave, ", payload)
+    written = transport.written
+    assert written.startswith(b"DATA:ARB wave, ")
+    assert decode_definite_length_block(written[len(b"DATA:ARB wave, ") :]) == payload
+
+
+def test_write_binary_block_is_one_transport_write() -> None:
+    transport = MockTransport()
+    transport.open()
+    ScpiClient(transport).write_binary_block("CURVE ", b"ABCD")
+    assert [op.kind for op in transport.operations if op.kind == "write"] == ["write"]

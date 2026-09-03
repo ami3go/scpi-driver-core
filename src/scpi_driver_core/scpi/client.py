@@ -19,6 +19,11 @@ from contextlib import contextmanager
 from typing import TypeVar
 
 from scpi_driver_core.exceptions import ConfigurationError
+from scpi_driver_core.scpi.binary_block import (
+    DEFAULT_MAXIMUM_BLOCK_SIZE,
+    encode_definite_length_block,
+    read_definite_length_block,
+)
 from scpi_driver_core.scpi.codec import ScpiTextCodec
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
@@ -245,6 +250,63 @@ class ScpiClient:
     def query_csv(self, command: str, *, timeout_s: float | None = None) -> list[str]:
         """Query and split a comma-separated reply."""
         return parse_csv(self.query(command, timeout_s=timeout_s))
+
+    # -- binary blocks ----------------------------------------------------
+
+    def query_binary_block(
+        self,
+        command: str,
+        *,
+        timeout_s: float | None = None,
+        maximum_size: int | None = None,
+        consume_terminator: bool = True,
+    ) -> bytes:
+        """Query an IEEE-488.2 definite-length block and return its payload.
+
+        The reply bypasses the text codec: every payload byte is returned
+        exactly as sent, including whitespace and nulls.
+
+        Args:
+            maximum_size: reject a block declaring more payload than this.
+                Defaults to :data:`~scpi_driver_core.scpi.binary_block.DEFAULT_MAXIMUM_BLOCK_SIZE`.
+            consume_terminator: also read the response terminator that follows
+                the block. Leaving it on the wire would corrupt the next
+                response, so this is on whenever the codec defines one. Turn it
+                off for an instrument that sends no terminator after a block.
+        """
+        limit = DEFAULT_MAXIMUM_BLOCK_SIZE if maximum_size is None else maximum_size
+        terminator = self._codec.response_terminator if consume_terminator else None
+        outbound = self._codec.encode_command(command)
+
+        def action(operation_id: str, effective: float | None) -> bytes:
+            self._transport.write(outbound, timeout_s=effective, operation_id=operation_id)
+            return read_definite_length_block(
+                self._transport,
+                timeout_s=effective,
+                maximum_size=limit,
+                terminator=terminator,
+                operation_id=operation_id,
+            )
+
+        return self._execute(action, timeout_s=timeout_s)
+
+    def write_binary_block(
+        self,
+        command_prefix: str,
+        payload: bytes,
+        *,
+        timeout_s: float | None = None,
+    ) -> None:
+        """Send ``command_prefix`` followed by ``payload`` as a definite-length block.
+
+        The prefix is the command up to where the block begins, including any
+        separating space, such as ``"CURVE "`` or ``"DATA:ARB myWave, "``. The
+        block header and the command terminator are added here.
+        """
+        data = self._codec.encode_block_command(
+            command_prefix, encode_definite_length_block(payload)
+        )
+        self.write_bytes(data, timeout_s=timeout_s)
 
     def query_optional_unit_float(
         self,

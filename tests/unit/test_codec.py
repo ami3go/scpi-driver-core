@@ -138,3 +138,38 @@ def test_round_trip_of_a_realistic_exchange() -> None:
     codec = ScpiTextCodec()
     assert codec.encode_command("MEAS:VOLT:DC?") == b"MEAS:VOLT:DC?\n"
     assert codec.decode_response(b"+1.04858000E+00\n") == "+1.04858000E+00"
+
+
+# -- block command framing ------------------------------------------------
+
+
+def test_encode_block_command_frames_prefix_block_and_terminator() -> None:
+    assert ScpiTextCodec().encode_block_command("CURVE ", b"#14ABCD") == b"CURVE #14ABCD\n"
+
+
+def test_encode_block_command_always_terminates() -> None:
+    """A block ending in the terminator byte must still get its own."""
+    codec = ScpiTextCodec()
+    assert codec.encode_block_command("CURVE ", b"#13AB\n") == b"CURVE #13AB\n\n"
+
+
+def test_encode_block_command_honors_an_empty_terminator() -> None:
+    codec = ScpiTextCodec(command_terminator=b"")
+    assert codec.encode_block_command("CURVE ", b"#11A") == b"CURVE #11A"
+
+
+def test_encode_block_command_rejects_an_unencodable_prefix() -> None:
+    with pytest.raises(ConfigurationError, match="prefix"):
+        ScpiTextCodec().encode_block_command("CURVE µ ", b"#11A")
+
+
+def test_encode_block_command_bounds_the_prefix() -> None:
+    with pytest.raises(ConfigurationError, match="maximum_command_size"):
+        ScpiTextCodec(maximum_command_size=4).encode_block_command("CURVE ", b"#11A")
+
+
+def test_encode_block_command_does_not_bound_the_payload() -> None:
+    """A waveform upload dwarfs any sane text-command limit; that is the caller's call."""
+    codec = ScpiTextCodec(maximum_command_size=16)
+    framed = codec.encode_block_command("CURVE ", b"#6100000" + b"x" * 100000)
+    assert len(framed) > 100000

@@ -28,8 +28,9 @@ Available now:
 - optional PyVISA transport covering GPIB, USBTMC, TCPIP INSTR/SOCKET and ASRL
 
 - IEEE-488.2 common-command helpers (`Ieee4882`)
+- IEEE-488.2 definite-length binary blocks, for waveform and setup transfers
 
-Not yet implemented: binary blocks, sessions, tracing, and
+Not yet implemented: sessions, tracing, and
 scripted simulation.
 
 ```python

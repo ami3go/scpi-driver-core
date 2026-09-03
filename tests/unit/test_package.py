@@ -23,3 +23,24 @@ def test_top_level_exports_scpi_client() -> None:
 def test_every_exported_name_is_present() -> None:
     for name in scpi_driver_core.__all__:
         assert hasattr(scpi_driver_core, name), name
+
+
+def test_documented_scpi_import_surface_is_shallow() -> None:
+    """The task doc promises these from scpi_driver_core.scpi directly."""
+    from scpi_driver_core.scpi import (  # noqa: F401
+        Ieee4882,
+        encode_definite_length_block,
+        parse_bool,
+        parse_float,
+    )
+
+
+def test_documented_transport_import_surface_is_shallow() -> None:
+    from scpi_driver_core.transport import (  # noqa: F401
+        MockTransport,
+        SerialTransport,
+        TcpTransport,
+        Transport,
+        UdpTransport,
+        VisaTransport,
+    )

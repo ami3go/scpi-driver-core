@@ -1,5 +1,11 @@
 """SCPI text framing, parsing, and client layer."""
 
+from scpi_driver_core.scpi.binary_block import (
+    DEFAULT_MAXIMUM_BLOCK_SIZE,
+    decode_definite_length_block,
+    encode_definite_length_block,
+    read_definite_length_block,
+)
 from scpi_driver_core.scpi.client import ScpiClient
 from scpi_driver_core.scpi.codec import ScpiTextCodec
 from scpi_driver_core.scpi.engineering import (
@@ -21,12 +27,16 @@ from scpi_driver_core.scpi.parsers import (
 )
 
 __all__ = [
+    "DEFAULT_MAXIMUM_BLOCK_SIZE",
     "SI_PREFIXES",
     "SUPPORTED_UNITS",
     "EngineeringValue",
     "Ieee4882",
     "ScpiClient",
     "ScpiTextCodec",
+    "decode_definite_length_block",
+    "encode_definite_length_block",
+    "read_definite_length_block",
     "parse_bool",
     "parse_csv",
     "parse_engineering_value",

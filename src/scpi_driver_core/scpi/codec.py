@@ -94,6 +94,36 @@ class ScpiTextCodec:
             )
         return encoded
 
+    def encode_block_command(self, prefix: str, block: bytes) -> bytes:
+        """Frame a text prefix followed by raw binary, as ``CURV #41234...\\n``.
+
+        The terminator is appended unconditionally, unlike
+        :meth:`encode_command`. A binary block can legitimately end with the
+        same byte as the terminator, so testing for one already present would
+        occasionally drop it and leave the instrument waiting.
+
+        ``maximum_command_size`` bounds only the text prefix here. It exists to
+        catch runaway command construction, whereas the size of a waveform or
+        setup upload is a deliberate choice by the caller and is limited by the
+        instrument itself.
+
+        Raises:
+            ConfigurationError: if the prefix cannot be encoded or exceeds
+                ``maximum_command_size``.
+        """
+        try:
+            encoded = prefix.encode(self.encoding, errors="strict")
+        except UnicodeEncodeError as exc:
+            raise ConfigurationError(
+                f"command prefix is not encodable as {self.encoding}: {prefix!r}"
+            ) from exc
+        if len(encoded) > self.maximum_command_size:
+            raise ConfigurationError(
+                f"command prefix of {len(encoded)} bytes exceeds "
+                f"maximum_command_size {self.maximum_command_size}"
+            )
+        return encoded + block + self.command_terminator
+
     def decode_response(self, data: bytes) -> str:
         """Remove one trailing terminator if present, then decode.
 
