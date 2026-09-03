@@ -28,10 +28,10 @@ class TestTcpTransportContract(TransportContract):
         self.server.send(data)
 ```
 
-Set the `supports_*` capability flags to declare what the backend can simulate and
-whether it has stream or message semantics; tests needing an unsupported capability
-skip themselves. Backend behavior the contract cannot express belongs in `unit/` or
-`integration/`.
+Set the `supports_*` capability flags to declare what the backend fake can simulate
+and whether it has stream or message semantics; tests needing an unsupported
+capability skip themselves. Backend behavior the contract cannot express belongs in
+`unit/` or `integration/`.
 
 ## Running
 

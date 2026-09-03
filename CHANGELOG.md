@@ -32,6 +32,8 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `UdpTransport` with datagram-preserving reads, optional local binding and
   source validation, and no implicit retransmission.
 - Loopback TCP/UDP integration tests wired into the reusable transport contract.
+- `SerialTransport` as an optional pyserial backend with finite read/write
+  timeouts, serial-line configuration, DTR/RTS control, and directional flush.
 
 ### Fixed
 

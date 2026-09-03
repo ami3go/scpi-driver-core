@@ -11,6 +11,7 @@ from scpi_driver_core.transport.models import (
     TransportState,
     WriteResult,
 )
+from scpi_driver_core.transport.serial import SerialTransport
 from scpi_driver_core.transport.tcp import TcpTransport
 from scpi_driver_core.transport.udp import UdpTransport
 
@@ -21,6 +22,7 @@ __all__ = [
     "ReadMode",
     "ReadRequest",
     "ReplayPolicy",
+    "SerialTransport",
     "Transport",
     "TransportDescriptor",
     "TransportState",
