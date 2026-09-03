@@ -34,8 +34,8 @@ Available now:
 - named sessions, connection health, and a session registry
 - protocol tracing, JSONL audit, and redaction hooks
 
-Not yet implemented: sessions, tracing, and
-scripted simulation.
+Not yet implemented: the scripted device-simulation transport (Phase 14), and the
+representative driver migrations that validate the architecture (Phase 15).
 
 ```python
 from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest
