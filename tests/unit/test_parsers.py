@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from scpi_driver_core.exceptions import IdentityError, ResponseParseError
@@ -271,6 +273,11 @@ def test_parse_optional_unit_float_rejects_malformed(response: str) -> None:
 def test_parse_optional_unit_float_rejects_non_finite() -> None:
     with pytest.raises(ResponseParseError):
         parse_optional_unit_float("1e999")
+
+
+@pytest.mark.parametrize("response", ["INF V", "-Infinity A", "NaN Hz"])
+def test_parse_optional_unit_float_allows_explicit_non_finite(response: str) -> None:
+    assert not math.isfinite(parse_optional_unit_float(response, allow_non_finite=True))
 
 
 def test_parse_optional_unit_float_does_not_scale_prefixes() -> None:

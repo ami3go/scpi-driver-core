@@ -1,5 +1,6 @@
 """SCPI text framing, parsing, and client layer."""
 
+from scpi_driver_core.scpi.client import ScpiClient
 from scpi_driver_core.scpi.codec import ScpiTextCodec
 from scpi_driver_core.scpi.engineering import (
     SI_PREFIXES,
@@ -22,6 +23,7 @@ __all__ = [
     "SI_PREFIXES",
     "SUPPORTED_UNITS",
     "EngineeringValue",
+    "ScpiClient",
     "ScpiTextCodec",
     "parse_bool",
     "parse_csv",

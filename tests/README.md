@@ -5,7 +5,8 @@ requires physical hardware or an external network endpoint.
 
 ## Groups
 
-- `unit/` — value types, exceptions, backend-specific behavior, codec, parsers.
+- `unit/` — value types, exceptions, backend-specific behavior, codec, parsers,
+  and `ScpiClient` execution behavior.
 - `transport_contract/` — one reusable suite run against every transport backend, so
   each new backend inherits the same state-machine and bounds guarantees.
 - `integration/` — local simulated endpoints (loopback sockets, scripted transports).

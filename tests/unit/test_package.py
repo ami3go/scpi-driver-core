@@ -13,7 +13,11 @@ def test_error_hierarchy_is_reachable_from_the_top_level() -> None:
 
 
 def test_top_level_exports_the_whole_error_hierarchy() -> None:
-    assert set(scpi_driver_core.__all__) == set(exceptions.__all__)
+    assert set(exceptions.__all__) <= set(scpi_driver_core.__all__)
+
+
+def test_top_level_exports_scpi_client() -> None:
+    assert scpi_driver_core.ScpiClient.__name__ == "ScpiClient"
 
 
 def test_every_exported_name_is_present() -> None:

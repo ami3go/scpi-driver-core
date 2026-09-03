@@ -19,9 +19,11 @@ Available now:
   `ReadRequest`, `WriteResult`, `FlushDirection`, `ReplayPolicy`
 - the `Transport` protocol, and `MockTransport` as its reference implementation
 - a reusable transport conformance suite every backend must pass
+- `ScpiTextCodec`, generic response parsers, and engineering-value parsing
+- `ScpiClient` text, byte, and typed-query operations with correlated operation IDs
 
-Not yet implemented: the VISA, serial, TCP and UDP backends, the SCPI client and codec,
-IEEE-488.2 helpers, binary blocks, sessions, tracing, and scripted simulation.
+Not yet implemented: the VISA, serial, TCP and UDP backends, IEEE-488.2 helpers,
+binary blocks, sessions, tracing, and scripted simulation.
 
 ```python
 from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest
@@ -35,6 +37,16 @@ reply = transport.transact(
     ReadRequest(mode=ReadMode.UNTIL_TERMINATOR, terminator=b"\n"),
 )
 assert reply == b"KEYSIGHT,N6700C,MY56000102,D.01.09"
+```
+
+The same transport can be used through the text client:
+
+```python
+from scpi_driver_core import ScpiClient
+
+transport.feed(b"3.14159\n")
+client = ScpiClient(transport)
+value = client.query_float("MEAS?")
 ```
 
 ## Installation

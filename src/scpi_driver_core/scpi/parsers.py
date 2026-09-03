@@ -40,11 +40,11 @@ _FALSE_TOKENS = frozenset({"0", "OFF", "FALSE"})
 #: value with a nonsense unit. ``[^\W\d_]`` covers Ω and µ as well as ASCII.
 _VALUE_WITH_UNIT = re.compile(
     r"""^\s*
-        (?P<number>[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)
+        (?P<number>[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|inf(?:inity)?|nan))
         \s*
         (?P<unit>[^\W\d_]*)
         \s*$""",
-    re.VERBOSE,
+    re.IGNORECASE | re.VERBOSE,
 )
 
 

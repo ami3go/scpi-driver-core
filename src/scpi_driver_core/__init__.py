@@ -21,6 +21,7 @@ from scpi_driver_core.exceptions import (
     TransportTimeoutError,
     UnsupportedOperationError,
 )
+from scpi_driver_core.scpi.client import ScpiClient
 
 __all__ = [
     "ConfigurationError",
@@ -30,6 +31,7 @@ __all__ = [
     "ProtocolError",
     "ResponseParseError",
     "SafetyGuardError",
+    "ScpiClient",
     "ScpiCommandError",
     "ScpiDriverError",
     "ScpiErrorQueueError",

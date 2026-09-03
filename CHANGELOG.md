@@ -25,3 +25,10 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   `parse_identity`, `parse_scpi_error`, `parse_optional_unit_float`,
   `quote_scpi_string`.
 - `parse_engineering_value` for human-written values such as `500mA` or `2.2k`.
+- `ScpiClient` with text and raw-byte operations, typed query helpers, timeout
+  resolution, correlated operation IDs, and transaction locking.
+
+### Fixed
+
+- Optional-unit parsing now honors `allow_non_finite=True` for responses such
+  as `INF V`, rather than rejecting them before numeric parsing.
