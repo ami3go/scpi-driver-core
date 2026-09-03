@@ -46,6 +46,15 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   `ScpiClient.query_binary_block` and `write_binary_block` built on them.
 - `ScpiTextCodec.encode_block_command` for framing a text prefix around a
   binary block.
+- `ScpiErrorQueue` for `SYST:ERR?` reading and bounded draining, with
+  configurable command and no-error codes.
+- `ScpiExecutionPolicy` and `ScpiClient.enable_error_checking`, opt-in
+  error-queue checks after writes or queries.
+- `poll_until`, bounded polling on a monotonic deadline with an injectable
+  clock.
+- `RetryPolicy` and `run_with_retry`; `ScpiClient.query` accepts a retry policy
+  only when the query is classified `ReplayPolicy.SAFE`.
+- `ConfirmationGuard`, per-instance phrase confirmation with no global state.
 
 ### Fixed
 

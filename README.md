@@ -29,6 +29,8 @@ Available now:
 
 - IEEE-488.2 common-command helpers (`Ieee4882`)
 - IEEE-488.2 definite-length binary blocks, for waveform and setup transfers
+- SCPI error-queue draining with opt-in automatic checking
+- bounded polling, explicit retry/replay policy, and confirmation guards
 
 Not yet implemented: sessions, tracing, and
 scripted simulation.

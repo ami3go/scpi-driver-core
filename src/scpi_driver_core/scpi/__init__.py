@@ -14,6 +14,10 @@ from scpi_driver_core.scpi.engineering import (
     EngineeringValue,
     parse_engineering_value,
 )
+from scpi_driver_core.scpi.errors import (
+    ScpiErrorQueue,
+    ScpiExecutionPolicy,
+)
 from scpi_driver_core.scpi.ieee488 import Ieee4882
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
@@ -33,6 +37,8 @@ __all__ = [
     "EngineeringValue",
     "Ieee4882",
     "ScpiClient",
+    "ScpiErrorQueue",
+    "ScpiExecutionPolicy",
     "ScpiTextCodec",
     "decode_definite_length_block",
     "encode_definite_length_block",

@@ -19,12 +19,14 @@ from contextlib import contextmanager
 from typing import TypeVar
 
 from scpi_driver_core.exceptions import ConfigurationError
+from scpi_driver_core.execution.retry import RetryAttempt, RetryPolicy, run_with_retry
 from scpi_driver_core.scpi.binary_block import (
     DEFAULT_MAXIMUM_BLOCK_SIZE,
     encode_definite_length_block,
     read_definite_length_block,
 )
 from scpi_driver_core.scpi.codec import ScpiTextCodec
+from scpi_driver_core.scpi.errors import ScpiErrorQueue, ScpiExecutionPolicy
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
     parse_csv,
@@ -72,6 +74,8 @@ class ScpiClient:
             to the transport's own default.
         operation_id_factory: supplies correlation identifiers. The default
             numbers operations from one within this client.
+        retry_observer: notified after every retried attempt, so the tracing
+            layer can record how many an operation needed.
 
     Raises:
         ConfigurationError: if ``timeout_s`` is not finite and positive.
@@ -85,6 +89,7 @@ class ScpiClient:
         response_request: ReadRequest | None = None,
         timeout_s: float | None = None,
         operation_id_factory: Callable[[], str] | None = None,
+        retry_observer: Callable[[RetryAttempt], None] | None = None,
     ) -> None:
         if timeout_s is not None and not (timeout_s > 0 and timeout_s != float("inf")):
             raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
@@ -99,6 +104,10 @@ class ScpiClient:
             response_request if response_request is not None else self._default_response_request()
         )
         self._lock = threading.RLock()
+        self._retry_observer = retry_observer
+        self._error_queue: ScpiErrorQueue | None = None
+        self._execution_policy = ScpiExecutionPolicy()
+        self._checking_errors = False
 
     def _default_response_request(self) -> ReadRequest:
         terminator = self._codec.response_terminator
@@ -139,6 +148,57 @@ class ScpiClient:
         return self._transport.state is TransportState.OPEN
 
     # -- execution --------------------------------------------------------
+
+    def enable_error_checking(
+        self, error_queue: ScpiErrorQueue, policy: ScpiExecutionPolicy
+    ) -> None:
+        """Consult ``error_queue`` automatically, as ``policy`` directs.
+
+        Off until a concrete driver asks for it. Each check costs an extra
+        round trip and clears entries the driver might have wanted to read, so
+        the core will not impose it.
+
+        The check runs inside the same lock as the operation it follows, so a
+        concurrent caller cannot consume the errors belonging to this one. The
+        queue's own queries are exempt, which is what stops a check from
+        triggering another check.
+        """
+        with self._lock:
+            self._error_queue = error_queue
+            self._execution_policy = policy
+
+    def disable_error_checking(self) -> None:
+        """Stop consulting the error queue automatically."""
+        with self._lock:
+            self._error_queue = None
+            self._execution_policy = ScpiExecutionPolicy()
+
+    @property
+    def execution_policy(self) -> ScpiExecutionPolicy:
+        return self._execution_policy
+
+    @property
+    def error_queue(self) -> ScpiErrorQueue | None:
+        return self._error_queue
+
+    def _check_errors(self, *, after_query: bool) -> None:
+        """Consult the error queue if policy says to, without recursing."""
+        queue = self._error_queue
+        if queue is None or self._checking_errors:
+            return
+        policy = self._execution_policy
+        wanted = (
+            policy.check_error_queue_after_query
+            if after_query
+            else policy.check_error_queue_after_write
+        )
+        if not wanted:
+            return
+        self._checking_errors = True
+        try:
+            queue.raise_if_errors()
+        finally:
+            self._checking_errors = False
 
     @contextmanager
     def operation_lock(self) -> Iterator[None]:
@@ -201,8 +261,14 @@ class ScpiClient:
     # -- text operations --------------------------------------------------
 
     def write(self, command: str, *, timeout_s: float | None = None) -> None:
-        """Send a SCPI command, terminated by the codec."""
-        self.write_bytes(self._codec.encode_command(command), timeout_s=timeout_s)
+        """Send a SCPI command, terminated by the codec.
+
+        Writes are never retried. A repeated write can mean a second trigger or
+        a second output-enable, and the core cannot know whether that is safe.
+        """
+        with self._lock:
+            self.write_bytes(self._codec.encode_command(command), timeout_s=timeout_s)
+            self._check_errors(after_query=False)
 
     def query(
         self,
@@ -210,20 +276,51 @@ class ScpiClient:
         *,
         timeout_s: float | None = None,
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
+        retry_policy: RetryPolicy | None = None,
     ) -> str:
         """Send a query and return its decoded reply.
 
         Args:
-            replay_policy: left at ``NEVER`` unless the caller knows this
-                particular query is free of side effects.
+            replay_policy: ``SAFE`` asserts that resending this exact query has
+                no side effect on the instrument. Left at ``NEVER`` otherwise.
+            retry_policy: how many attempts to make. Requires ``replay_policy``
+                to be ``SAFE``, because retrying means resending a command that
+                may already have reached the device.
+
+        Raises:
+            ConfigurationError: if a retrying policy is given without
+                classifying the query as safe to replay.
         """
-        raw = self.transact_bytes(
-            self._codec.encode_command(command),
-            self._response_request,
-            timeout_s=timeout_s,
-            replay_policy=replay_policy,
-        )
-        return self._codec.decode_response(raw)
+        if (
+            retry_policy is not None
+            and retry_policy.retries
+            and replay_policy is not ReplayPolicy.SAFE
+        ):
+            raise ConfigurationError(
+                "retrying a query requires replay_policy=ReplayPolicy.SAFE, "
+                "which asserts that resending it has no side effect"
+            )
+
+        outbound = self._codec.encode_command(command)
+
+        def attempt() -> str:
+            raw = self.transact_bytes(
+                outbound,
+                self._response_request,
+                timeout_s=timeout_s,
+                replay_policy=replay_policy,
+            )
+            return self._codec.decode_response(raw)
+
+        with self._lock:
+            if retry_policy is None:
+                response = attempt()
+            else:
+                response = run_with_retry(
+                    attempt, policy=retry_policy, on_attempt=self._retry_observer
+                )
+            self._check_errors(after_query=True)
+            return response
 
     # -- typed queries ----------------------------------------------------
 
