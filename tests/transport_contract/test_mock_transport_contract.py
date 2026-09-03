@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from contract import TransportContract
-
 from scpi_driver_core.transport import MockTransport, Transport
+from tests.transport_contract.contract import TransportContract
 
 
 class TestMockTransportContract(TransportContract):

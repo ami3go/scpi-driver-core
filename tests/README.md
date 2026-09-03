@@ -9,8 +9,8 @@ requires physical hardware or an external network endpoint.
   and `ScpiClient` execution behavior.
 - `transport_contract/` — one reusable suite run against every transport backend, so
   each new backend inherits the same state-machine and bounds guarantees.
-- `integration/` — local simulated endpoints (loopback sockets, scripted transports).
-  Empty; marked with the `integration` marker when added.
+- `integration/` — local loopback TCP and UDP endpoints. These tests require no
+  physical hardware or external network access.
 
 ## Adding a transport backend
 
@@ -28,10 +28,10 @@ class TestTcpTransportContract(TransportContract):
         self.server.send(data)
 ```
 
-Set `supports_failure_injection` / `supports_partial_write` to declare what the backend
-can simulate; the tests that need an unsupported capability skip themselves. Anything a
-backend does that the contract cannot express belongs in `unit/`, as `MockTransport`'s
-own tests do for its state-transition log and injection hooks.
+Set the `supports_*` capability flags to declare what the backend can simulate and
+whether it has stream or message semantics; tests needing an unsupported capability
+skip themselves. Backend behavior the contract cannot express belongs in `unit/` or
+`integration/`.
 
 ## Running
 

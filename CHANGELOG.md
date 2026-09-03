@@ -27,6 +27,11 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `parse_engineering_value` for human-written values such as `500mA` or `2.2k`.
 - `ScpiClient` with text and raw-byte operations, typed query helpers, timeout
   resolution, correlated operation IDs, and transaction locking.
+- `TcpTransport` with buffered bounded reads, partial-write handling, remote
+  disconnect detection, optional TCP_NODELAY, and deterministic cleanup.
+- `UdpTransport` with datagram-preserving reads, optional local binding and
+  source validation, and no implicit retransmission.
+- Loopback TCP/UDP integration tests wired into the reusable transport contract.
 
 ### Fixed
 

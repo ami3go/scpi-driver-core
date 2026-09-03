@@ -37,6 +37,8 @@ class TransportContract:
     supports_failure_injection: ClassVar[bool] = False
     #: Backends that cannot simulate a fragmenting send skip the partial-write test.
     supports_partial_write: ClassVar[bool] = False
+    #: Datagram transports cannot split one message to emulate a byte stream.
+    supports_exact_stream_reads: ClassVar[bool] = True
 
     # -- hooks ------------------------------------------------------------
 
@@ -149,6 +151,8 @@ class TransportContract:
         assert data == b"KEYSIGHT,N6700C\n"
 
     def test_read_exact_length(self, transport: Transport) -> None:
+        if not self.supports_exact_stream_reads:
+            pytest.skip("backend preserves message boundaries")
         transport.open()
         self.prime(transport, b"0123456789")
         assert transport.read(ReadRequest(mode=ReadMode.EXACT_LENGTH, length=4)) == b"0123"
@@ -176,6 +180,8 @@ class TransportContract:
             )
 
     def test_binary_payload_survives_intact(self, transport: Transport) -> None:
+        if not self.supports_exact_stream_reads:
+            pytest.skip("backend preserves message boundaries")
         payload = bytes(range(256)) + b"  \t trailing spaces  \x00\x00"
         transport.open()
         self.prime(transport, payload)

@@ -21,9 +21,11 @@ Available now:
 - a reusable transport conformance suite every backend must pass
 - `ScpiTextCodec`, generic response parsers, and engineering-value parsing
 - `ScpiClient` text, byte, and typed-query operations with correlated operation IDs
+- standard-library TCP and UDP transports with finite timeouts and explicit
+  stream/datagram semantics
 
-Not yet implemented: the VISA, serial, TCP and UDP backends, IEEE-488.2 helpers,
-binary blocks, sessions, tracing, and scripted simulation.
+Not yet implemented: the VISA and serial backends, IEEE-488.2 helpers, binary
+blocks, sessions, tracing, and scripted simulation.
 
 ```python
 from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest

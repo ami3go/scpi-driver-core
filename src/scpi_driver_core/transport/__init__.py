@@ -11,6 +11,8 @@ from scpi_driver_core.transport.models import (
     TransportState,
     WriteResult,
 )
+from scpi_driver_core.transport.tcp import TcpTransport
+from scpi_driver_core.transport.udp import UdpTransport
 
 __all__ = [
     "FlushDirection",
@@ -22,5 +24,7 @@ __all__ = [
     "Transport",
     "TransportDescriptor",
     "TransportState",
+    "TcpTransport",
+    "UdpTransport",
     "WriteResult",
 ]
