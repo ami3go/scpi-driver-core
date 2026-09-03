@@ -38,6 +38,9 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `VisaTransport` as an optional PyVISA backend: byte-preserving raw I/O with
   terminations disabled, second-to-millisecond timeout conversion, native
   `BACKEND_DEFINED_MESSAGE` reads, and resource-manager ownership rules.
+- `Ieee4882` common-command helpers (`*IDN?`, `*CLS`, `*RST`, `*OPC`/`*OPC?`,
+  `*WAI`, `*TRG`, `*TST?`, `*STB?`, `*ESR?`) with per-call timeout bounds.
+- `SelfTestResult`, reporting the `*TST?` code without deciding a verdict.
 
 ### Fixed
 

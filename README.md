@@ -27,7 +27,9 @@ Available now:
   directional buffer flushing
 - optional PyVISA transport covering GPIB, USBTMC, TCPIP INSTR/SOCKET and ASRL
 
-Not yet implemented: IEEE-488.2 helpers, binary blocks, sessions, tracing, and
+- IEEE-488.2 common-command helpers (`Ieee4882`)
+
+Not yet implemented: binary blocks, sessions, tracing, and
 scripted simulation.
 
 ```python

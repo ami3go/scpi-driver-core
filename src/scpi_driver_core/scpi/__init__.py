@@ -8,6 +8,7 @@ from scpi_driver_core.scpi.engineering import (
     EngineeringValue,
     parse_engineering_value,
 )
+from scpi_driver_core.scpi.ieee488 import Ieee4882
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
     parse_csv,
@@ -23,6 +24,7 @@ __all__ = [
     "SI_PREFIXES",
     "SUPPORTED_UNITS",
     "EngineeringValue",
+    "Ieee4882",
     "ScpiClient",
     "ScpiTextCodec",
     "parse_bool",

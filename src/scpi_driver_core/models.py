@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-__all__ = ["Identity", "ScpiError"]
+__all__ = ["Identity", "ScpiError", "SelfTestResult"]
 
 
 @dataclass(frozen=True)
@@ -33,3 +33,20 @@ class ScpiError:
     code: int
     message: str
     raw: str
+
+
+@dataclass(frozen=True)
+class SelfTestResult:
+    """The outcome of ``*TST?``.
+
+    IEEE-488.2 defines 0 as success and any non-zero value as a failure whose
+    meaning is manufacturer-specific, so ``code`` is kept verbatim for a
+    concrete driver to interpret.
+    """
+
+    code: int
+    raw: str
+
+    @property
+    def passed(self) -> bool:
+        return self.code == 0
