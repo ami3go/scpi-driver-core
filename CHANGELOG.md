@@ -55,6 +55,12 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `RetryPolicy` and `run_with_retry`; `ScpiClient.query` accepts a retry policy
   only when the query is classified `ReplayPolicy.SAFE`.
 - `ConfirmationGuard`, per-instance phrase confirmation with no global state.
+- `ScpiSession`: transport ownership, connection generations, identity cache,
+  health, an opt-in connection probe, and driver-supplied identity validation.
+- `SessionHealth`, tracking responsiveness separately from transport state with
+  an explicit unknown state.
+- `SessionRegistry` with normalized aliases, a deterministic active session,
+  and `disconnect_all` that closes every session even when one fails.
 
 ### Fixed
 

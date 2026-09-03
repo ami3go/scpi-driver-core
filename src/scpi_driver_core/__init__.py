@@ -22,6 +22,7 @@ from scpi_driver_core.exceptions import (
     UnsupportedOperationError,
 )
 from scpi_driver_core.scpi.client import ScpiClient
+from scpi_driver_core.session import ScpiSession, SessionHealth, SessionRegistry
 
 __all__ = [
     "ConfigurationError",
@@ -33,6 +34,9 @@ __all__ = [
     "SafetyGuardError",
     "ScpiClient",
     "ScpiCommandError",
+    "ScpiSession",
+    "SessionHealth",
+    "SessionRegistry",
     "ScpiDriverError",
     "ScpiErrorQueueError",
     "TransportError",
