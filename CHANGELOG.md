@@ -35,6 +35,10 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `SerialTransport` as an optional pyserial backend with finite read/write
   timeouts, serial-line configuration, DTR/RTS control, and directional flush.
 
+- `VisaTransport` as an optional PyVISA backend: byte-preserving raw I/O with
+  terminations disabled, second-to-millisecond timeout conversion, native
+  `BACKEND_DEFINED_MESSAGE` reads, and resource-manager ownership rules.
+
 ### Fixed
 
 - Optional-unit parsing now honors `allow_non_finite=True` for responses such

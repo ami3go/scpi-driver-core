@@ -25,9 +25,10 @@ Available now:
   stream/datagram semantics
 - optional pyserial transport with configurable line settings, DTR/RTS, and
   directional buffer flushing
+- optional PyVISA transport covering GPIB, USBTMC, TCPIP INSTR/SOCKET and ASRL
 
-Not yet implemented: the VISA backend, IEEE-488.2 helpers, binary blocks,
-sessions, tracing, and scripted simulation.
+Not yet implemented: IEEE-488.2 helpers, binary blocks, sessions, tracing, and
+scripted simulation.
 
 ```python
 from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest
