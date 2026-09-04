@@ -15,7 +15,8 @@ from __future__ import annotations
 import math
 import threading
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Final, Literal
 
@@ -167,6 +168,16 @@ class MockTransport:
         """How many fed bytes remain unread."""
         with self._lock:
             return sum(len(chunk) for chunk in self._inbound)
+
+    @contextmanager
+    def operation_lock(self) -> Iterator[None]:
+        """Hold this transport's lock across several operations.
+
+        A transport composed on top of this one uses it to keep a write and its
+        matching read indivisible, the same guarantee :meth:`transact` gives.
+        """
+        with self._lock:
+            yield
 
     # -- control surface --------------------------------------------------
 

@@ -69,6 +69,11 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `Redactor` protocol and `PatternRedactor`; redaction rewrites the recorded
   bytes as well as the text.
 - `ScpiSession` keeps a tracer's alias and generation context current.
+- `ScriptedScpiTransport`, a command-level instrument simulator with exact,
+  regex, and predicate handlers, text/binary/block replies, forced timeouts,
+  disconnects and delays, a simulated SCPI error queue, and command history.
+- `MockTransport.operation_lock`, so a composed transport can keep a write and
+  its matching read indivisible.
 
 ### Fixed
 

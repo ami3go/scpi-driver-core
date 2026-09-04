@@ -33,9 +33,10 @@ Available now:
 - bounded polling, explicit retry/replay policy, and confirmation guards
 - named sessions, connection health, and a session registry
 - protocol tracing, JSONL audit, and redaction hooks
+- a scripted instrument simulator for testing drivers without hardware
 
-Not yet implemented: the scripted device-simulation transport (Phase 14), and the
-representative driver migrations that validate the architecture (Phase 15).
+Not yet implemented: the representative driver migrations that validate the
+architecture against real instruments (Phase 15).
 
 ```python
 from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest
