@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import select
 import socket
-import threading
 import time
 from contextlib import suppress
 
@@ -30,11 +29,12 @@ from scpi_driver_core.transport.socket_utils import (
     translate_socket_error,
     validate_timeout,
 )
+from scpi_driver_core.transport.state import TransportStateMachine
 
 __all__ = ["TcpTransport"]
 
 
-class TcpTransport:
+class TcpTransport(TransportStateMachine):
     """A bounded raw TCP connection which never adds protocol framing."""
 
     def __init__(
@@ -62,32 +62,19 @@ class TcpTransport:
         self._timeout_s = timeout_s
         self._tcp_nodelay = tcp_nodelay
         self._receive_chunk_size = receive_chunk_size
-        self._descriptor = TransportDescriptor(
-            kind="tcp", address=f"{host}:{port}", metadata={"tcp_nodelay": str(tcp_nodelay)}
+        super().__init__(
+            TransportDescriptor(
+                kind="tcp", address=f"{host}:{port}", metadata={"tcp_nodelay": str(tcp_nodelay)}
+            )
         )
-        self._state = TransportState.CREATED
         self._socket: socket.socket | None = None
         self._buffer = bytearray()
-        self._lock = threading.RLock()
-
-    @property
-    def state(self) -> TransportState:
-        with self._lock:
-            return self._state
-
-    @property
-    def is_open(self) -> bool:
-        return self.state is TransportState.OPEN
-
-    @property
-    def descriptor(self) -> TransportDescriptor:
-        return self._descriptor
 
     def open(self) -> TransportDescriptor:
         with self._lock:
             if self._state is TransportState.OPEN:
                 return self._descriptor
-            self._release()
+            self._release_resource()
             self._state = TransportState.OPENING
             resource: socket.socket | None = None
             try:
@@ -105,15 +92,6 @@ class TcpTransport:
             self._buffer.clear()
             self._state = TransportState.OPEN
             return self._descriptor
-
-    def close(self) -> None:
-        with self._lock:
-            if self._state in (TransportState.CREATED, TransportState.CLOSED):
-                return
-            self._state = TransportState.CLOSING
-            self._release()
-            self._buffer.clear()
-            self._state = TransportState.CLOSED
 
     def write(
         self,
@@ -249,15 +227,15 @@ class TcpTransport:
         return data
 
     def _require_open(self) -> socket.socket:
-        if self._state is not TransportState.OPEN or self._socket is None:
-            raise NotConnectedError(f"transport is {self._state.name}, not OPEN")
+        self._require_state_open()
+        if self._socket is None:  # pragma: no cover - OPEN implies a socket
+            raise NotConnectedError("transport is OPEN but holds no socket")
         return self._socket
 
-    def _fault(self) -> None:
-        self._release()
-        self._state = TransportState.FAULTED
+    def _on_closed(self) -> None:
+        self._buffer.clear()
 
-    def _release(self) -> None:
+    def _release_resource(self) -> None:
         resource, self._socket = self._socket, None
         if resource is not None:
             with suppress(OSError):

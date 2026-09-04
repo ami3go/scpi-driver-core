@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import threading
 from types import ModuleType
 from typing import Any
 
@@ -24,6 +23,7 @@ from scpi_driver_core.transport.models import (
     WriteResult,
 )
 from scpi_driver_core.transport.socket_utils import effective_timeout, validate_timeout
+from scpi_driver_core.transport.state import TransportStateMachine
 
 __all__ = ["SerialTransport"]
 
@@ -37,7 +37,7 @@ def _load_serial() -> ModuleType:
         ) from exc
 
 
-class SerialTransport:
+class SerialTransport(TransportStateMachine):
     """A finite-timeout serial byte stream with no implicit SCPI framing."""
 
     def __init__(
@@ -75,34 +75,21 @@ class SerialTransport:
         self._stopbits = stopbits
         self._dtr = dtr
         self._rts = rts
-        self._descriptor = TransportDescriptor(
-            kind="serial",
-            address=port,
-            metadata={"baudrate": str(baudrate), "parity": self._parity},
+        super().__init__(
+            TransportDescriptor(
+                kind="serial",
+                address=port,
+                metadata={"baudrate": str(baudrate), "parity": self._parity},
+            )
         )
-        self._state = TransportState.CREATED
         self._resource: Any | None = None
-        self._lock = threading.RLock()
-
-    @property
-    def state(self) -> TransportState:
-        with self._lock:
-            return self._state
-
-    @property
-    def is_open(self) -> bool:
-        return self.state is TransportState.OPEN
-
-    @property
-    def descriptor(self) -> TransportDescriptor:
-        return self._descriptor
 
     def open(self) -> TransportDescriptor:
         with self._lock:
             if self._state is TransportState.OPEN:
                 return self._descriptor
             serial = _load_serial()
-            self._release()
+            self._release_resource()
             self._state = TransportState.OPENING
             resource: Any | None = None
             try:
@@ -127,14 +114,6 @@ class SerialTransport:
             self._resource = resource
             self._state = TransportState.OPEN
             return self._descriptor
-
-    def close(self) -> None:
-        with self._lock:
-            if self._state in (TransportState.CREATED, TransportState.CLOSED):
-                return
-            self._state = TransportState.CLOSING
-            self._release()
-            self._state = TransportState.CLOSED
 
     def write(
         self,
@@ -250,15 +229,12 @@ class SerialTransport:
         return data
 
     def _require_open(self) -> Any:
-        if self._state is not TransportState.OPEN or self._resource is None:
-            raise NotConnectedError(f"transport is {self._state.name}, not OPEN")
+        self._require_state_open()
+        if self._resource is None:  # pragma: no cover - OPEN implies a resource
+            raise NotConnectedError("transport is OPEN but holds no resource")
         return self._resource
 
-    def _fault(self) -> None:
-        self._release()
-        self._state = TransportState.FAULTED
-
-    def _release(self) -> None:
+    def _release_resource(self) -> None:
         resource, self._resource = self._resource, None
         if resource is not None:
             resource.close()

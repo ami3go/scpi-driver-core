@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import socket
-import threading
 import time
 
 from scpi_driver_core.exceptions import (
@@ -28,11 +27,12 @@ from scpi_driver_core.transport.socket_utils import (
     translate_socket_error,
     validate_timeout,
 )
+from scpi_driver_core.transport.state import TransportStateMachine
 
 __all__ = ["UdpTransport"]
 
 
-class UdpTransport:
+class UdpTransport(TransportStateMachine):
     """A bounded UDP transport which preserves one-datagram-per-read semantics."""
 
     def __init__(
@@ -62,33 +62,20 @@ class UdpTransport:
         self._local_bind = local_bind
         self._validate_source = validate_source
         self._remote: tuple[str, int] | None = None
-        self._descriptor = TransportDescriptor(
-            kind="udp",
-            address=f"{host}:{port}",
-            metadata={"validate_source": str(validate_source)},
+        super().__init__(
+            TransportDescriptor(
+                kind="udp",
+                address=f"{host}:{port}",
+                metadata={"validate_source": str(validate_source)},
+            )
         )
-        self._state = TransportState.CREATED
         self._socket: socket.socket | None = None
-        self._lock = threading.RLock()
-
-    @property
-    def state(self) -> TransportState:
-        with self._lock:
-            return self._state
-
-    @property
-    def is_open(self) -> bool:
-        return self.state is TransportState.OPEN
-
-    @property
-    def descriptor(self) -> TransportDescriptor:
-        return self._descriptor
 
     def open(self) -> TransportDescriptor:
         with self._lock:
             if self._state is TransportState.OPEN:
                 return self._descriptor
-            self._release()
+            self._release_resource()
             self._state = TransportState.OPENING
             resource: socket.socket | None = None
             try:
@@ -111,14 +98,6 @@ class UdpTransport:
             self._remote = (str(remote[0]), int(remote[1]))
             self._state = TransportState.OPEN
             return self._descriptor
-
-    def close(self) -> None:
-        with self._lock:
-            if self._state in (TransportState.CREATED, TransportState.CLOSED):
-                return
-            self._state = TransportState.CLOSING
-            self._release()
-            self._state = TransportState.CLOSED
 
     def write(
         self,
@@ -245,15 +224,12 @@ class UdpTransport:
         raise UnsupportedOperationError(f"unsupported UDP read mode {request.mode!r}")
 
     def _require_open(self) -> tuple[socket.socket, tuple[str, int]]:
-        if self._state is not TransportState.OPEN or self._socket is None or self._remote is None:
-            raise NotConnectedError(f"transport is {self._state.name}, not OPEN")
+        self._require_state_open()
+        if self._socket is None or self._remote is None:  # pragma: no cover - OPEN implies both
+            raise NotConnectedError("transport is OPEN but holds no socket")
         return self._socket, self._remote
 
-    def _fault(self) -> None:
-        self._release()
-        self._state = TransportState.FAULTED
-
-    def _release(self) -> None:
+    def _release_resource(self) -> None:
         resource, self._socket = self._socket, None
         self._remote = None
         if resource is not None:

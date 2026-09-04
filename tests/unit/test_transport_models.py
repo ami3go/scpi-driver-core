@@ -190,3 +190,31 @@ def test_read_request_unparameterized_modes_need_only_a_mode(mode: ReadMode) -> 
 def test_write_result_equality() -> None:
     assert WriteResult(bytes_written=7) == WriteResult(bytes_written=7)
     assert WriteResult(bytes_written=7) != WriteResult(bytes_written=8)
+
+
+# -- the shared state machine ---------------------------------------------
+
+
+def test_state_machine_requires_a_release_hook() -> None:
+    """A backend that forgets to release its resource fails loudly, not silently."""
+    from scpi_driver_core.transport.state import TransportStateMachine
+
+    machine = TransportStateMachine(TransportDescriptor(kind="x", address="y"))
+    machine._state = TransportState.OPEN
+    with pytest.raises(NotImplementedError):
+        machine.close()
+
+
+def test_state_machine_reaches_closed_even_if_release_fails() -> None:
+    """Leaving it in CLOSING would strand it in a state nothing exits."""
+    from scpi_driver_core.transport.state import TransportStateMachine
+
+    class Stuck(TransportStateMachine):
+        def _release_resource(self) -> None:
+            raise RuntimeError("stuck")
+
+    machine = Stuck(TransportDescriptor(kind="x", address="y"))
+    machine._state = TransportState.OPEN
+    with pytest.raises(RuntimeError):
+        machine.close()
+    assert machine.state is TransportState.CLOSED

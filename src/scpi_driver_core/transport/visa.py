@@ -13,7 +13,6 @@ codec's job, one layer up.
 from __future__ import annotations
 
 import importlib
-import threading
 from contextlib import suppress
 from types import ModuleType
 from typing import Any, Final
@@ -34,6 +33,7 @@ from scpi_driver_core.transport.models import (
     WriteResult,
 )
 from scpi_driver_core.transport.socket_utils import effective_timeout, validate_timeout
+from scpi_driver_core.transport.state import TransportStateMachine
 
 __all__ = ["VisaTransport"]
 
@@ -63,7 +63,7 @@ def _translate(exc: BaseException, action: str) -> TransportError:
     return TransportError(f"VISA {action} failed: {exc}")
 
 
-class VisaTransport:
+class VisaTransport(TransportStateMachine):
     """A byte-preserving VISA session.
 
     Works with any resource class the underlying VISA library supports,
@@ -115,29 +115,10 @@ class VisaTransport:
         self._chunk_size = chunk_size
 
         metadata = {"visa_library": visa_library} if visa_library else {}
-        self._descriptor = TransportDescriptor(
-            kind="visa", address=resource_name, metadata=metadata
-        )
-        self._state = TransportState.CREATED
+        super().__init__(TransportDescriptor(kind="visa", address=resource_name, metadata=metadata))
         self._resource: Any | None = None
         self._owned_manager: Any | None = None
         self._buffer = bytearray()
-        self._lock = threading.RLock()
-
-    # -- introspection ----------------------------------------------------
-
-    @property
-    def state(self) -> TransportState:
-        with self._lock:
-            return self._state
-
-    @property
-    def is_open(self) -> bool:
-        return self.state is TransportState.OPEN
-
-    @property
-    def descriptor(self) -> TransportDescriptor:
-        return self._descriptor
 
     # -- lifecycle --------------------------------------------------------
 
@@ -152,7 +133,7 @@ class VisaTransport:
             borrowed = self._external_manager
             pyvisa = _load_pyvisa() if borrowed is None else None
 
-            self._release()
+            self._release_resource()
             self._state = TransportState.OPENING
             self._buffer.clear()
 
@@ -183,16 +164,6 @@ class VisaTransport:
             self._resource = resource
             self._state = TransportState.OPEN
             return self._descriptor
-
-    def close(self) -> None:
-        """Release the session, and the resource manager if this transport made it."""
-        with self._lock:
-            if self._state in (TransportState.CREATED, TransportState.CLOSED):
-                return
-            self._state = TransportState.CLOSING
-            self._release()
-            self._buffer.clear()
-            self._state = TransportState.CLOSED
 
     # -- I/O --------------------------------------------------------------
 
@@ -342,15 +313,15 @@ class VisaTransport:
         return data
 
     def _require_open(self) -> Any:
-        if self._state is not TransportState.OPEN or self._resource is None:
-            raise NotConnectedError(f"transport is {self._state.name}, not OPEN")
+        self._require_state_open()
+        if self._resource is None:  # pragma: no cover - OPEN implies a resource
+            raise NotConnectedError("transport is OPEN but holds no resource")
         return self._resource
 
-    def _fault(self) -> None:
-        self._release()
-        self._state = TransportState.FAULTED
+    def _on_closed(self) -> None:
+        self._buffer.clear()
 
-    def _release(self) -> None:
+    def _release_resource(self) -> None:
         resource, self._resource = self._resource, None
         if resource is not None:
             self._safely_close(resource)

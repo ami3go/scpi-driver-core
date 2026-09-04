@@ -13,16 +13,13 @@ than observed.
 from __future__ import annotations
 
 import math
-import threading
 from collections import deque
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final, Literal
 
 from scpi_driver_core.exceptions import (
     ConfigurationError,
-    NotConnectedError,
     TransportError,
     TransportTimeoutError,
 )
@@ -35,6 +32,7 @@ from scpi_driver_core.transport.models import (
     TransportState,
     WriteResult,
 )
+from scpi_driver_core.transport.state import TransportStateMachine
 
 __all__ = ["DEFAULT_TIMEOUT_S", "MockOperation", "MockTransport"]
 
@@ -69,7 +67,7 @@ def _validate_optional_timeout(timeout_s: float | None) -> None:
         raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
 
 
-class MockTransport:
+class MockTransport(TransportStateMachine):
     """An in-memory :class:`~scpi_driver_core.transport.base.Transport`.
 
     Data to be read is queued with :meth:`feed`. Each fed chunk is one discrete
@@ -102,11 +100,9 @@ class MockTransport:
         if max_write_chunk is not None and max_write_chunk <= 0:
             raise ConfigurationError(f"max_write_chunk must be positive, got {max_write_chunk!r}")
 
-        self._descriptor = descriptor or TransportDescriptor(kind="mock", address="mock")
+        super().__init__(descriptor or TransportDescriptor(kind="mock", address="mock"))
         self._default_timeout_s = timeout_s
         self._max_write_chunk = max_write_chunk
-        self._lock = threading.RLock()
-        self._state = TransportState.CREATED
         self._inbound: deque[bytes] = deque()
         self._resource_held = False
         self._fail_open: _Injection | None = None
@@ -141,19 +137,6 @@ class MockTransport:
     # -- introspection ----------------------------------------------------
 
     @property
-    def state(self) -> TransportState:
-        with self._lock:
-            return self._state
-
-    @property
-    def is_open(self) -> bool:
-        return self.state is TransportState.OPEN
-
-    @property
-    def descriptor(self) -> TransportDescriptor:
-        return self._descriptor
-
-    @property
     def default_timeout_s(self) -> float:
         return self._default_timeout_s
 
@@ -168,16 +151,6 @@ class MockTransport:
         """How many fed bytes remain unread."""
         with self._lock:
             return sum(len(chunk) for chunk in self._inbound)
-
-    @contextmanager
-    def operation_lock(self) -> Iterator[None]:
-        """Hold this transport's lock across several operations.
-
-        A transport composed on top of this one uses it to keep a write and its
-        matching read indivisible, the same guarantee :meth:`transact` gives.
-        """
-        with self._lock:
-            yield
 
     # -- control surface --------------------------------------------------
 
@@ -209,7 +182,7 @@ class MockTransport:
     def simulate_disconnect(self) -> None:
         """Drop the connection the way a peer vanishing would."""
         with self._lock:
-            self._release()
+            self._release_resource()
             self._inbound.clear()
             self._set_state(TransportState.FAULTED)
 
@@ -225,7 +198,7 @@ class MockTransport:
             if self._state is TransportState.OPEN:
                 return self._descriptor
             if self._state is TransportState.FAULTED:
-                self._release()
+                self._release_resource()
 
             self._set_state(TransportState.OPENING)
             injection = self._take_injection("open")
@@ -242,13 +215,10 @@ class MockTransport:
     def close(self) -> None:
         """Release the simulated resource and discard buffered data."""
         with self._lock:
-            if self._state in (TransportState.CREATED, TransportState.CLOSED):
-                return
-            self._set_state(TransportState.CLOSING)
-            self._release()
-            self._inbound.clear()
-            self._set_state(TransportState.CLOSED)
-            self._record("close")
+            was_live = self._state not in (TransportState.CREATED, TransportState.CLOSED)
+            super().close()
+            if was_live:
+                self._record("close")
 
     # -- I/O --------------------------------------------------------------
 
@@ -317,17 +287,19 @@ class MockTransport:
     # -- internals --------------------------------------------------------
 
     def _set_state(self, state: TransportState) -> None:
-        self._state = state
+        super()._set_state(state)
         self.transitions.append(state)
 
-    def _release(self) -> None:
+    def _on_closed(self) -> None:
+        self._inbound.clear()
+
+    def _release_resource(self) -> None:
         if self._resource_held:
             self._resource_held = False
             self.release_count += 1
 
     def _require_open(self) -> None:
-        if self._state is not TransportState.OPEN:
-            raise NotConnectedError(f"transport is {self._state.name}, not OPEN")
+        self._require_state_open()
 
     def _effective_timeout(self, timeout_s: float | None) -> float:
         return self._default_timeout_s if timeout_s is None else timeout_s
@@ -362,8 +334,7 @@ class MockTransport:
         if injection is None:
             return
         if injection.fault:
-            self._release()
-            self._set_state(TransportState.FAULTED)
+            self._fault()
         raise injection.error
 
     def _consume(self, count: int) -> bytes:

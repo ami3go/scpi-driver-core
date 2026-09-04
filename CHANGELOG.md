@@ -75,7 +75,17 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `MockTransport.operation_lock`, so a composed transport can keep a write and
   its matching read indivisible.
 
+### Changed
+
+- Extracted `TransportStateMachine`, the lifecycle and state rules every
+  backend had copied verbatim. TCP, UDP, serial, VISA and mock now share one
+  implementation, removing about 130 duplicated lines.
+
 ### Fixed
+
+- `close()` now reaches `CLOSED` even when releasing the backend resource
+  raises, instead of stranding the transport in `CLOSING`, a state nothing
+  transitioned out of. The failure still propagates.
 
 - Optional-unit parsing now honors `allow_non_finite=True` for responses such
   as `INF V`, rather than rejecting them before numeric parsing.
