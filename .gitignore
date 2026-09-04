@@ -27,3 +27,7 @@ Thumbs.db
 
 # Local results
 results/
+
+# Vendored migration copies keep their own build output
+migrations/*/dist/
+migrations/*/results/

@@ -1,0 +1,75 @@
+site_name: RF Keysight N6700
+site_description: Robot Framework library and Python driver for Keysight/Agilent N6700 modular power systems
+repo_name: rf_keysight_n6700
+
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Setup:
+      - Installation: guide/installation.md
+      - PyCharm and Robot Framework: guide/pycharm_robot_framework_setup.md
+      - Writing Robot Tests: guide/writing_robot_tests.md
+      - Hardware and Safety: guide/hardware_connection.md
+  - Robot Framework:
+      - Library Guide: robot_framework/guide.md
+      - Keyword Summary: robot_framework/keyword_summary.md
+      - Examples: examples.md
+  - AI Contracts:
+      - Driver and Bench Contracts: ai_contracts.md
+  - N6775A Self-Check: n6775a_self_check.md
+  - Python Driver:
+      - API Reference: api_reference.md
+      - Connections: connection.md
+      - Module Support: module_support.md
+      - SCPI Command Map: scpi_command_map.md
+      - CLI: cli.md
+  - Safety and Operation:
+      - General Safety: safety.md
+      - Hardware Test Levels: hardware_test_safety_levels.md
+      - Protection and Status: status_and_protection.md
+      - Audit Logging: audit_logging.md
+      - Thread Safety: thread_safety.md
+      - Troubleshooting: troubleshooting.md
+  - Project Package Standard: project_package_standard.md
+  - Release:
+      - History v26.09: release/history_v26.09.md
+      - Code Review v26.09: release/code_review_v26.09.md
+      - Package Compliance v26.09: release/package_compliance_v26.09.md
+      - History v26.08: release/history_v26.08.md
+      - Code Review v26.08: release/code_review_v26.08.md
+      - Package Compliance v26.08: release/package_compliance_v26.08.md
+      - History v26.07: release/history_v26.07.md
+      - Code Review v26.07: release/code_review_v26.07.md
+      - Package Compliance v26.07: release/package_compliance_v26.07.md
+      - History v26.06: release/history_v26.06.md
+      - Code Review v26.06: release/code_review_v26.06.md
+      - Package Compliance v26.06: release/package_compliance_v26.06.md
+      - History v26.05: release/history_v26.05.md
+      - Code Review v26.05: release/code_review_v26.05.md
+      - Package Compliance v26.05: release/package_compliance_v26.05.md
+      - History v26.04: release/history_v26.04.md
+      - Code Review v26.04: release/code_review_v26.04.md
+      - Package Compliance v26.04: release/package_compliance_v26.04.md
+      - History v26.03: release/history_v26.03.md
+      - Code Review v26.03: release/code_review_v26.03.md
+      - Package Compliance v26.03: release/package_compliance_v26.03.md
+      - History v26.02: release/history_v26.02.md
+      - Code Review v26.02: release/code_review_v26.02.md
+      - Package Compliance v26.02: release/package_compliance_v26.02.md
+      - History v26.01: release/history_v26.01.md
+      - Code Review v26.01: release/code_review_v26.01.md
+      - Package Compliance v26.01: release/package_compliance_v26.01.md

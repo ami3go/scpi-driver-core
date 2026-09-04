@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "module_profile": "N6775A",
+  "exclusions": [
+    {
+      "keyword": "Connect To Simulated N6700",
+      "reason": "Real N6775A profile; simulator connection is not a physical-module command.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Connect To N6700 Via VISA",
+      "reason": "The self-check uses the canonical Connect To N6700 keyword so audit tracing and one profile work for VISA or Ethernet.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Connect To N6700 Via Ethernet",
+      "reason": "The self-check uses the canonical Connect To N6700 keyword so audit tracing and one profile work for VISA or Ethernet.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Set N6700 SMU Mode",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Get N6700 SMU Mode",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Configure N6700 SMU Voltage Priority",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Configure N6700 SMU Current Priority",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Set N6700 SMU Output Off Mode",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Get N6700 SMU Output Off Mode",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Set N6700 Load Mode",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Get N6700 Load Mode",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Set N6700 Load Level",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Get N6700 Load Level",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Set N6700 Load Input",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Turn On N6700 Load Input",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Turn Off N6700 Load Input",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Get N6700 Load Input State",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Configure N6700 Load CC",
+      "reason": "N6775A is a basic power-supply module, not an N678x SMU or electronic-load module. Test case 16 verifies fail-before-transmit behavior.",
+      "verification": "expected UnsupportedFeatureError through Robot Framework"
+    },
+    {
+      "keyword": "Connect",
+      "reason": "RFDS-002 generic connect wrapper. Delegates to Connect To N6700, whose SCPI transaction sequence is already covered by protocol vector N6775A-CONNECT_TO_N6700.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Disconnect",
+      "reason": "RFDS-002 generic disconnect wrapper. Delegates to Disconnect N6700, whose SCPI transaction sequence is already covered by its protocol vector.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Is Connected",
+      "reason": "Local session-registry lookup only; sends no SCPI traffic.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Get Connection State",
+      "reason": "RFDS-002 generic status query. The identity/error-queue traffic it may issue when refresh=True is already covered by the Get N6700 Identity and Check N6700 Errors protocol vectors.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Check Communication",
+      "reason": "RFDS-002 generic communication check; issues the same *IDN? query already covered by the Get N6700 Identity protocol vector.",
+      "verification": "covered by canonical connection path or software-only suite"
+    },
+    {
+      "keyword": "Get Identity",
+      "reason": "RFDS-002 generic identity string; issues the same *IDN? query already covered by the Get N6700 Identity protocol vector.",
+      "verification": "covered by canonical connection path or software-only suite"
+    }
+  ]
+}

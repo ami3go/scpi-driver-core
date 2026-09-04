@@ -1,0 +1,1202 @@
+{
+  "schema_version": "1.0",
+  "module_profile": "N6775A",
+  "safety_defaults": {
+    "output_enabled": false,
+    "reset_enabled": false,
+    "active_output_enabled": false
+  },
+  "vectors": [
+    {
+      "id": "N6775A-CONNECT_TO_N6700",
+      "keyword": "Connect To N6700",
+      "driver_method": "connect_to_n6700",
+      "test_case": "setup,20",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "Requested transport dependency is installed and the resource is reachable, unless simulated mode is selected.",
+        "Alias replacement is explicit when an alias already exists."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "*IDN?",
+          "SYST:CHAN:COUN?",
+          "SYST:CHAN:MOD?",
+          "SYST:CHAN:OPT?",
+          "SYST:ERR? until code 0",
+          "*CLS"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Connect To N6700. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "str",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-CONNECT_TO_N6700_VIA_USB",
+      "keyword": "Connect To N6700 Via USB",
+      "driver_method": "connect_to_n6700_via_usb",
+      "test_case": "setup,20",
+      "arguments": {
+        "resource": "USB0::0x0957::0x0907::MY43014421::INSTR",
+        "alias": "n6775a_self_check"
+      },
+      "preconditions": [
+        "PyVISA and a compatible VISA backend are installed.",
+        "The USBTMC VISA resource is reachable and not exclusively owned by another application."
+      ],
+      "expected_outbound": {
+        "transport": "usb_visa_scpi",
+        "operations": [
+          "open USB0::0x0957::0x0907::MY43014421::INSTR",
+          "*IDN?",
+          "SYST:CHAN:COUN?",
+          "SYST:CHAN:MOD?",
+          "SYST:CHAN:OPT?",
+          "SYST:ERR? until code 0",
+          "*CLS"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Valid N6700 identity and channel/module discovery responses are returned through the USB VISA session."
+      },
+      "expected_return": "str",
+      "risk_level": "low",
+      "conditional_guard": "HIL_ENABLE must be true for real hardware.",
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SELECT_N6700",
+      "keyword": "Select N6700",
+      "driver_method": "select_n6700",
+      "test_case": "01",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "library-local",
+        "operations": []
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Select N6700. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "str",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_CURRENT_N6700_ALIAS",
+      "keyword": "Get Current N6700 Alias",
+      "driver_method": "get_current_n6700_alias",
+      "test_case": "01",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "library-local",
+        "operations": []
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get Current N6700 Alias. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "str | None",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_CONNECTED_N6700_ALIASES",
+      "keyword": "Get Connected N6700 Aliases",
+      "driver_method": "get_connected_n6700_aliases",
+      "test_case": "01,20",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "No active instrument session is required."
+      ],
+      "expected_outbound": {
+        "transport": "library-local",
+        "operations": []
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get Connected N6700 Aliases. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "list[str]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-DISCONNECT_N6700",
+      "keyword": "Disconnect N6700",
+      "driver_method": "disconnect_n6700",
+      "test_case": "20",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "safe shutdown commands followed by transport close"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-DISCONNECT_ALL_N6700",
+      "keyword": "Disconnect All N6700",
+      "driver_method": "disconnect_all_n6700",
+      "test_case": "20",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "No active instrument session is required."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "safe shutdown commands followed by transport close"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_IDENTITY",
+      "keyword": "Get N6700 Identity",
+      "driver_method": "get_n6700_identity",
+      "test_case": "02,20",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "*IDN? (normally cached after connection)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Identity. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_CHANNEL_COUNT",
+      "keyword": "Get N6700 Channel Count",
+      "driver_method": "get_n6700_channel_count",
+      "test_case": "02",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "SYST:CHAN:COUN? (normally cached after discovery)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Channel Count. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "int",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-DISCOVER_N6700_MODULES",
+      "keyword": "Discover N6700 Modules",
+      "driver_method": "discover_n6700_modules",
+      "test_case": "02",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "SYST:CHAN:COUN?",
+          "SYST:CHAN:MOD? (@ch)",
+          "SYST:CHAN:OPT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Discover N6700 Modules. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_CHANNEL_INFORMATION",
+      "keyword": "Get N6700 Channel Information",
+      "driver_method": "get_n6700_channel_information",
+      "test_case": "02,17",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "SYST:CHAN:MOD? (@ch)",
+          "SYST:CHAN:SER? (@ch)",
+          "SYST:CHAN:OPT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Channel Information. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-WRITE_N6700_SCPI",
+      "keyword": "Write N6700 SCPI",
+      "driver_method": "write_n6700_scpi",
+      "test_case": "05,14",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used.",
+        "The exact raw SCPI command has been reviewed against the installed model/module programming guide."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "caller-supplied SCPI command"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "critical",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-QUERY_N6700_SCPI",
+      "keyword": "Query N6700 SCPI",
+      "driver_method": "query_n6700_scpi",
+      "test_case": "03,05,06,07,14,17",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "caller-supplied SCPI query"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Query N6700 SCPI. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "str",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-CLEAR_N6700_STATUS",
+      "keyword": "Clear N6700 Status",
+      "driver_method": "clear_n6700_status",
+      "test_case": "05,14",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "*CLS"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "medium",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-RESET_N6700",
+      "keyword": "Reset N6700",
+      "driver_method": "reset_n6700",
+      "test_case": "17",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "*RST",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "high",
+      "conditional_guard": "ALLOW_RESET",
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-RUN_N6700_SELF_TEST",
+      "keyword": "Run N6700 Self Test",
+      "driver_method": "run_n6700_self_test",
+      "test_case": "04",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "*TST?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Run N6700 Self Test. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-CHECK_N6700_ERRORS",
+      "keyword": "Check N6700 Errors",
+      "driver_method": "check_n6700_errors",
+      "test_case": "05,06,07,08,09,10,11,14",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "SYST:ERR? until code 0"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-DRAIN_N6700_ERRORS",
+      "keyword": "Drain N6700 Errors",
+      "driver_method": "drain_n6700_errors",
+      "test_case": "05,14,15,16",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "SYST:ERR? until code 0"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Drain N6700 Errors. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "list[dict[str, Any]]",
+      "risk_level": "medium",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SET_N6700_VOLTAGE",
+      "keyword": "Set N6700 Voltage",
+      "driver_method": "set_n6700_voltage",
+      "test_case": "06",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "VOLT <value>,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Set N6700 Voltage. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "medium",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_VOLTAGE_SETPOINT",
+      "keyword": "Get N6700 Voltage Setpoint",
+      "driver_method": "get_n6700_voltage_setpoint",
+      "test_case": "06,08",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "VOLT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Voltage Setpoint. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SET_N6700_CURRENT_LIMIT",
+      "keyword": "Set N6700 Current Limit",
+      "driver_method": "set_n6700_current_limit",
+      "test_case": "07",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "CURR <value>,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Set N6700 Current Limit. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "medium",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_CURRENT_LIMIT",
+      "keyword": "Get N6700 Current Limit",
+      "driver_method": "get_n6700_current_limit",
+      "test_case": "07,08",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "CURR? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Current Limit. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-CONFIGURE_N6700_POWER_SUPPLY_CHANNEL",
+      "keyword": "Configure N6700 Power Supply Channel",
+      "driver_method": "configure_n6700_power_supply_channel",
+      "test_case": "08,18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "VOLT <value>,(@ch)",
+          "CURR <value>,(@ch)",
+          "VOLT:PROT <value>,(@ch)",
+          "CURR:PROT:STAT <ON|OFF>,(@ch)",
+          "OUTP <ON|OFF>,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Configure N6700 Power Supply Channel. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "high",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SET_N6700_OUTPUT",
+      "keyword": "Set N6700 Output",
+      "driver_method": "set_n6700_output",
+      "test_case": "09,18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP <ON|OFF>,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Set N6700 Output. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "bool",
+      "risk_level": "high",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-TURN_ON_N6700_OUTPUT",
+      "keyword": "Turn On N6700 Output",
+      "driver_method": "turn_on_n6700_output",
+      "test_case": "18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP ON,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "high",
+      "conditional_guard": "ALLOW_ACTIVE_OUTPUT",
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-TURN_OFF_N6700_OUTPUT",
+      "keyword": "Turn Off N6700 Output",
+      "driver_method": "turn_off_n6700_output",
+      "test_case": "09,18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP OFF,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": false,
+        "schema_or_oracle": "No value; success is represented by keyword completion."
+      },
+      "expected_return": "None",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_OUTPUT_STATE",
+      "keyword": "Get N6700 Output State",
+      "driver_method": "get_n6700_output_state",
+      "test_case": "09",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Output State. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "bool",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SET_N6700_OUTPUTS",
+      "keyword": "Set N6700 Outputs",
+      "driver_method": "set_n6700_outputs",
+      "test_case": "09,18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP <ON|OFF>,(@ch) per channel",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Set N6700 Outputs. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "list[int]",
+      "risk_level": "high",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SET_N6700_OVER_VOLTAGE_PROTECTION",
+      "keyword": "Set N6700 Over Voltage Protection",
+      "driver_method": "set_n6700_over_voltage_protection",
+      "test_case": "10",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "VOLT:PROT <value>,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Set N6700 Over Voltage Protection. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "medium",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_OVER_VOLTAGE_PROTECTION",
+      "keyword": "Get N6700 Over Voltage Protection",
+      "driver_method": "get_n6700_over_voltage_protection",
+      "test_case": "10",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "VOLT:PROT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Over Voltage Protection. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SET_N6700_OVER_CURRENT_PROTECTION",
+      "keyword": "Set N6700 Over Current Protection",
+      "driver_method": "set_n6700_over_current_protection",
+      "test_case": "10",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "CURR:PROT:STAT <ON|OFF>,(@ch)",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Set N6700 Over Current Protection. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "bool",
+      "risk_level": "medium",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_OVER_CURRENT_PROTECTION",
+      "keyword": "Get N6700 Over Current Protection",
+      "driver_method": "get_n6700_over_current_protection",
+      "test_case": "10",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with source_or_smu operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "CURR:PROT:STAT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Over Current Protection. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "bool",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-MEASURE_N6700_VOLTAGE",
+      "keyword": "Measure N6700 Voltage",
+      "driver_method": "measure_n6700_voltage",
+      "test_case": "11,12",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:VOLT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Measure N6700 Voltage. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-MEASURE_N6700_CURRENT",
+      "keyword": "Measure N6700 Current",
+      "driver_method": "measure_n6700_current",
+      "test_case": "11,12",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:CURR? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Measure N6700 Current. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-MEASURE_N6700_POWER",
+      "keyword": "Measure N6700 Power",
+      "driver_method": "measure_n6700_power",
+      "test_case": "11,12",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:VOLT? (@ch)",
+          "MEAS:CURR? (@ch)"
+        ],
+        "forbidden_operations": [
+          "MEAS:POW? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Measure N6700 Power. Dictionaries/lists contain Python primitives. For N6775A, power_source is calculated and the SCPI error queue remains empty."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-MEASURE_N6700_CHANNEL",
+      "keyword": "Measure N6700 Channel",
+      "driver_method": "measure_n6700_channel",
+      "test_case": "11",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:VOLT? (@ch)",
+          "MEAS:CURR? (@ch)"
+        ],
+        "forbidden_operations": [
+          "MEAS:POW? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Measure N6700 Channel. Dictionaries/lists contain Python primitives. For N6775A, power_source is calculated and the SCPI error queue remains empty."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-MEASURE_ALL_N6700_CHANNELS",
+      "keyword": "Measure All N6700 Channels",
+      "driver_method": "measure_all_n6700_channels",
+      "test_case": "11",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:VOLT? (@each installed ch)",
+          "MEAS:CURR? (@each installed ch)"
+        ],
+        "forbidden_operations": [
+          "MEAS:POW? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Measure All N6700 Channels. Dictionaries/lists contain Python primitives. For N6775A, power_source is calculated and the SCPI error queue remains empty."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-N6700_VOLTAGE_SHOULD_BE",
+      "keyword": "N6700 Voltage Should Be",
+      "driver_method": "n6700_voltage_should_be",
+      "test_case": "12,18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules.",
+        "Expected values and tolerances originate from an approved requirement or calibrated reference."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:VOLT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from N6700 Voltage Should Be. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-N6700_CURRENT_SHOULD_BE",
+      "keyword": "N6700 Current Should Be",
+      "driver_method": "n6700_current_should_be",
+      "test_case": "12",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules.",
+        "Expected values and tolerances originate from an approved requirement or calibrated reference."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:CURR? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from N6700 Current Should Be. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-N6700_POWER_SHOULD_BE",
+      "keyword": "N6700 Power Should Be",
+      "driver_method": "n6700_power_should_be",
+      "test_case": "12",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules.",
+        "Expected values and tolerances originate from an approved requirement or calibrated reference."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "MEAS:VOLT? (@ch)",
+          "MEAS:CURR? (@ch)"
+        ],
+        "forbidden_operations": [
+          "MEAS:POW? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from N6700 Power Should Be. Dictionaries/lists contain Python primitives. For N6775A, power_source is calculated and the SCPI error queue remains empty."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-N6700_OUTPUT_SHOULD_BE",
+      "keyword": "N6700 Output Should Be",
+      "driver_method": "n6700_output_should_be",
+      "test_case": "09,13,17,18,19",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules.",
+        "Expected values and tolerances originate from an approved requirement or calibrated reference."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from N6700 Output Should Be. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "bool",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-WAIT_UNTIL_N6700_VOLTAGE_IS_IN_RANGE",
+      "keyword": "Wait Until N6700 Voltage Is In Range",
+      "driver_method": "wait_until_n6700_voltage_is_in_range",
+      "test_case": "12,18",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Expected values and tolerances originate from an approved requirement or calibrated reference."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "repeated MEAS:VOLT? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Wait Until N6700 Voltage Is In Range. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "float",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-GET_N6700_PROTECTION_STATUS",
+      "keyword": "Get N6700 Protection Status",
+      "driver_method": "get_n6700_protection_status",
+      "test_case": "13",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "STAT:QUES:COND? (@ch)"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Get N6700 Protection Status. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-CLEAR_N6700_PROTECTION",
+      "keyword": "Clear N6700 Protection",
+      "driver_method": "clear_n6700_protection",
+      "test_case": "13",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected.",
+        "Channel is in range 1..4 and an installed module is present.",
+        "Channel capability is compatible with installed_module_supporting_requested_quantity operation; confirm with Discover N6700 Modules.",
+        "Wiring, DUT limits, protection thresholds, and operator authorization have been verified before any energizing option is used."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP?",
+          "OUTP OFF",
+          "OUTP:PROT:CLE",
+          "STAT:QUES:COND?",
+          "SYST:ERR?"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Clear N6700 Protection. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "high",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    },
+    {
+      "id": "N6775A-SHUTDOWN_ALL_N6700_CHANNELS",
+      "keyword": "Shutdown All N6700 Channels",
+      "driver_method": "shutdown_all_n6700_channels",
+      "test_case": "19",
+      "arguments": "defined in driver_call_protocol_conformance.robot",
+      "preconditions": [
+        "A named N6700 session is connected; alias exists or a current alias is selected."
+      ],
+      "expected_outbound": {
+        "transport": "scpi",
+        "operations": [
+          "OUTP OFF,(@ch) for every power/SMU channel"
+        ]
+      },
+      "expected_inbound": {
+        "response_required": true,
+        "schema_or_oracle": "Robot-compatible result from Shutdown All N6700 Channels. Dictionaries/lists contain Python primitives."
+      },
+      "expected_return": "dict[str, Any]",
+      "risk_level": "low",
+      "conditional_guard": null,
+      "cleanup": "Keep Tested Channel Safe and suite teardown"
+    }
+  ]
+}

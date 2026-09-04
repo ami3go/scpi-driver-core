@@ -1,0 +1,58 @@
+{
+  "identity": {
+    "type": "dictionary",
+    "required": [
+      "manufacturer",
+      "model",
+      "serial",
+      "firmware"
+    ]
+  },
+  "channel_information": {
+    "type": "dictionary",
+    "required": [
+      "channel",
+      "model",
+      "serial",
+      "options",
+      "capabilities"
+    ],
+    "model": "N6775A",
+    "module_type": "power_supply",
+    "supports_power_measurement": false
+  },
+  "measurement": {
+    "type": "dictionary",
+    "required": [
+      "channel",
+      "voltage_V",
+      "current_A",
+      "power_W",
+      "power_source",
+      "timestamp_iso",
+      "timestamp_unix"
+    ],
+    "n6775a_power_source": "calculated",
+    "forbidden_direct_query": "MEAS:POW?"
+  },
+  "self_test": {
+    "type": "dictionary",
+    "required": [
+      "code",
+      "message",
+      "passed"
+    ],
+    "pass_condition": {
+      "code": 0,
+      "passed": true
+    }
+  },
+  "scpi_error": {
+    "type": "dictionary",
+    "required": [
+      "code",
+      "message",
+      "raw"
+    ]
+  }
+}

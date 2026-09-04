@@ -1,0 +1,11 @@
+{
+  "allow_active_output": true,
+  "allow_reset": true,
+  "channel": 1,
+  "connection_type": "usb",
+  "expected_module": "N6775A",
+  "platform": "Windows-11-10.0.22631-SP0",
+  "python": "3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]",
+  "resource": "USB0::0x0957::0x0907::MY43014421::INSTR",
+  "robot_framework": "7.4.2"
+}

@@ -1,0 +1,34 @@
+{
+  "channel_count": 2,
+  "channel_information": {
+    "capabilities": {
+      "model": "N6775A",
+      "module_type": "power_supply",
+      "options": [],
+      "supports_array_measurement": false,
+      "supports_aux_voltage_input": false,
+      "supports_current_source": false,
+      "supports_list_mode": true,
+      "supports_load_cc": false,
+      "supports_load_cp": false,
+      "supports_load_cr": false,
+      "supports_load_cv": false,
+      "supports_power_measurement": false,
+      "supports_smu_output_off_mode": false,
+      "supports_smu_priority_mode": false,
+      "supports_voltage_source": true,
+      "verified_real_load_commands": false
+    },
+    "channel": 1,
+    "model": "N6775A",
+    "options": [],
+    "serial": "MY45001931"
+  },
+  "identity": {
+    "firmware": "D.04.10",
+    "manufacturer": "Agilent Technologies",
+    "model": "N6700B",
+    "serial": "MY43014421"
+  },
+  "selected_channel": 1
+}
