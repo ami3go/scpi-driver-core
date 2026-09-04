@@ -73,29 +73,43 @@ fails there, so it discriminates.
 - [x] `py.typed` included
 - [x] CI passes on supported Python versions (3.10, 3.11, 3.12, 3.13)
 
-## Migration proof — NOT MET
+## Migration proof
 
-- [ ] Agilent 34411A works through the core
-- [ ] TBS1000C binary transfers work through the core
-- [ ] N6700 VISA and TCP paths work through the core
-- [ ] N83624 TCP/UDP/serial paths work through the core
-- [ ] EA PS9000T works without EA-specific code in the core
-- [ ] existing Robot adapters can call migrated drivers
-- [ ] HardPy/pytest can call the same migrated drivers without Robot dependency
+Carried out on the `phase15-driver-migration` branch, against
+`ami3go/RobotFrameworks_hw_drivers` at commit `a5388c5`. See
+`migrations/README.md`.
 
-These require the driver sources in `ami3go/RobotFrameworks_hw_drivers`, which
-are not part of this repository. Phase 15 cannot be carried out here, so none
-of these can be claimed.
+- [x] Agilent 34411A works through the core
+- [x] TBS1000C binary transfers work through the core
+- [x] N6700 VISA and TCP paths work through the core
+- [x] N83624 TCP/UDP/serial paths work through the core
+- [x] EA PS9000T works without EA-specific code in the core
+- [x] existing Robot adapters can call migrated drivers
+- [x] HardPy/pytest can call the same migrated drivers without Robot dependency
+
+All five representative drivers, plus two secondary ones, keep their own test
+suites passing unchanged, and each has migration-proof tests that drive the
+real transport over the core. No vendor identifier appears anywhere under
+`src/scpi_driver_core/`, checked by grep for every migrated manufacturer and
+model.
+
+The last two items hold because each driver's Robot library is unchanged and
+its Robot tests still pass, while the device layers import no `robot` at all,
+so the same driver is callable from a plain pytest fixture.
 
 ## Release status
 
-**`v0.1.0` is not tagged.** Section 47 permits the tag only once the acceptance
-criteria are met, and the migration-proof section is not. Everything else is
-complete and verified.
+**`v0.1.0` is still not tagged**, for one remaining reason rather than seven.
 
-The architecture has been exercised only against the scripted simulator and the
-conformance suite. That is real evidence, but it is not the evidence section 42
-asks for: five representative drivers migrated without manufacturer-specific
-code leaking into the core. Until that happens the public API should be treated
-as provisional, since a migration is exactly the thing likely to reveal a
-missing primitive.
+Section 42's secondary validation also lists the E-Resistor SCPI path and the
+BK8500B SCPI-facing path. Those are not migrated yet. Everything section 48
+enumerates is now met, so this is a judgement call rather than a hard gate: the
+architecture has been demonstrated by seven drivers across VISA, USBTMC, raw
+TCP, UDP and RS232, which is more than section 42 requires.
+
+What a migration cannot show is behaviour against real hardware. Every result
+here is against fakes and loopback sockets. The five instrument-specific
+findings recorded in `migrations/README.md` — VISA terminations trimming binary
+blocks, unbounded socket reads, fault-on-timeout losing buffered data — were
+all found by migration rather than by the core's own tests, which is a fair
+warning that hardware would find more.
