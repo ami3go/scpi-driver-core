@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rfds.local/schemas/rf_tbs1000c/device_identity.schema.json",
+  "title": "rfds.device_identity",
+  "description": "device_identity.json — one entry per connected alias, updated on each successful Connect.",
+  "type": "object",
+  "required": ["schema", "schema_version", "run_id", "timestamp_utc", "sessions"],
+  "properties": {
+    "schema": {"const": "rfds.device_identity"},
+    "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "run_id": {"type": "string"},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "sessions": {
+      "type": "object",
+      "description": "Keyed by Robot Framework connection alias.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "manufacturer": {"type": "string"},
+          "model_family": {"type": "string"},
+          "resource": {"type": ["string", "null"]},
+          "identity": {"type": ["string", "null"]},
+          "transport": {"type": ["string", "null"]},
+          "simulated": {"type": "boolean"}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

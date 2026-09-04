@@ -29,7 +29,7 @@ command at the end of this file does.
 | --- | --- | --- | --- |
 | `rf_keysight_n6700` | VISA, raw TCP, multi-channel, strict error checking, protocol audit | 33 pass | 33 pass + 11 new |
 | `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
-| `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | not started | |
+| `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
 | `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | not started | |
 
@@ -125,6 +125,28 @@ callers depend on that. The core parses; the fallback is the driver's.
 `Agilent34411A` over the real transport over the core, against a fake VISA
 backend. Mutation-checked: removing the core's second-to-millisecond timeout
 conversion makes one fail.
+
+## rf_tbs1000c
+
+`tbs1000c/transport.py` and the block/identity halves of `tbs1000c/codec.py`.
+`driver.py`, `simulator.py`, `models.py` and `exceptions.py` are byte-for-byte
+unchanged.
+
+This is the byte-fidelity case. `CURVe?` returns sample bytes in which 0x0A and
+0x20 are ordinary data, so the payload is read as one whole VISA message with
+terminations disabled, and `encode_block_command` appends the command
+terminator unconditionally — a block ending in 0x0A must not be mistaken for
+one already terminated.
+
+`build_ieee_block` and the binary branch of `parse_curve_response` now call the
+core. The ASCII branch stays: handling both the binary and comma-separated
+integer forms is this instrument's quirk.
+
+19 new tests, several using a payload of all 256 byte values and one of nothing
+but newlines. Mutation-checked, and this is the sharpest of the three: adding a
+single `.strip()` to the core's block decoder makes the all-newlines waveform
+test fail, which is exactly the silent corruption the design is meant to
+prevent.
 
 ### Running it
 
