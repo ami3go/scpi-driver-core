@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rfds.local/schemas/rf_agilent34411a/device_identity.schema.json",
+  "title": "rfds.device_identity",
+  "description": "device_identity.json — one entry per connected alias, since this driver supports multiple simultaneous sessions (Connect ... alias=<name>).",
+  "type": "object",
+  "required": ["schema", "schema_version", "run_id", "timestamp_utc", "sessions"],
+  "properties": {
+    "schema": {"const": "rfds.device_identity"},
+    "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "run_id": {"type": "string"},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "sessions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "manufacturer": {"type": ["string", "null"]},
+          "model": {"type": ["string", "null"]},
+          "serial_number": {"type": ["string", "null"]},
+          "firmware_version": {"type": ["string", "null"]},
+          "raw_identity": {"type": ["string", "null"]},
+          "resource": {"type": ["string", "null"]},
+          "execution_mode": {"enum": ["SIMULATOR", "REPLAY", "FAKE", "REAL_HARDWARE", "MIXED", "NO_HARDWARE", null]}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

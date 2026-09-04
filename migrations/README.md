@@ -28,7 +28,7 @@ command at the end of this file does.
 | Driver | Validates | Baseline tests | After migration |
 | --- | --- | --- | --- |
 | `rf_keysight_n6700` | VISA, raw TCP, multi-channel, strict error checking, protocol audit | 33 pass | 33 pass + 11 new |
-| `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | not started | |
+| `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
 | `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | not started | |
 | `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | not started | |
@@ -105,6 +105,26 @@ second driver, not the first.
   merely importing it.
 - No vendor identifier appears anywhere under `src/scpi_driver_core/`, checked
   by grep. The core learned nothing about Keysight to make this work.
+
+## rf_agilent34411a
+
+`agilent34411a/transport.py` replaced, plus the identity and reading-burst
+parsing in `driver.py`. `simulator.py`, `models.py`, `enums.py`, `exceptions.py`
+and `__init__.py` are byte-for-byte unchanged.
+
+This driver already separated `open()` from construction, so the seam was
+cleaner than the N6700's. Its `PyvisaTransport` no longer imports pyvisa at all:
+the core owns the session, and the module-level rule that "protocol code never
+touches pyvisa outside this module" now holds one level more strongly.
+
+Identity parsing keeps this driver's historic tolerance for partial `*IDN?`
+replies — missing fields become empty strings rather than raising — because its
+callers depend on that. The core parses; the fallback is the driver's.
+
+15 new tests in `tests/unit/test_core_migration.py` drive a real
+`Agilent34411A` over the real transport over the core, against a fake VISA
+backend. Mutation-checked: removing the core's second-to-millisecond timeout
+conversion makes one fail.
 
 ### Running it
 
