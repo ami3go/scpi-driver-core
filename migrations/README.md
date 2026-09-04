@@ -33,7 +33,7 @@ command at the end of this file does.
 | `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
 | `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
-| `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 169 pass, 2 skip |
+| `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
 
 ## rf_keysight_n6700
 
@@ -208,8 +208,15 @@ ranges are GPIB semantics, and the core has no business knowing them.
 Note: this package depends on `rfds-core`, which is not published, so it cannot
 be `pip install`-ed here. Its suite runs against the source tree with
 `PYTHONPATH=.`, which is how the baseline was taken and how the result below
-was measured. Migration-proof tests for the VISA path are still outstanding for
-this driver; unlike the other five it has only the baseline-parity result.
+was measured.
+
+21 migration-proof tests cover the VISA path and the GPIB address rules.
+Mutation-checked against the core's VISA terminations.
+
+A procedural note from doing that check: after restoring the mutated core file,
+the test kept failing until `src/**/__pycache__` was cleared. Python was reusing
+the mutated bytecode. A mutation check that does not clear it can report either
+a false pass or a false failure.
 
 ### Running it
 
