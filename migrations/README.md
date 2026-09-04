@@ -14,10 +14,14 @@ governance files — `RELEASE_INFO.json`, `SHA256SUMS.txt`, `history/`, and its
 repository's; they are kept only so the driver's own packaging tests run
 unmodified, and GitHub reads workflows only from the repository root.
 
- Per section
-43 a migration is an architecture extraction, not a feature rewrite: public
-behavior, SCPI command mappings, safety policy, and error semantics are
-preserved, and the driver's own test suite is the acceptance test.
+Per section 43 a migration is an architecture extraction, not a feature
+rewrite: public behavior, SCPI command mappings, safety policy, and error
+semantics are preserved, and the driver's own test suite is the acceptance
+test.
+
+Two of the driver's packaging tests resolve paths relative to the working
+directory, so its suite must be run from inside its own directory, as the
+command at the end of this file does.
 
 ## Status
 
