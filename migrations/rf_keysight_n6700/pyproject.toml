@@ -26,7 +26,10 @@ classifiers = [
 ]
 dependencies = [
   "robotframework>=7.0,<9",
-  "pyvisa>=1.14",
+  # Transports, SCPI framing, parsing and sessions come from the core rather
+  # than being reimplemented here. The [visa] extra pulls in PyVISA, which this
+  # driver previously depended on directly.
+  "scpi-driver-core[visa]>=0.1.0.dev0",
   "typing_extensions>=4.8; python_version < '3.11'",
 ]
 
