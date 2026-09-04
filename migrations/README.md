@@ -31,7 +31,7 @@ command at the end of this file does.
 | `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
 | `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
 | `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
-| `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | not started | |
+| `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
 
 ## rf_keysight_n6700
 
@@ -147,6 +147,37 @@ but newlines. Mutation-checked, and this is the sharpest of the three: adding a
 single `.strip()` to the core's block decoder makes the all-newlines waveform
 test fail, which is exactly the silent corruption the design is meant to
 prevent.
+
+## rf_ea_ps9000t
+
+`ea_ps9000t/transport.py`, plus the numeric and identity parsing in
+`driver.py`. `simulator.py`, `models.py`, `enums.py` and `exceptions.py` are
+byte-for-byte unchanged.
+
+This is the driver that motivated `parse_optional_unit_float`. Its firmware
+answers `SYSTem:NOMinal:VOLTage?` with `"500.0 V"` on real hardware while its
+own programming guide and simulator show a bare number. Eighteen float getters
+now route through the core.
+
+`_parse_number` still returns the verbatim numeric token, because integer
+getters call `int()` on it; reformatting through a float broke five tests when
+first attempted, which is precisely the behaviour-preservation section 43
+demands. The core-backed `_parse_float` is separate and additive.
+
+Identity keeps this vendor's fifth user-text field. The core parses the
+conventional four and its CSV-aware split means a quoted comma inside that
+field is no longer mistaken for a separator.
+
+### A negative result worth recording
+
+The first mutation check here **passed when it should have failed**: breaking
+the core's unit regex changed nothing, because `_parse_float` falls back to the
+driver's historic token search and both yield 500.0 for `"500.0 V"`. The
+fallback was masking whether the core did the work.
+
+The fix was a test that disables the fallback and asserts the core alone parses
+the documented replies. With it, the same mutation fails as it should. Worth
+stating because a migration can look proven while proving nothing.
 
 ### Running it
 
