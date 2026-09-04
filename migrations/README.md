@@ -32,6 +32,7 @@ command at the end of this file does.
 | `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
 | `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
+| `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
 
 ## rf_keysight_n6700
 
@@ -178,6 +179,16 @@ fallback was masking whether the core did the work.
 The fix was a test that disables the fallback and asserts the core alone parses
 the documented replies. With it, the same mutation fails as it should. Worth
 stating because a migration can look proven while proving nothing.
+
+## rf_agilent33220a
+
+Secondary validation. `agilent33220a/transport.py` and the identity parsing in
+`driver.py`; `simulator.py`, `models.py`, `enums.py` and `exceptions.py` are
+byte-for-byte unchanged.
+
+The same shape as the 34411A, which is the point: by this driver the migration
+was mechanical, because the seam and the core API were already settled. That is
+the compounding the first migration could not demonstrate.
 
 ### Running it
 
