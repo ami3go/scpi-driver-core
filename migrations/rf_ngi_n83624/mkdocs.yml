@@ -1,0 +1,24 @@
+site_name: rf-ngi-n83624
+site_description: Robot Framework library for NGI N83624 cell simulator
+site_url: https://your-org.github.io/rf-ngi-n83624/
+repo_url: https://github.com/your-org/rf-ngi-n83624
+repo_name: your-org/rf-ngi-n83624
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Keyword Guide: keywords.md
+  - Logging and Evidence: logging-and-evidence.md
+  - Safety: safety.md
+  - Examples: examples.md
+  - Hardware Qualification: hardware-qualification.md
+  - Release Notes: release-notes.md
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true

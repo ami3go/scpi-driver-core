@@ -30,7 +30,7 @@ command at the end of this file does.
 | `rf_keysight_n6700` | VISA, raw TCP, multi-channel, strict error checking, protocol audit | 33 pass | 33 pass + 11 new |
 | `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
 | `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
-| `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
+| `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | 30 pass | 30 pass + 22 new |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
 | `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
 | `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
@@ -217,6 +217,37 @@ A procedural note from doing that check: after restoring the mutated core file,
 the test kept failing until `src/**/__pycache__` was cleared. Python was reusing
 the mutated bytecode. A mutation check that does not clear it can report either
 a false pass or a false failure.
+
+## rf_ngi_n83624
+
+The only non-VISA migration, and section 42D's case. `ngi_n83624/transports.py`
+is the sole changed file: three hand-rolled backends — TCP, UDP and RS232 —
+replaced by the core's. Every direct use of `socket` and `serial` is gone.
+
+The device-specific parts stayed, and there are more of them here than
+elsewhere: the UDP port scheme where 7001..7024 map to channels 1..24, the TCP
+port range check, and the RS232 baudrate whitelist. None of that belongs in a
+generic core.
+
+### What the migration found in the core
+
+The core faults a TCP transport when a read times out, on the grounds that an
+unterminated stream leaves session validity uncertain. That is defensible, but
+it means data buffered before the timeout becomes unreachable: a driver cannot
+catch the timeout and then read what already arrived.
+
+This driver relied on exactly that. Its original `query` returned whatever had
+been received if the terminator never came, and only raised when nothing at
+all had arrived. Preserving that behaviour meant restructuring the read to
+accumulate incrementally rather than asking for a terminated message in one
+call — which is what the original socket loop did anyway.
+
+Worth recording as a real consequence of the fault-on-timeout rule, found by a
+driver rather than by the core's own tests.
+
+22 new tests cover all three transports against a loopback TCP server, a real
+UDP socket, and a faked pyserial backend. Mutation-checked against the core's
+UDP datagram read.
 
 ### Running it
 
