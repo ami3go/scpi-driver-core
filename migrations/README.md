@@ -33,6 +33,7 @@ command at the end of this file does.
 | `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | not started | |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
 | `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
+| `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 169 pass, 2 skip |
 
 ## rf_keysight_n6700
 
@@ -189,6 +190,26 @@ byte-for-byte unchanged.
 The same shape as the 34411A, which is the point: by this driver the migration
 was mechanical, because the seam and the core API were already settled. That is
 the compounding the first migration could not demonstrate.
+
+## rf_hp34401a
+
+`hp34401a_dmm/visa_transport.py` only. This driver already had a
+template-method `BaseTransport`, so the migration replaced the `_do_open`,
+`_do_close`, `_send`, `_recv`, `_clear` and `_set_timeout` hooks and touched
+nothing else.
+
+`_send` no longer strips the write terminator back off and hope PyVISA
+re-appends the same one: the core disables PyVISA's terminations, so the bytes
+`BaseTransport` produced go out unaltered.
+
+The GPIB address rules stay in the driver. Talk-only mode and primary-address
+ranges are GPIB semantics, and the core has no business knowing them.
+
+Note: this package depends on `rfds-core`, which is not published, so it cannot
+be `pip install`-ed here. Its suite runs against the source tree with
+`PYTHONPATH=.`, which is how the baseline was taken and how the result below
+was measured. Migration-proof tests for the VISA path are still outstanding for
+this driver; unlike the other five it has only the baseline-parity result.
 
 ### Running it
 
