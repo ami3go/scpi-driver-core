@@ -334,6 +334,51 @@ lines. That is real duplication, but it is test scaffolding for drivers rather
 than core behaviour, and publishing it would make it API the core has to keep
 stable. Recorded here as a candidate, not acted on.
 
+## Automatic API conformance
+
+`driver_api_conformance.py` walks each driver's whole public surface instead of
+enumerating it by hand, because these drivers are large — the 34411A has 147
+public members — and a migration that quietly broke one method would not be
+caught by tests written per feature.
+
+Per driver it checks four things:
+
+| Check | Behaviour |
+| --- | --- |
+| Surface snapshot | a rename or removal fails; additions prompt a deliberate refresh |
+| Annotations | recorded as a ratchet: existing gaps tolerated, new ones fail |
+| Docstrings | same ratchet, marked `[undocumented]` in the snapshot |
+| Invocation sweep | every no-argument method is called against the simulator |
+
+| Driver | Public members | Methods swept |
+| --- | --- | --- |
+| `rf_agilent34411a` | 147 | 72 |
+| `rf_agilent33220a` | 116 | 62 |
+| `rf_ea_ps9000t` | 87 | 47 |
+| `rf_tbs1000c` | 58 | 18 |
+| `rf_keysight_n6700` | 48 | 17 |
+| `rf_hp34401a` | 50 | 26 |
+
+The sweep is the check that earns its keep, and it is deliberately bounded.
+Only the driver's own simulator or fake transport is ever driven, and lifecycle
+methods that would tear the session down or reach for hardware are excluded by
+name. **This must never be pointed at an instrument**: a harness that blindly
+invokes every method on live hardware would happily enable an output.
+
+Mutation-checked rather than assumed. Renaming a public method fails the
+snapshot test; making one raise a non-driver error fails both the sweep and the
+per-method test that names it.
+
+The documentation and annotation ratchets exist because these vendored drivers
+carry real debt — 95 of the 33220A's 116 members have no docstring, and the
+HP34401A has one unannotated return. Closing those is their maintainers'
+change, not a migration's, so the state is recorded rather than failed.
+
+Not covered: `rf_ngi_n83624` and `rf_eresistor`. Neither has a simulated
+constructor the harness can call without bespoke setup — the N83624 driver
+builds around an emulator transport and the E-Resistor client opens a socket in
+its constructor. Both are reachable with more work; neither is done.
+
 ### Running it
 
 ```bash

@@ -1,0 +1,50 @@
+method apply_runtime_policy(self, *, communication_timeout_s: 'float | None' = None, self_test_timeout_s: 'float | None' = None, long_measurement_timeout_s: 'float | None' = None, retry_queries: 'bool | None' = None, max_query_retries: 'int | None' = None, allow_calibration_commands: 'bool | None' = None, raw_traffic_log: 'bool | None' = None) -> 'None'
+method assert_no_error(self, context: 'str' = '') -> 'None'  [undocumented]
+method clear_status(self) -> 'None'  [undocumented]
+method close(self) -> 'None'  [undocumented]
+method configure_2wire_resistance(self, range_ohm: 'float | AutoRange', nplc: 'Nplc', autozero: 'AutozeroMode' = <AutozeroMode.ON: 'ON'>) -> 'None'  [undocumented]
+method configure_4wire_resistance(self, range_ohm: 'float | AutoRange', nplc: 'Nplc', autozero: 'AutozeroMode' = <AutozeroMode.ON: 'ON'>) -> 'None'  [undocumented]
+method configure_ac_current(self, range_a: 'float | AutoRange', ac_filter_hz: 'AcFilterHz' = <AcFilterHz.HZ20: 20>) -> 'None'  [undocumented]
+method configure_ac_voltage(self, range_v: 'float | AutoRange', ac_filter_hz: 'AcFilterHz' = <AcFilterHz.HZ20: 20>) -> 'None'  [undocumented]
+method configure_continuity(self) -> 'None'  [undocumented]
+method configure_dc_current(self, range_a: 'float | AutoRange', nplc: 'Nplc', autozero: 'AutozeroMode' = <AutozeroMode.ON: 'ON'>) -> 'None'  [undocumented]
+method configure_dc_voltage(self, range_v: 'float | AutoRange', nplc: 'Nplc', autozero: 'AutozeroMode' = <AutozeroMode.ON: 'ON'>) -> 'None'  [undocumented]
+method configure_diode(self) -> 'None'  [undocumented]
+method configure_frequency(self, voltage_range_v: 'float | AutoRange', aperture_s: 'Aperture') -> 'None'  [undocumented]
+method configure_period(self, voltage_range_v: 'float | AutoRange', aperture_s: 'Aperture') -> 'None'  [undocumented]
+method connect(self) -> 'None'  [undocumented]
+method drain_error_queue(self, max_errors: 'int' = 25) -> 'list[ErrorRecord]'  [undocumented]
+method fetch(self) -> 'list[MeasurementReading]'  [undocumented]
+method from_serial(config: 'SerialRs232Config', driver_config: 'DriverConfig | None' = None) -> 'Hp34401A'  [undocumented]
+method from_visa_gpib(config: 'VisaGpibConfig', driver_config: 'DriverConfig | None' = None) -> 'Hp34401A'  [undocumented]
+method heartbeat(self) -> 'HealthReport'  [undocumented]
+method identify(self) -> 'Identity'  [undocumented]
+method initiate(self) -> 'None'  [undocumented]
+method is_connected(self) -> 'bool'  [undocumented]
+method measure_2wire_resistance(self, range_ohm: 'float | AutoRange' = <AutoRange.DEF: 'DEF'>, nplc: 'Nplc' = <Nplc.PLC10: 10.0>) -> 'MeasurementReading'  [undocumented]
+method measure_4wire_resistance(self, range_ohm: 'float | AutoRange' = <AutoRange.DEF: 'DEF'>, nplc: 'Nplc' = <Nplc.PLC10: 10.0>) -> 'MeasurementReading'  [undocumented]
+method measure_ac_voltage(self, range_v: 'float | AutoRange' = <AutoRange.DEF: 'DEF'>, ac_filter_hz: 'AcFilterHz' = <AcFilterHz.HZ20: 20>) -> 'MeasurementReading'  [undocumented]
+method measure_dc_current(self, range_a: 'float | AutoRange' = <AutoRange.DEF: 'DEF'>, nplc: 'Nplc' = <Nplc.PLC10: 10.0>) -> 'MeasurementReading'  [undocumented]
+method measure_dc_voltage(self, range_v: 'float | AutoRange' = <AutoRange.DEF: 'DEF'>, nplc: 'Nplc' = <Nplc.PLC10: 10.0>) -> 'MeasurementReading'  [undocumented]
+method query(self, command: 'str') -> 'str'
+method query_float(self, command: 'str') -> 'float'  [undocumented]
+method query_int(self, command: 'str') -> 'int'  [undocumented]
+method query_terminal(self) -> 'InputTerminal'  [undocumented]
+method read_error(self) -> 'ErrorRecord'  [undocumented]
+method read_once(self) -> 'MeasurementReading'
+method read_once_bus(self) -> 'MeasurementReading'
+method read_query(self) -> 'str'  [undocumented]
+method read_raw_response(self) -> 'str'
+method read_stable_resistance(self, profile: 'StabilityProfile')
+method recover(self) -> 'RecoveryReport'  [undocumented]
+method require_terminal(self, expected: 'InputTerminal') -> 'None'  [undocumented]
+method reset(self, confirm: 'bool' = False) -> 'None'  [undocumented]
+method self_test(self) -> 'SelfTestResult'  [undocumented]
+method set_communication_timeout(self, timeout_s: 'float') -> 'float'
+method set_trigger_source(self, source: 'TriggerSource') -> 'None'  [undocumented]
+method trigger_bus(self) -> 'None'  [undocumented]
+method write(self, command: 'str') -> 'None'  [undocumented]
+property identity_cached  [undocumented]
+property state  [undocumented]
+property transport_name
+property transport_type
