@@ -1,116 +1,116 @@
-method check_communication(self) -> 'bool'  [undocumented]
-method clear_display_text(self) -> 'None'  [undocumented]
-method close(self) -> 'None'  [undocumented]
-method configure_amplitude_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', depth_percent: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'  [undocumented]
-method configure_burst(self, mode: 'BurstMode | str', cycles: 'float', period: 'float | None' = None, phase_degrees: 'float' = 0.0) -> 'None'  [undocumented]
-method configure_frequency_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', deviation_hz: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'  [undocumented]
-method configure_frequency_shift_keying(self, hop_frequency: 'float', rate_hz: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'  [undocumented]
-method configure_frequency_sweep(self, start: 'float', stop: 'float', spacing: 'SweepSpacing | str' = <SweepSpacing.LINEAR: 'LIN'>, time_s: 'float' = 1.0) -> 'None'  [undocumented]
+method check_communication(self) -> 'bool'
+method clear_display_text(self) -> 'None'
+method close(self) -> 'None'
+method configure_amplitude_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', depth_percent: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'
+method configure_burst(self, mode: 'BurstMode | str', cycles: 'float', period: 'float | None' = None, phase_degrees: 'float' = 0.0) -> 'None'
+method configure_frequency_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', deviation_hz: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'
+method configure_frequency_shift_keying(self, hop_frequency: 'float', rate_hz: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'
+method configure_frequency_sweep(self, start: 'float', stop: 'float', spacing: 'SweepSpacing | str' = <SweepSpacing.LINEAR: 'LIN'>, time_s: 'float' = 1.0) -> 'None'
 method configure_output(self, function: 'Function | str', frequency: 'float', amplitude: 'float', offset: 'float' = 0.0, *, enable_output: 'bool' = False) -> 'None'
-method configure_phase_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', deviation_degrees: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'  [undocumented]
-method configure_pulse(self, period: 'float | None' = None, width: 'float | None' = None, duty_cycle: 'float | None' = None, transition: 'float | None' = None) -> 'None'  [undocumented]
-method configure_pulse_width_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', deviation_seconds: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'  [undocumented]
-method connect_simulated(simulator: 'SimAgilent33220AInstrument | None' = None) -> 'Agilent33220A'  [undocumented]
-method connect_visa(resource: 'str', timeout_s: 'float' = 5.0) -> 'Agilent33220A'  [undocumented]
-method copy_arbitrary_waveform_to_nonvolatile(self, name: 'str') -> 'None'  [undocumented]
-method delete_all_arbitrary_waveforms(self) -> 'None'  [undocumented]
-method delete_arbitrary_waveform(self, name: 'str') -> 'None'  [undocumented]
-method disable_amplitude_modulation(self) -> 'None'  [undocumented]
-method disable_burst(self) -> 'None'  [undocumented]
-method disable_display(self) -> 'None'  [undocumented]
-method disable_frequency_modulation(self) -> 'None'  [undocumented]
-method disable_frequency_shift_keying(self) -> 'None'  [undocumented]
-method disable_output(self) -> 'None'  [undocumented]
-method disable_phase_modulation(self) -> 'None'  [undocumented]
-method disable_pulse_width_modulation(self) -> 'None'  [undocumented]
-method disable_sweep(self) -> 'None'  [undocumented]
-method disable_sweep_marker(self) -> 'None'  [undocumented]
-method enable_amplitude_modulation(self) -> 'None'  [undocumented]
-method enable_burst(self) -> 'None'  [undocumented]
+method configure_phase_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', deviation_degrees: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'
+method configure_pulse(self, period: 'float | None' = None, width: 'float | None' = None, duty_cycle: 'float | None' = None, transition: 'float | None' = None) -> 'None'
+method configure_pulse_width_modulation(self, shape: 'ModulatingShape | str', frequency: 'float', deviation_seconds: 'float', source: 'ModulationSource | str' = <ModulationSource.INTERNAL: 'INT'>) -> 'None'
+method connect_simulated(simulator: 'SimAgilent33220AInstrument | None' = None) -> 'Agilent33220A'
+method connect_visa(resource: 'str', timeout_s: 'float' = 5.0) -> 'Agilent33220A'
+method copy_arbitrary_waveform_to_nonvolatile(self, name: 'str') -> 'None'
+method delete_all_arbitrary_waveforms(self) -> 'None'
+method delete_arbitrary_waveform(self, name: 'str') -> 'None'
+method disable_amplitude_modulation(self) -> 'None'
+method disable_burst(self) -> 'None'
+method disable_display(self) -> 'None'
+method disable_frequency_modulation(self) -> 'None'
+method disable_frequency_shift_keying(self) -> 'None'
+method disable_output(self) -> 'None'
+method disable_phase_modulation(self) -> 'None'
+method disable_pulse_width_modulation(self) -> 'None'
+method disable_sweep(self) -> 'None'
+method disable_sweep_marker(self) -> 'None'
+method enable_amplitude_modulation(self) -> 'None'
+method enable_burst(self) -> 'None'
 method enable_calibration_mode(self, confirmation: 'str') -> 'None'
-method enable_display(self) -> 'None'  [undocumented]
-method enable_frequency_modulation(self) -> 'None'  [undocumented]
-method enable_frequency_shift_keying(self) -> 'None'  [undocumented]
-method enable_output(self) -> 'None'  [undocumented]
-method enable_phase_modulation(self) -> 'None'  [undocumented]
-method enable_pulse_width_modulation(self) -> 'None'  [undocumented]
-method enable_raw_scpi(self, confirmation: 'str') -> 'None'  [undocumented]
-method enable_sweep(self) -> 'None'  [undocumented]
-method enable_sweep_marker(self) -> 'None'  [undocumented]
-method get_amplitude(self) -> 'float'  [undocumented]
-method get_amplitude_unit(self) -> 'AmplitudeUnit'  [undocumented]
-method get_arbitrary_waveform_attributes(self, name: 'str') -> 'ArbWaveformAttributes'  [undocumented]
+method enable_display(self) -> 'None'
+method enable_frequency_modulation(self) -> 'None'
+method enable_frequency_shift_keying(self) -> 'None'
+method enable_output(self) -> 'None'
+method enable_phase_modulation(self) -> 'None'
+method enable_pulse_width_modulation(self) -> 'None'
+method enable_raw_scpi(self, confirmation: 'str') -> 'None'
+method enable_sweep(self) -> 'None'
+method enable_sweep_marker(self) -> 'None'
+method get_amplitude(self) -> 'float'
+method get_amplitude_unit(self) -> 'AmplitudeUnit'
+method get_arbitrary_waveform_attributes(self, name: 'str') -> 'ArbWaveformAttributes'
 method get_calibration_count(self) -> 'int'
-method get_calibration_step(self) -> 'int'  [undocumented]
-method get_calibration_string(self) -> 'str'  [undocumented]
-method get_calibration_value(self) -> 'float'  [undocumented]
-method get_frequency(self) -> 'float'  [undocumented]
-method get_function(self) -> 'Function'  [undocumented]
-method get_gpib_address(self) -> 'int'  [undocumented]
-method get_lan_auto_ip(self) -> 'bool'  [undocumented]
-method get_lan_ip_address(self) -> 'str'  [undocumented]
+method get_calibration_step(self) -> 'int'
+method get_calibration_string(self) -> 'str'
+method get_calibration_value(self) -> 'float'
+method get_frequency(self) -> 'float'
+method get_function(self) -> 'Function'
+method get_gpib_address(self) -> 'int'
+method get_lan_auto_ip(self) -> 'bool'
+method get_lan_ip_address(self) -> 'str'
 method get_lan_logical_ip_address(self) -> 'str'
 method get_lan_mac_address(self) -> 'str'
-method get_lan_media_sense_enabled(self) -> 'bool'  [undocumented]
-method get_lan_netbios_enabled(self) -> 'bool'  [undocumented]
-method get_lan_telnet_prompt(self) -> 'str'  [undocumented]
-method get_lan_telnet_welcome_message(self) -> 'str'  [undocumented]
-method get_offset(self) -> 'float'  [undocumented]
-method get_output_load(self) -> 'str'  [undocumented]
-method get_output_polarity(self) -> 'OutputPolarity'  [undocumented]
-method get_output_settings(self) -> 'OutputSettings'  [undocumented]
-method get_ramp_symmetry(self) -> 'float'  [undocumented]
-method get_square_duty_cycle(self) -> 'float'  [undocumented]
-method get_sweep_marker_frequency(self) -> 'float'  [undocumented]
-method get_trigger_settings(self) -> 'TriggerSettings'  [undocumented]
-method get_trigger_slope(self) -> 'TriggerSlope'  [undocumented]
-method get_trigger_source(self) -> 'TriggerSource'  [undocumented]
-method identify(self, *, refresh: 'bool' = True) -> 'InstrumentIdentity'  [undocumented]
+method get_lan_media_sense_enabled(self) -> 'bool'
+method get_lan_netbios_enabled(self) -> 'bool'
+method get_lan_telnet_prompt(self) -> 'str'
+method get_lan_telnet_welcome_message(self) -> 'str'
+method get_offset(self) -> 'float'
+method get_output_load(self) -> 'str'
+method get_output_polarity(self) -> 'OutputPolarity'
+method get_output_settings(self) -> 'OutputSettings'
+method get_ramp_symmetry(self) -> 'float'
+method get_square_duty_cycle(self) -> 'float'
+method get_sweep_marker_frequency(self) -> 'float'
+method get_trigger_settings(self) -> 'TriggerSettings'
+method get_trigger_slope(self) -> 'TriggerSlope'
+method get_trigger_source(self) -> 'TriggerSource'
+method identify(self, *, refresh: 'bool' = True) -> 'InstrumentIdentity'
 method is_calibration_locked(self) -> 'bool'
-method is_front_panel_locked(self) -> 'bool'  [undocumented]
-method is_output_enabled(self) -> 'bool'  [undocumented]
-method list_arbitrary_waveforms(self) -> 'list[str]'  [undocumented]
+method is_front_panel_locked(self) -> 'bool'
+method is_output_enabled(self) -> 'bool'
+method list_arbitrary_waveforms(self) -> 'list[str]'
 method load_arbitrary_waveform(self, values: 'list[float]') -> 'None'
 method lock_calibration(self) -> 'None'
-method lock_front_panel(self) -> 'None'  [undocumented]
-method raw_query(self, command: 'str') -> 'str'  [undocumented]
-method raw_write(self, command: 'str') -> 'None'  [undocumented]
-method restore_factory_setup(self) -> 'None'  [undocumented]
+method lock_front_panel(self) -> 'None'
+method raw_query(self, command: 'str') -> 'str'
+method raw_write(self, command: 'str') -> 'None'
+method restore_factory_setup(self) -> 'None'
 method restore_setup(self, host_path: 'str | Path') -> 'None'
 method restore_setup_from_instrument_memory(self, slot: 'int') -> 'None'
 method run_calibration(self) -> 'bool'
 method save_setup(self, host_path: 'str | Path') -> 'None'
-method save_setup_to_instrument_memory(self, slot: 'int') -> 'None'  [undocumented]
-method select_arbitrary_waveform(self, name: 'str') -> 'None'  [undocumented]
-method set_amplitude(self, amplitude: 'float') -> 'None'  [undocumented]
-method set_amplitude_unit(self, unit: 'AmplitudeUnit | str') -> 'None'  [undocumented]
-method set_burst_gate_polarity(self, polarity: 'GatePolarity | str') -> 'None'  [undocumented]
+method save_setup_to_instrument_memory(self, slot: 'int') -> 'None'
+method select_arbitrary_waveform(self, name: 'str') -> 'None'
+method set_amplitude(self, amplitude: 'float') -> 'None'
+method set_amplitude_unit(self, unit: 'AmplitudeUnit | str') -> 'None'
+method set_burst_gate_polarity(self, polarity: 'GatePolarity | str') -> 'None'
 method set_calibration_security_code(self, new_code: 'str') -> 'None'
 method set_calibration_step(self, step: 'int') -> 'None'
 method set_calibration_string(self, text: 'str') -> 'None'
 method set_calibration_value(self, value: 'float') -> 'None'
-method set_display_text(self, text: 'str') -> 'None'  [undocumented]
-method set_frequency(self, frequency: 'float') -> 'None'  [undocumented]
-method set_front_panel_lock_exclude(self, exclude: 'FrontPanelLockExclude | str') -> 'None'  [undocumented]
+method set_display_text(self, text: 'str') -> 'None'
+method set_frequency(self, frequency: 'float') -> 'None'
+method set_front_panel_lock_exclude(self, exclude: 'FrontPanelLockExclude | str') -> 'None'
 method set_function(self, function: 'Function | str') -> 'None'
-method set_gpib_address(self, address: 'int') -> 'None'  [undocumented]
-method set_lan_auto_ip(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_lan_ip_address(self, address: 'str') -> 'None'  [undocumented]
+method set_gpib_address(self, address: 'int') -> 'None'
+method set_lan_auto_ip(self, enabled: 'bool') -> 'None'
+method set_lan_ip_address(self, address: 'str') -> 'None'
 method set_lan_media_sense_enabled(self, enabled: 'bool') -> 'None'
-method set_lan_netbios_enabled(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_lan_telnet_prompt(self, text: 'str') -> 'None'  [undocumented]
-method set_lan_telnet_welcome_message(self, text: 'str') -> 'None'  [undocumented]
-method set_offset(self, offset: 'float') -> 'None'  [undocumented]
+method set_lan_netbios_enabled(self, enabled: 'bool') -> 'None'
+method set_lan_telnet_prompt(self, text: 'str') -> 'None'
+method set_lan_telnet_welcome_message(self, text: 'str') -> 'None'
+method set_offset(self, offset: 'float') -> 'None'
 method set_output_load(self, ohms: 'float | str') -> 'None'
-method set_output_polarity(self, polarity: 'OutputPolarity | str') -> 'None'  [undocumented]
-method set_ramp_symmetry(self, percent: 'float') -> 'None'  [undocumented]
-method set_square_duty_cycle(self, percent: 'float') -> 'None'  [undocumented]
-method set_sweep_marker_frequency(self, frequency: 'float') -> 'None'  [undocumented]
-method set_trigger_slope(self, slope: 'TriggerSlope | str') -> 'None'  [undocumented]
-method set_trigger_source(self, source: 'TriggerSource | str') -> 'None'  [undocumented]
+method set_output_polarity(self, polarity: 'OutputPolarity | str') -> 'None'
+method set_ramp_symmetry(self, percent: 'float') -> 'None'
+method set_square_duty_cycle(self, percent: 'float') -> 'None'
+method set_sweep_marker_frequency(self, frequency: 'float') -> 'None'
+method set_trigger_slope(self, slope: 'TriggerSlope | str') -> 'None'
+method set_trigger_source(self, source: 'TriggerSource | str') -> 'None'
 method trigger_now(self) -> 'None'
 method unlock_calibration(self, security_code: 'str') -> 'None'
-method unlock_front_panel(self) -> 'None'  [undocumented]
-property connected  [undocumented]
-property resource  [undocumented]
-property timeout_s  [undocumented]
+method unlock_front_panel(self) -> 'None'
+property connected
+property resource
+property timeout_s

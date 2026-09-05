@@ -26,19 +26,24 @@ class AsyncEResistorClient:
         return await asyncio.to_thread(func, *args, **kwargs)
 
     async def connect(self) -> None:
+        """Open the connection."""
         await self._call(self.sync.connect)
 
     async def close(self) -> None:
+        """Close the connection and release the transport."""
         await self._call(self.sync.close)
 
     async def idn(self) -> str:
         return await self._call(self.sync.idn)
 
     async def set_mask(self, channel: int, mask) -> str:
+        """Set the mask."""
         return await self._call(self.sync.set_mask, channel, mask)
 
     async def set_resistance(self, channel: int, resistance_ohm: float):
+        """Set the resistance."""
         return await self._call(self.sync.set_resistance, channel, resistance_ohm)
 
     async def set_temperature(self, channel: int, temperature_c: float):
+        """Set the temperature."""
         return await self._call(self.sync.set_temperature, channel, temperature_c)

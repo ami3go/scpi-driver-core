@@ -79,6 +79,7 @@ class Hp34401APluginProvider:
 
     @classmethod
     def get_descriptor(cls) -> dict[str, Any]:
+        """Return the descriptor."""
         descriptor = cls._manifest()
         descriptor["installed_driver_version"] = __version__
         descriptor["resolved_artifacts"] = {

@@ -24,6 +24,7 @@ class ScpiErrorRecord:
 
     @property
     def is_ok(self) -> bool:
+        """Whether the ok."""
         return self.code == 0
 
 
@@ -34,6 +35,7 @@ class SelfTestResult:
 
     @property
     def passed(self) -> bool:
+        """The passed."""
         return self.code == 0
 
 
@@ -128,6 +130,7 @@ class ShutdownResult:
 
     @property
     def success(self) -> bool:
+        """The success."""
         return all(item.success for item in self.results)
 
 

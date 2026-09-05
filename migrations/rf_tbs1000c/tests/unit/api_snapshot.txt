@@ -1,58 +1,58 @@
 method auto_set_trigger_level(self) -> 'None'
-method check_communication(self) -> 'bool'  [undocumented]
-method close(self) -> 'None'  [undocumented]
-method connect_simulated(simulator: 'SimTbs1000cInstrument | None' = None) -> 'Tbs1000c'  [undocumented]
-method connect_usbtmc(resource: 'str', timeout_s: 'float' = 5.0) -> 'Tbs1000c'  [undocumented]
-method enable_raw_scpi(self, confirmation: 'str') -> 'None'  [undocumented]
-method force_trigger(self) -> 'None'  [undocumented]
-method get_acquisition_count(self) -> 'int'  [undocumented]
-method get_acquisition_mode(self) -> 'AcquisitionMode'  [undocumented]
-method get_calibration_results(self) -> 'str'  [undocumented]
-method get_calibration_status(self) -> 'CalibrationStatus'  [undocumented]
-method get_channel_bandwidth_limit(self, channel: 'int') -> 'str'  [undocumented]
-method get_channel_coupling(self, channel: 'int') -> 'Coupling'  [undocumented]
-method get_channel_name(self, channel: 'int') -> 'str'  [undocumented]
-method get_channel_offset(self, channel: 'int') -> 'float'  [undocumented]
-method get_channel_position(self, channel: 'int') -> 'float'  [undocumented]
-method get_channel_probe_gain(self, channel: 'int') -> 'float'  [undocumented]
-method get_channel_scale(self, channel: 'int') -> 'float'  [undocumented]
-method get_channel_settings(self, channel: 'int') -> 'ChannelSettings'  [undocumented]
-method get_immediate_measurement(self, measurement_type: 'MeasurementType | str', channel: 'int') -> 'float'  [undocumented]
-method get_trigger_coupling(self) -> 'TriggerCoupling'  [undocumented]
-method get_trigger_level(self) -> 'float'  [undocumented]
-method get_trigger_settings(self) -> 'TriggerSettings'  [undocumented]
-method get_trigger_slope(self) -> 'TriggerSlope'  [undocumented]
-method get_trigger_source(self) -> 'str'  [undocumented]
+method check_communication(self) -> 'bool'
+method close(self) -> 'None'
+method connect_simulated(simulator: 'SimTbs1000cInstrument | None' = None) -> 'Tbs1000c'
+method connect_usbtmc(resource: 'str', timeout_s: 'float' = 5.0) -> 'Tbs1000c'
+method enable_raw_scpi(self, confirmation: 'str') -> 'None'
+method force_trigger(self) -> 'None'
+method get_acquisition_count(self) -> 'int'
+method get_acquisition_mode(self) -> 'AcquisitionMode'
+method get_calibration_results(self) -> 'str'
+method get_calibration_status(self) -> 'CalibrationStatus'
+method get_channel_bandwidth_limit(self, channel: 'int') -> 'str'
+method get_channel_coupling(self, channel: 'int') -> 'Coupling'
+method get_channel_name(self, channel: 'int') -> 'str'
+method get_channel_offset(self, channel: 'int') -> 'float'
+method get_channel_position(self, channel: 'int') -> 'float'
+method get_channel_probe_gain(self, channel: 'int') -> 'float'
+method get_channel_scale(self, channel: 'int') -> 'float'
+method get_channel_settings(self, channel: 'int') -> 'ChannelSettings'
+method get_immediate_measurement(self, measurement_type: 'MeasurementType | str', channel: 'int') -> 'float'
+method get_trigger_coupling(self) -> 'TriggerCoupling'
+method get_trigger_level(self) -> 'float'
+method get_trigger_settings(self) -> 'TriggerSettings'
+method get_trigger_slope(self) -> 'TriggerSlope'
+method get_trigger_source(self) -> 'str'
 method get_waveform(self, channel: 'int') -> 'Waveform'
-method identify(self, *, refresh: 'bool' = True) -> 'InstrumentIdentity'  [undocumented]
-method raw_query(self, command: 'str') -> 'str'  [undocumented]
-method raw_write(self, command: 'str') -> 'None'  [undocumented]
+method identify(self, *, refresh: 'bool' = True) -> 'InstrumentIdentity'
+method raw_query(self, command: 'str') -> 'str'
+method raw_write(self, command: 'str') -> 'None'
 method recall_waveform_from_host_file(self, host_path: 'str | Path', ref: 'int') -> 'None'
-method restore_factory_setup(self) -> 'None'  [undocumented]
+method restore_factory_setup(self) -> 'None'
 method restore_setup(self, host_path: 'str | Path') -> 'None'
-method restore_setup_from_instrument_memory(self, slot: 'int') -> 'None'  [undocumented]
-method run_autoset(self) -> 'None'  [undocumented]
-method run_internal_calibration(self) -> 'None'  [undocumented]
-method save_screen_image(self, host_path: 'str | Path', image_format: 'ImageFormat | str | None' = None, layout: 'ImageLayout | str | None' = None) -> 'None'  [undocumented]
+method restore_setup_from_instrument_memory(self, slot: 'int') -> 'None'
+method run_autoset(self) -> 'None'
+method run_internal_calibration(self) -> 'None'
+method save_screen_image(self, host_path: 'str | Path', image_format: 'ImageFormat | str | None' = None, layout: 'ImageLayout | str | None' = None) -> 'None'
 method save_setup(self, host_path: 'str | Path') -> 'None'
-method save_setup_to_instrument_memory(self, slot: 'int') -> 'None'  [undocumented]
+method save_setup_to_instrument_memory(self, slot: 'int') -> 'None'
 method save_waveform_to_csv(self, host_path: 'str | Path', channel: 'int') -> 'None'
 method save_waveform_to_csv_on_instrument(self, host_path: 'str | Path', channel: 'int') -> 'None'
 method save_waveform_to_reference_memory(self, channel: 'int', ref: 'int') -> 'None'
-method set_acquisition_mode(self, mode: 'AcquisitionMode | str') -> 'None'  [undocumented]
+method set_acquisition_mode(self, mode: 'AcquisitionMode | str') -> 'None'
 method set_channel_bandwidth_limit(self, channel: 'int', value: 'str | float') -> 'None'
-method set_channel_coupling(self, channel: 'int', coupling: 'Coupling | str') -> 'None'  [undocumented]
+method set_channel_coupling(self, channel: 'int', coupling: 'Coupling | str') -> 'None'
 method set_channel_name(self, channel: 'int', name: 'str | None') -> 'None'
-method set_channel_offset(self, channel: 'int', volts: 'float') -> 'None'  [undocumented]
-method set_channel_position(self, channel: 'int', divisions: 'float') -> 'None'  [undocumented]
-method set_channel_probe_gain(self, channel: 'int', gain: 'float') -> 'None'  [undocumented]
-method set_channel_scale(self, channel: 'int', volts_per_div: 'float') -> 'None'  [undocumented]
-method set_trigger_coupling(self, coupling: 'TriggerCoupling | str') -> 'None'  [undocumented]
-method set_trigger_level(self, level_v: 'float') -> 'None'  [undocumented]
-method set_trigger_slope(self, slope: 'TriggerSlope | str') -> 'None'  [undocumented]
-method set_trigger_source(self, channel: 'int') -> 'None'  [undocumented]
-method start_acquisition(self) -> 'None'  [undocumented]
-method stop_acquisition(self) -> 'None'  [undocumented]
-property connected  [undocumented]
-property resource  [undocumented]
-property timeout_s  [undocumented]
+method set_channel_offset(self, channel: 'int', volts: 'float') -> 'None'
+method set_channel_position(self, channel: 'int', divisions: 'float') -> 'None'
+method set_channel_probe_gain(self, channel: 'int', gain: 'float') -> 'None'
+method set_channel_scale(self, channel: 'int', volts_per_div: 'float') -> 'None'
+method set_trigger_coupling(self, coupling: 'TriggerCoupling | str') -> 'None'
+method set_trigger_level(self, level_v: 'float') -> 'None'
+method set_trigger_slope(self, slope: 'TriggerSlope | str') -> 'None'
+method set_trigger_source(self, channel: 'int') -> 'None'
+method start_acquisition(self) -> 'None'
+method stop_acquisition(self) -> 'None'
+property connected
+property resource
+property timeout_s

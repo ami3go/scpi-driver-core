@@ -36,6 +36,7 @@ class SerialRs232Transport(BaseTransport):
 
     @property
     def name(self) -> str:
+        """A human-readable name for this connection."""
         return f"serial:{self.config.port}@{self.config.baudrate}"
 
     def _do_open(self) -> None:

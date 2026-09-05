@@ -72,10 +72,12 @@ class TemperatureTable:
 
     @property
     def min_temperature_c(self) -> float:
+        """The min temperature c."""
         return self.points[0].temperature_c
 
     @property
     def max_temperature_c(self) -> float:
+        """The max temperature c."""
         return self.points[-1].temperature_c
 
     def resistance_at(

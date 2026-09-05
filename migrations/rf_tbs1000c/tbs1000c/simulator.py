@@ -90,6 +90,7 @@ class SimTbs1000cInstrument:
     # -- public dispatch -------------------------------------------------
 
     def dispatch(self, command: str) -> bytes:
+        """Handle one command and return its reply."""
         command = command.strip()
         if not command:
             return b""

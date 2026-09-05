@@ -344,21 +344,25 @@ class EResistorLibrary:
     @keyword("Get EResistor Identity")
     @_evidenced
     def get_identity(self) -> str:
+        """Return the identity."""
         return self._device().idn()
 
     @keyword("Ping EResistor")
     @_evidenced
     def ping(self) -> bool:
+        """Check that the instrument is reachable."""
         return self._device().ping()
 
     @keyword("Identify EResistor")
     @_evidenced
     def identify(self, duration_s: float = 5.0) -> str:
+        """Return the instrument identity."""
         return self._device().identify(float(duration_s))
 
     @keyword("Get EResistor Information")
     @_evidenced
     def get_information(self) -> dict[str, Any]:
+        """Return the information."""
         dev = self._device()
         return {"identity": dev.idn(), "serial": dev.get_serial(),
                 "firmware_version": dev.get_firmware_version(),
@@ -374,31 +378,37 @@ class EResistorLibrary:
     @keyword("Get EResistor Status")
     @_evidenced
     def get_status(self) -> dict[str, str]:
+        """Return the status."""
         return self._device().get_status()
 
     @keyword("Get EResistor Error")
     @_evidenced
     def get_error(self) -> str:
+        """Return the error."""
         return self._device().get_error()
 
     @keyword("Clear EResistor Errors")
     @_evidenced
     def clear_errors(self) -> str:
+        """Clear the errors."""
         return self._device().clear_errors()
 
     @keyword("Set EResistor Mask")
     @_evidenced
     def set_mask(self, channel: int, mask: int | str, force: bool = False) -> str:
+        """Set the mask."""
         return self._device().set_mask(int(channel), mask, force=_bool(force))
 
     @keyword("Get EResistor Mask")
     @_evidenced
     def get_mask(self, channel: int) -> str:
+        """Return the mask."""
         return self._device().get_mask(int(channel))
 
     @keyword("Get All EResistor Masks")
     @_evidenced
     def get_all_masks(self) -> dict[str, str]:
+        """Return the all masks."""
         return _robot_value(self._device().get_all_masks())
 
     @keyword("Set All EResistor Masks")
@@ -411,6 +421,7 @@ class EResistorLibrary:
     @keyword("Set Selected EResistor Masks")
     @_evidenced
     def set_selected_masks(self, masks: Mapping[Any, Any], force: bool = False) -> dict[str, str]:
+        """Set the selected masks."""
         values = {int(k): v for k, v in masks.items()}
         return _robot_value(self._device().set_masks(values, force=_bool(force)))
 
@@ -440,11 +451,13 @@ class EResistorLibrary:
     @keyword("Load EResistor Calibration")
     @_evidenced
     def load_calibration(self, path: str) -> dict[str, Any]:
+        """Load the calibration."""
         return _robot_value(self._device().load_calibration(path))
 
     @keyword("Save EResistor Calibration")
     @_evidenced
     def save_calibration(self, path: str) -> None:
+        """Save the calibration."""
         self._device().save_calibration(path)
 
     @keyword("Build EResistor Resistance Cache")
@@ -470,6 +483,7 @@ class EResistorLibrary:
     @_evidenced
     def set_resistance(self, channel: int, resistance_ohm: float,
                        allow_closest_out_of_range: bool = False, force: bool = False) -> dict[str, Any]:
+        """Set the resistance."""
         return _robot_value(self._device().set_resistance(
             int(channel), float(resistance_ohm),
             allow_closest_out_of_range=_bool(allow_closest_out_of_range), force=_bool(force)))
@@ -478,6 +492,7 @@ class EResistorLibrary:
     @_evidenced
     def set_resistances(self, values: Mapping[Any, Any] | Sequence[Any],
                         atomic: bool = True, force: bool = False) -> list[dict[str, Any]]:
+        """Set the resistances."""
         normalized = ({int(k): float(v) for k, v in values.items()} if isinstance(values, Mapping)
                       else [None if v is None else float(v) for v in values])
         return _robot_value(self._device().set_resistances(
@@ -486,6 +501,7 @@ class EResistorLibrary:
     @keyword("Load EResistor Temperature Table")
     @_evidenced
     def load_temperature_table(self, channel: int, path: str) -> dict[str, Any]:
+        """Load the temperature table."""
         table = self._device().load_temperature_table(int(channel), path)
         return {"source": table.source, "minimum_temperature_c": table.min_temperature_c,
                 "maximum_temperature_c": table.max_temperature_c}
@@ -493,6 +509,7 @@ class EResistorLibrary:
     @keyword("Load EResistor Temperature Table For All Channels")
     @_evidenced
     def load_temperature_table_for_all(self, path: str) -> dict[str, Any]:
+        """Load the temperature table for all."""
         table = self._device().load_temperature_table_for_all(path)
         return {"source": table.source, "minimum_temperature_c": table.min_temperature_c,
                 "maximum_temperature_c": table.max_temperature_c}
@@ -501,6 +518,7 @@ class EResistorLibrary:
     @_evidenced
     def set_temperature(self, channel: int, temperature_c: float, interpolation: str = "linear",
                         allow_extrapolation: bool = False, force: bool = False) -> dict[str, Any]:
+        """Set the temperature."""
         return _robot_value(self._device().set_temperature(
             int(channel), float(temperature_c), interpolation=interpolation,
             allow_extrapolation=_bool(allow_extrapolation), force=_bool(force)))
@@ -508,16 +526,19 @@ class EResistorLibrary:
     @keyword("Start EResistor Watchdog")
     @_evidenced
     def start_watchdog(self) -> None:
+        """Start watchdog."""
         self._device().start_watchdog()
 
     @keyword("Stop EResistor Watchdog")
     @_evidenced
     def stop_watchdog(self) -> None:
+        """Stop watchdog."""
         self._device().stop_watchdog()
 
     @keyword("Get EResistor Metrics")
     @_evidenced
     def get_metrics(self) -> dict[str, Any]:
+        """Return the metrics."""
         return _robot_value(self._device().metrics.snapshot())
 
     @keyword("Discover EResistor Boards")

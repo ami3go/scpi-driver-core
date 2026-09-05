@@ -61,10 +61,12 @@ class ScpiTransport:
 
     @property
     def state(self) -> ConnectionState:
+        """The state."""
         return self._state
 
     @property
     def last_success_monotonic(self) -> float | None:
+        """The last success monotonic."""
         return self._last_success_monotonic
 
     def _set_state(self, state: ConnectionState) -> None:
@@ -74,6 +76,7 @@ class ScpiTransport:
                 self.state_callback(state)
 
     def connect(self) -> None:
+        """Open the connection."""
         with self._lock:
             self.close()
             self._set_state(ConnectionState.RECONNECTING)
@@ -117,6 +120,7 @@ class ScpiTransport:
             transport.open()
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         with self._lock:
             transport, self._transport = self._transport, None
             if transport is not None:

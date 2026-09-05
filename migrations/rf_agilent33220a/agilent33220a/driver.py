@@ -93,33 +93,40 @@ class Agilent33220A:
     # ------------------------------------------------------------------
     @classmethod
     def connect_visa(cls, resource: str, timeout_s: float = 5.0) -> Agilent33220A:
+        """Open a VISA connection and return a connected driver."""
         transport = PyvisaTransport(resource, timeout_s=timeout_s)
         transport.open()
         return cls(transport)
 
     @classmethod
     def connect_simulated(cls, simulator: SimAgilent33220AInstrument | None = None) -> Agilent33220A:
+        """Return a driver backed by the in-process simulator."""
         transport = SimulatedTransport(simulator)
         transport.open()
         return cls(transport)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self.transport.close()
 
     @property
     def connected(self) -> bool:
+        """Whether the transport is currently open."""
         return self.transport.is_open()
 
     @property
     def resource(self) -> str:
+        """The resource string this driver is connected to."""
         return self.transport.resource
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self.transport.timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self.transport.timeout_s = value
 
     # ------------------------------------------------------------------
@@ -150,6 +157,10 @@ class Agilent33220A:
     # Identity / communication (RFDS-002)
     # ------------------------------------------------------------------
     def identify(self, *, refresh: bool = True) -> InstrumentIdentity:
+        """Return the instrument identity.
+
+        Sends ``*IDN?``.
+        """
         if not refresh and self._identity is not None:
             return self._identity
         raw = self._query("*IDN?")
@@ -165,6 +176,10 @@ class Agilent33220A:
         return identity
 
     def check_communication(self) -> bool:
+        """Check the communication.
+
+        Sends ``*IDN?``.
+        """
         self._query("*IDN?")
         return True
 
@@ -209,18 +224,34 @@ class Agilent33220A:
             )
 
     def get_function(self) -> Function:
+        """Return the function.
+
+        Sends ``FUNCtion?``.
+        """
         return Function(self._query("FUNCtion?").strip())
 
     def set_frequency(self, frequency: float) -> None:
+        """Set the frequency.
+
+        Sends ``FREQuency …``.
+        """
         frequency = float(frequency)
         if frequency <= 0:
             raise Agilent33220AValidationError("frequency must be positive")
         self._write(f"FREQuency {frequency}")
 
     def get_frequency(self) -> float:
+        """Return the frequency.
+
+        Sends ``FREQuency?``.
+        """
         return float(self._query("FREQuency?"))
 
     def set_amplitude(self, amplitude: float) -> None:
+        """Set the amplitude.
+
+        Sends ``VOLTage …``.
+        """
         amplitude = float(amplitude)
         if amplitude < 0:
             raise Agilent33220AValidationError("amplitude must not be negative")
@@ -228,21 +259,41 @@ class Agilent33220A:
         self._write(f"VOLTage {amplitude}")
 
     def get_amplitude(self) -> float:
+        """Return the amplitude.
+
+        Sends ``VOLTage?``.
+        """
         return float(self._query("VOLTage?"))
 
     def set_amplitude_unit(self, unit: AmplitudeUnit | str) -> None:
+        """Set the amplitude unit.
+
+        Sends ``VOLTage:UNIT …``.
+        """
         unit = AmplitudeUnit(unit)
         self._write(f"VOLTage:UNIT {unit.value}")
 
     def get_amplitude_unit(self) -> AmplitudeUnit:
+        """Return the amplitude unit.
+
+        Sends ``VOLTage:UNIT?``.
+        """
         return AmplitudeUnit(self._query("VOLTage:UNIT?").strip())
 
     def set_offset(self, offset: float) -> None:
+        """Set the offset.
+
+        Sends ``VOLTage:OFFSet …``.
+        """
         offset = float(offset)
         self._validate_amplitude_offset(self.get_amplitude(), offset)
         self._write(f"VOLTage:OFFSet {offset}")
 
     def get_offset(self) -> float:
+        """Return the offset.
+
+        Sends ``VOLTage:OFFSet?``.
+        """
         return float(self._query("VOLTage:OFFSet?"))
 
     def set_output_load(self, ohms: float | str) -> None:
@@ -251,31 +302,59 @@ class Agilent33220A:
         self._write(f"OUTPut:LOAD {ohms}")
 
     def get_output_load(self) -> str:
+        """Return the output load.
+
+        Sends ``OUTPut:LOAD?``.
+        """
         return self._query("OUTPut:LOAD?").strip()
 
     def set_output_polarity(self, polarity: OutputPolarity | str) -> None:
+        """Set the output polarity.
+
+        Sends ``OUTPut:POLarity …``.
+        """
         polarity = OutputPolarity(polarity)
         self._write(f"OUTPut:POLarity {polarity.value}")
 
     def get_output_polarity(self) -> OutputPolarity:
+        """Return the output polarity.
+
+        Sends ``OUTPut:POLarity?``.
+        """
         return OutputPolarity(self._query("OUTPut:POLarity?").strip())
 
     def set_square_duty_cycle(self, percent: float) -> None:
+        """Set the square duty cycle.
+
+        Sends ``FUNCtion:SQUare:DCYCle …``.
+        """
         percent = float(percent)
         if not (0.0 <= percent <= 100.0):
             raise Agilent33220AValidationError("duty cycle must be between 0 and 100 percent")
         self._write(f"FUNCtion:SQUare:DCYCle {percent}")
 
     def get_square_duty_cycle(self) -> float:
+        """Return the square duty cycle.
+
+        Sends ``FUNCtion:SQUare:DCYCle?``.
+        """
         return float(self._query("FUNCtion:SQUare:DCYCle?"))
 
     def set_ramp_symmetry(self, percent: float) -> None:
+        """Set the ramp symmetry.
+
+        Sends ``FUNCtion:RAMP:SYMMetry …``.
+        """
         percent = float(percent)
         if not (0.0 <= percent <= 100.0):
             raise Agilent33220AValidationError("ramp symmetry must be between 0 and 100 percent")
         self._write(f"FUNCtion:RAMP:SYMMetry {percent}")
 
     def get_ramp_symmetry(self) -> float:
+        """Return the ramp symmetry.
+
+        Sends ``FUNCtion:RAMP:SYMMetry?``.
+        """
         return float(self._query("FUNCtion:RAMP:SYMMetry?"))
 
     def configure_output(
@@ -305,16 +384,29 @@ class Agilent33220A:
             self.disable_output()
 
     def enable_output(self) -> None:
+        """Enable output.
+
+        Sends ``OUTPut ON``.
+        """
         logger.info("Agilent33220A: enabling output. settings=%s", self.get_output_settings())
         self._write("OUTPut ON")
 
     def disable_output(self) -> None:
+        """Disable output.
+
+        Sends ``OUTPut OFF``.
+        """
         self._write("OUTPut OFF")
 
     def is_output_enabled(self) -> bool:
+        """Whether the output enabled.
+
+        Sends ``OUTPut?``.
+        """
         return self._query("OUTPut?").strip() in ("1", "ON")
 
     def get_output_settings(self) -> OutputSettings:
+        """Return the output settings."""
         return OutputSettings(
             function=self.get_function().value,
             frequency=self.get_frequency(),
@@ -330,28 +422,57 @@ class Agilent33220A:
     # Front panel / display (task §8)
     # ------------------------------------------------------------------
     def lock_front_panel(self) -> None:
+        """Issue the lock front panel command.
+
+        Sends ``SYSTem:KLOCk ON``.
+        """
         self._write("SYSTem:KLOCk ON")
 
     def unlock_front_panel(self) -> None:
+        """Issue the unlock front panel command.
+
+        Sends ``SYSTem:KLOCk OFF``.
+        """
         self._write("SYSTem:KLOCk OFF")
 
     def is_front_panel_locked(self) -> bool:
+        """Whether the front panel locked.
+
+        Sends ``SYSTem:KLOCk?``.
+        """
         return self._query("SYSTem:KLOCk?").strip() in ("1", "ON")
 
     def set_front_panel_lock_exclude(self, exclude: FrontPanelLockExclude | str) -> None:
+        """Set the front panel lock exclude.
+
+        Sends ``SYSTem:KLOCk:EXCLude …``.
+        """
         exclude = FrontPanelLockExclude(exclude)
         self._write(f"SYSTem:KLOCk:EXCLude {exclude.value}")
 
     def set_display_text(self, text: str) -> None:
+        """Set the display text."""
         self._write(f'DISPlay:TEXT "{text}"')
 
     def clear_display_text(self) -> None:
+        """Clear the display text.
+
+        Sends ``DISPlay:TEXT:CLEar``.
+        """
         self._write("DISPlay:TEXT:CLEar")
 
     def enable_display(self) -> None:
+        """Enable display.
+
+        Sends ``DISPlay ON``.
+        """
         self._write("DISPlay ON")
 
     def disable_display(self) -> None:
+        """Disable display.
+
+        Sends ``DISPlay OFF``.
+        """
         self._write("DISPlay OFF")
 
     # ------------------------------------------------------------------
@@ -364,6 +485,10 @@ class Agilent33220A:
         duty_cycle: float | None = None,
         transition: float | None = None,
     ) -> None:
+        """Configure pulse.
+
+        Sends ``PULSe:PERiod …``, ``FUNCtion:PULSe:HOLD DCYCle``, ``FUNCtion:PULSe:DCYCle …``, ``FUNCtion:PULSe:TRANsition …``, ``FUNCtion:PULSe:HOLD WIDTh``, ``FUNCtion:PULSe:WIDTh …``.
+        """
         if period is not None:
             self._write(f"PULSe:PERiod {float(period)}")
         if duty_cycle is not None:
@@ -382,6 +507,10 @@ class Agilent33220A:
         self, shape: ModulatingShape | str, frequency: float, depth_percent: float,
         source: ModulationSource | str = ModulationSource.INTERNAL,
     ) -> None:
+        """Configure amplitude modulation.
+
+        Sends ``AM:INTernal:FUNCtion …``, ``AM:INTernal:FREQuency …``, ``AM:DEPTh …``, ``AM:SOURce …``.
+        """
         shape = ModulatingShape(shape)
         source = ModulationSource(source)
         self._write(f"AM:INTernal:FUNCtion {shape.value}")
@@ -390,15 +519,27 @@ class Agilent33220A:
         self._write(f"AM:SOURce {source.value}")
 
     def enable_amplitude_modulation(self) -> None:
+        """Enable amplitude modulation.
+
+        Sends ``AM:STATe ON``.
+        """
         self._write("AM:STATe ON")
 
     def disable_amplitude_modulation(self) -> None:
+        """Disable amplitude modulation.
+
+        Sends ``AM:STATe OFF``.
+        """
         self._write("AM:STATe OFF")
 
     def configure_frequency_modulation(
         self, shape: ModulatingShape | str, frequency: float, deviation_hz: float,
         source: ModulationSource | str = ModulationSource.INTERNAL,
     ) -> None:
+        """Configure frequency modulation.
+
+        Sends ``FM:INTernal:FUNCtion …``, ``FM:INTernal:FREQuency …``, ``FM:DEViation …``, ``FM:SOURce …``.
+        """
         shape = ModulatingShape(shape)
         source = ModulationSource(source)
         self._write(f"FM:INTernal:FUNCtion {shape.value}")
@@ -407,15 +548,27 @@ class Agilent33220A:
         self._write(f"FM:SOURce {source.value}")
 
     def enable_frequency_modulation(self) -> None:
+        """Enable frequency modulation.
+
+        Sends ``FM:STATe ON``.
+        """
         self._write("FM:STATe ON")
 
     def disable_frequency_modulation(self) -> None:
+        """Disable frequency modulation.
+
+        Sends ``FM:STATe OFF``.
+        """
         self._write("FM:STATe OFF")
 
     def configure_phase_modulation(
         self, shape: ModulatingShape | str, frequency: float, deviation_degrees: float,
         source: ModulationSource | str = ModulationSource.INTERNAL,
     ) -> None:
+        """Configure phase modulation.
+
+        Sends ``PM:INTernal:FUNCtion …``, ``PM:INTernal:FREQuency …``, ``PM:DEViation …``, ``PM:SOURce …``.
+        """
         shape = ModulatingShape(shape)
         source = ModulationSource(source)
         self._write(f"PM:INTernal:FUNCtion {shape.value}")
@@ -424,30 +577,54 @@ class Agilent33220A:
         self._write(f"PM:SOURce {source.value}")
 
     def enable_phase_modulation(self) -> None:
+        """Enable phase modulation.
+
+        Sends ``PM:STATe ON``.
+        """
         self._write("PM:STATe ON")
 
     def disable_phase_modulation(self) -> None:
+        """Disable phase modulation.
+
+        Sends ``PM:STATe OFF``.
+        """
         self._write("PM:STATe OFF")
 
     def configure_frequency_shift_keying(
         self, hop_frequency: float, rate_hz: float,
         source: ModulationSource | str = ModulationSource.INTERNAL,
     ) -> None:
+        """Configure frequency shift keying.
+
+        Sends ``FSKey:FREQuency …``, ``FSKey:INTernal:RATE …``, ``FSKey:SOURce …``.
+        """
         source = ModulationSource(source)
         self._write(f"FSKey:FREQuency {float(hop_frequency)}")
         self._write(f"FSKey:INTernal:RATE {float(rate_hz)}")
         self._write(f"FSKey:SOURce {source.value}")
 
     def enable_frequency_shift_keying(self) -> None:
+        """Enable frequency shift keying.
+
+        Sends ``FSKey:STATe ON``.
+        """
         self._write("FSKey:STATe ON")
 
     def disable_frequency_shift_keying(self) -> None:
+        """Disable frequency shift keying.
+
+        Sends ``FSKey:STATe OFF``.
+        """
         self._write("FSKey:STATe OFF")
 
     def configure_pulse_width_modulation(
         self, shape: ModulatingShape | str, frequency: float, deviation_seconds: float,
         source: ModulationSource | str = ModulationSource.INTERNAL,
     ) -> None:
+        """Configure pulse width modulation.
+
+        Sends ``PWM:INTernal:FUNCtion …``, ``PWM:INTernal:FREQuency …``, ``PWM:DEViation …``, ``PWM:SOURce …``.
+        """
         shape = ModulatingShape(shape)
         source = ModulationSource(source)
         self._write(f"PWM:INTernal:FUNCtion {shape.value}")
@@ -456,9 +633,17 @@ class Agilent33220A:
         self._write(f"PWM:SOURce {source.value}")
 
     def enable_pulse_width_modulation(self) -> None:
+        """Enable pulse width modulation.
+
+        Sends ``PWM:STATe ON``.
+        """
         self._write("PWM:STATe ON")
 
     def disable_pulse_width_modulation(self) -> None:
+        """Disable pulse width modulation.
+
+        Sends ``PWM:STATe OFF``.
+        """
         self._write("PWM:STATe OFF")
 
     # ------------------------------------------------------------------
@@ -468,6 +653,10 @@ class Agilent33220A:
         self, start: float, stop: float, spacing: SweepSpacing | str = SweepSpacing.LINEAR,
         time_s: float = 1.0,
     ) -> None:
+        """Configure frequency sweep.
+
+        Sends ``FREQuency:STARt …``, ``FREQuency:STOP …``, ``SWEep:SPACing …``, ``SWEep:TIME …``.
+        """
         spacing = SweepSpacing(spacing)
         self._write(f"FREQuency:STARt {float(start)}")
         self._write(f"FREQuency:STOP {float(stop)}")
@@ -475,21 +664,45 @@ class Agilent33220A:
         self._write(f"SWEep:TIME {float(time_s)}")
 
     def enable_sweep(self) -> None:
+        """Enable sweep.
+
+        Sends ``SWEep:STATe ON``.
+        """
         self._write("SWEep:STATe ON")
 
     def disable_sweep(self) -> None:
+        """Disable sweep.
+
+        Sends ``SWEep:STATe OFF``.
+        """
         self._write("SWEep:STATe OFF")
 
     def set_sweep_marker_frequency(self, frequency: float) -> None:
+        """Set the sweep marker frequency.
+
+        Sends ``MARKer:FREQuency …``.
+        """
         self._write(f"MARKer:FREQuency {float(frequency)}")
 
     def get_sweep_marker_frequency(self) -> float:
+        """Return the sweep marker frequency.
+
+        Sends ``MARKer:FREQuency?``.
+        """
         return float(self._query("MARKer:FREQuency?"))
 
     def enable_sweep_marker(self) -> None:
+        """Enable sweep marker.
+
+        Sends ``MARKer ON``.
+        """
         self._write("MARKer ON")
 
     def disable_sweep_marker(self) -> None:
+        """Disable sweep marker.
+
+        Sends ``MARKer OFF``.
+        """
         self._write("MARKer OFF")
 
     # ------------------------------------------------------------------
@@ -499,6 +712,10 @@ class Agilent33220A:
         self, mode: BurstMode | str, cycles: float, period: float | None = None,
         phase_degrees: float = 0.0,
     ) -> None:
+        """Configure burst.
+
+        Sends ``BURSt:MODE …``, ``BURSt:NCYCles …``, ``BURSt:PHASe …``, ``BURSt:INTernal:PERiod …``.
+        """
         mode = BurstMode(mode)
         self._write(f"BURSt:MODE {mode.value}")
         self._write(f"BURSt:NCYCles {cycles}")
@@ -507,12 +724,24 @@ class Agilent33220A:
         self._write(f"BURSt:PHASe {float(phase_degrees)}")
 
     def enable_burst(self) -> None:
+        """Enable burst.
+
+        Sends ``BURSt:STATe ON``.
+        """
         self._write("BURSt:STATe ON")
 
     def disable_burst(self) -> None:
+        """Disable burst.
+
+        Sends ``BURSt:STATe OFF``.
+        """
         self._write("BURSt:STATe OFF")
 
     def set_burst_gate_polarity(self, polarity: GatePolarity | str) -> None:
+        """Set the burst gate polarity.
+
+        Sends ``BURSt:GATE:POLarity …``.
+        """
         polarity = GatePolarity(polarity)
         self._write(f"BURSt:GATE:POLarity {polarity.value}")
 
@@ -520,20 +749,37 @@ class Agilent33220A:
     # Trigger (task §9)
     # ------------------------------------------------------------------
     def set_trigger_source(self, source: TriggerSource | str) -> None:
+        """Set the trigger source.
+
+        Sends ``TRIGger:SOURce …``.
+        """
         source = TriggerSource(source)
         self._write(f"TRIGger:SOURce {source.value}")
 
     def get_trigger_source(self) -> TriggerSource:
+        """Return the trigger source.
+
+        Sends ``TRIGger:SOURce?``.
+        """
         return TriggerSource(self._query("TRIGger:SOURce?").strip())
 
     def set_trigger_slope(self, slope: TriggerSlope | str) -> None:
+        """Set the trigger slope.
+
+        Sends ``TRIGger:SLOPe …``.
+        """
         slope = TriggerSlope(slope)
         self._write(f"TRIGger:SLOPe {slope.value}")
 
     def get_trigger_slope(self) -> TriggerSlope:
+        """Return the trigger slope.
+
+        Sends ``TRIGger:SLOPe?``.
+        """
         return TriggerSlope(self._query("TRIGger:SLOPe?").strip())
 
     def get_trigger_settings(self) -> TriggerSettings:
+        """Return the trigger settings."""
         return TriggerSettings(source=self.get_trigger_source().value, slope=self.get_trigger_slope().value)
 
     def trigger_now(self) -> None:
@@ -562,6 +808,10 @@ class Agilent33220A:
         self._write(f"DATA VOLATILE, {joined}")
 
     def copy_arbitrary_waveform_to_nonvolatile(self, name: str) -> None:
+        """Copy the arbitrary waveform to nonvolatile.
+
+        Sends ``DATA:COPY …``.
+        """
         name = str(name).strip()
         if not name:
             raise Agilent33220AValidationError("name must not be empty")
@@ -569,12 +819,20 @@ class Agilent33220A:
         self._check_events(f"Copy Arbitrary Waveform To Nonvolatile({name!r})")
 
     def select_arbitrary_waveform(self, name: str) -> None:
+        """Select the arbitrary waveform.
+
+        Sends ``FUNCtion:USER …``, ``FUNCtion USER``.
+        """
         name = str(name).strip()
         self._write(f"FUNCtion:USER {name}")
         self._check_events(f"Select Arbitrary Waveform({name!r})")
         self._write("FUNCtion USER")
 
     def list_arbitrary_waveforms(self) -> list[str]:
+        """Issue the list arbitrary waveforms command.
+
+        Sends ``DATA:CATalog?``, ``DATA:NVOLatile:CATalog?``.
+        """
         volatile = self._query("DATA:CATalog?").strip()
         nonvolatile = self._query("DATA:NVOLatile:CATalog?").strip()
         names: list[str] = []
@@ -583,14 +841,23 @@ class Agilent33220A:
         return sorted(set(names))
 
     def delete_arbitrary_waveform(self, name: str) -> None:
+        """Delete the arbitrary waveform.
+
+        Sends ``DATA:DELete …``.
+        """
         name = str(name).strip()
         self._write(f"DATA:DELete {name}")
         self._check_events(f"Delete Arbitrary Waveform({name!r})")
 
     def delete_all_arbitrary_waveforms(self) -> None:
+        """Delete the all arbitrary waveforms.
+
+        Sends ``DATA:DELete:ALL``.
+        """
         self._write("DATA:DELete:ALL")
 
     def get_arbitrary_waveform_attributes(self, name: str) -> ArbWaveformAttributes:
+        """Return the arbitrary waveform attributes."""
         name = str(name).strip()
         return ArbWaveformAttributes(
             name=name,
@@ -624,6 +891,10 @@ class Agilent33220A:
         self._check_events("Restore Setup")
 
     def save_setup_to_instrument_memory(self, slot: int) -> None:
+        """Save the setup to instrument memory.
+
+        Sends ``*SAV …``.
+        """
         slot = int(slot)
         if not (0 <= slot <= 4):
             raise Agilent33220AValidationError("slot must be between 0 and 4")
@@ -642,6 +913,10 @@ class Agilent33220A:
         self._check_events(f"Restore Setup From Instrument Memory({slot})")
 
     def restore_factory_setup(self) -> None:
+        """Issue the restore factory setup command.
+
+        Sends ``*RST``.
+        """
         self._write("*RST")
 
     # ------------------------------------------------------------------
@@ -736,6 +1011,10 @@ class Agilent33220A:
         self._check_events("Set Calibration Step")
 
     def get_calibration_step(self) -> int:
+        """Return the calibration step.
+
+        Sends ``CAL:SETup?``.
+        """
         return int(float(self._query("CAL:SETup?")))
 
     def set_calibration_value(self, value: float) -> None:
@@ -746,6 +1025,10 @@ class Agilent33220A:
         self._check_events("Set Calibration Value")
 
     def get_calibration_value(self) -> float:
+        """Return the calibration value.
+
+        Sends ``CAL:VALue?``.
+        """
         return float(self._query("CAL:VALue?"))
 
     def get_calibration_count(self) -> int:
@@ -764,27 +1047,55 @@ class Agilent33220A:
         self._check_events("Set Calibration String")
 
     def get_calibration_string(self) -> str:
+        """Return the calibration string.
+
+        Sends ``CAL:STRing?``.
+        """
         return self._query("CAL:STRing?").strip().strip('"')
 
     # ------------------------------------------------------------------
     # GPIB/LAN interface configuration (Gate 3)
     # ------------------------------------------------------------------
     def set_gpib_address(self, address: int) -> None:
+        """Set the gpib address.
+
+        Sends ``SYSTem:COMMunicate:GPIB:ADDRess …``.
+        """
         self._write(f"SYSTem:COMMunicate:GPIB:ADDRess {int(address)}")
 
     def get_gpib_address(self) -> int:
+        """Return the gpib address.
+
+        Sends ``SYSTem:COMMunicate:GPIB:ADDRess?``.
+        """
         return int(float(self._query("SYSTem:COMMunicate:GPIB:ADDRess?")))
 
     def set_lan_auto_ip(self, enabled: bool) -> None:
+        """Set the lan auto ip.
+
+        Sends ``SYSTem:COMMunicate:LAN:AUTOip …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:AUTOip {'ON' if enabled else 'OFF'}")
 
     def get_lan_auto_ip(self) -> bool:
+        """Return the lan auto ip.
+
+        Sends ``SYSTem:COMMunicate:LAN:AUTOip?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:AUTOip?").strip() in ("1", "ON")
 
     def set_lan_ip_address(self, address: str) -> None:
+        """Set the lan ip address.
+
+        Sends ``SYSTem:COMMunicate:LAN:IPADdress …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:IPADdress {address}")
 
     def get_lan_ip_address(self) -> str:
+        """Return the lan ip address.
+
+        Sends ``SYSTem:COMMunicate:LAN:IPADdress?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:IPADdress?").strip()
 
     def get_lan_logical_ip_address(self) -> str:
@@ -810,30 +1121,53 @@ class Agilent33220A:
         self._write(f"SYSTem:COMMunicate:LAN:MEDiasense {'ON' if enabled else 'OFF'}")
 
     def get_lan_media_sense_enabled(self) -> bool:
+        """Return the lan media sense enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:MEDiasense?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:MEDiasense?").strip() in ("1", "ON")
 
     def set_lan_netbios_enabled(self, enabled: bool) -> None:
+        """Set the lan netbios enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:NETBios …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:NETBios {'ON' if enabled else 'OFF'}")
 
     def get_lan_netbios_enabled(self) -> bool:
+        """Return the lan netbios enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:NETBios?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:NETBios?").strip() in ("1", "ON")
 
     def set_lan_telnet_prompt(self, text: str) -> None:
+        """Set the lan telnet prompt."""
         self._write(f'SYSTem:COMMunicate:LAN:TELNet:PROMpt "{text}"')
 
     def get_lan_telnet_prompt(self) -> str:
+        """Return the lan telnet prompt.
+
+        Sends ``SYSTem:COMMunicate:LAN:TELNet:PROMpt?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:TELNet:PROMpt?").strip().strip('"')
 
     def set_lan_telnet_welcome_message(self, text: str) -> None:
+        """Set the lan telnet welcome message."""
         self._write(f'SYSTem:COMMunicate:LAN:TELNet:WMESsage "{text}"')
 
     def get_lan_telnet_welcome_message(self) -> str:
+        """Return the lan telnet welcome message.
+
+        Sends ``SYSTem:COMMunicate:LAN:TELNet:WMESsage?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:TELNet:WMESsage?").strip().strip('"')
 
     # ------------------------------------------------------------------
     # Raw SCPI escape hatch (task §12)
     # ------------------------------------------------------------------
     def enable_raw_scpi(self, confirmation: str) -> None:
+        """Enable raw scpi."""
         if confirmation != _RAW_SCPI_CONFIRMATION:
             raise Agilent33220AValidationError(
                 f'raw SCPI requires the exact confirmation text "{_RAW_SCPI_CONFIRMATION}"'
@@ -847,9 +1181,11 @@ class Agilent33220A:
             )
 
     def raw_query(self, command: str) -> str:
+        """Send a raw SCPI query, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         return self._query(command)
 
     def raw_write(self, command: str) -> None:
+        """Send a raw SCPI command, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         self._write(command)

@@ -82,18 +82,22 @@ class N6700:
 
     @classmethod
     def connect_usb(cls, resource: str, **options: Any) -> N6700:
+        """Open a USB connection and return a connected driver."""
         return cls(PyVisaTransport(resource), **options)
 
     @classmethod
     def connect_visa(cls, resource: str, **options: Any) -> N6700:
+        """Open a VISA connection and return a connected driver."""
         return cls(PyVisaTransport(resource), **options)
 
     @classmethod
     def connect_ethernet(cls, host: str, port: int = 5025, **options: Any) -> N6700:
+        """Open an Ethernet connection and return a connected driver."""
         return cls(RawSocketTransport(host, port), **options)
 
     @classmethod
     def connect_simulated(cls, simulator: object | None = None, **options: Any) -> N6700:
+        """Return a driver backed by the in-process simulator."""
         if simulator is None:
             from .simulator import SimN6700Instrument
 
@@ -108,6 +112,7 @@ class N6700:
 
     @property
     def channels(self) -> Mapping[int, BaseChannel]:
+        """The channels this instrument exposes."""
         return self._channels
 
     def _append_protocol_trace(
@@ -139,6 +144,7 @@ class N6700:
             stream.write(json.dumps(record, default=str) + "\n")
 
     def write_scpi(self, command: str) -> None:
+        """Write the scpi."""
         with self._lock:
             started_unix = time.time()
             started = time.perf_counter()
@@ -163,6 +169,7 @@ class N6700:
             )
 
     def query_scpi(self, command: str) -> str:
+        """Query the scpi."""
         with self._lock:
             started_unix = time.time()
             started = time.perf_counter()
@@ -188,17 +195,33 @@ class N6700:
             return response
 
     def idn(self) -> InstrumentIdentity:
+        """Issue the idn command.
+
+        Sends ``*IDN?``.
+        """
         if self._identity is None:
             self._identity = parse_idn(self.query_scpi("*IDN?"))
         return self._identity
 
     def reset(self) -> None:
+        """Reset the instrument to its power-on defaults.
+
+        Sends ``*RST``.
+        """
         self.write_scpi("*RST")
 
     def clear_status(self) -> None:
+        """Clear the status.
+
+        Sends ``*CLS``.
+        """
         self.write_scpi("*CLS")
 
     def self_test(self) -> SelfTestResult:
+        """Run the instrument self-test.
+
+        Sends ``*TST?``.
+        """
         resp = self.query_scpi("*TST?")
         if "," in resp:
             code_s, msg = resp.split(",", 1)
@@ -206,9 +229,14 @@ class N6700:
         return SelfTestResult(int(resp), "")
 
     def get_error(self) -> ScpiErrorRecord:
+        """Return the error.
+
+        Sends ``SYST:ERR?``.
+        """
         return parse_error(self.query_scpi("SYST:ERR?"))
 
     def drain_errors(self) -> list[ScpiErrorRecord]:
+        """Drain the errors."""
         errors: list[ScpiErrorRecord] = []
         for _ in range(32):
             err = self.get_error()
@@ -218,24 +246,45 @@ class N6700:
         return errors
 
     def check_errors(self) -> None:
+        """Check the errors."""
         errors = self.drain_errors()
         if errors:
             raise N6700CommandError("instrument reported SCPI errors", errors)
 
     def operation_complete(self, timeout: float | None = None) -> bool:
+        """Issue the operation complete command.
+
+        Sends ``*OPC?``.
+        """
         del timeout
         return self.query_scpi("*OPC?").strip() == "1"
 
     def wait(self) -> None:
+        """Wait for pending operations to finish.
+
+        Sends ``*WAI``.
+        """
         self.write_scpi("*WAI")
 
     def status_byte(self) -> int:
+        """Issue the status byte command.
+
+        Sends ``*STB?``.
+        """
         return int(self.query_scpi("*STB?"))
 
     def standard_event_status(self) -> int:
+        """Issue the standard event status command.
+
+        Sends ``*ESR?``.
+        """
         return int(self.query_scpi("*ESR?"))
 
     def get_remote_state(self) -> RemoteState:
+        """Return the remote state.
+
+        Sends ``SYST:REM?``.
+        """
         if isinstance(self.transport, SimulatedTransport):
             value = self.query_scpi("SYST:REM?").strip().lower()
             if value in {"local", "remote", "remote_lockout"}:
@@ -243,15 +292,21 @@ class N6700:
         raise UnsupportedFeatureError("remote/local query is not supported by this transport")
 
     def set_remote_state(self, state: RemoteState) -> None:
+        """Set the remote state."""
         if not isinstance(self.transport, SimulatedTransport):
             raise UnsupportedFeatureError("remote/local control is transport-specific and unsupported here")
         command = {"local": "SYST:LOC", "remote": "SYST:REM", "remote_lockout": "SYST:RWL"}[state]
         self.write_scpi(command)
 
     def remote_lockout(self, enabled: bool) -> None:
+        """Put the instrument into remote lockout."""
         self.set_remote_state("remote_lockout" if enabled else "remote")
 
     def channel_count(self) -> int:
+        """Issue the channel count command.
+
+        Sends ``SYST:CHAN:COUN?``.
+        """
         if self._channel_count == 0:
             self._channel_count = int(self.query_scpi("SYST:CHAN:COUN?"))
         return self._channel_count
@@ -262,10 +317,18 @@ class N6700:
             raise InvalidChannelError(f"invalid channel {channel}; installed count is {count}")
 
     def channel_model(self, channel: int) -> str:
+        """Issue the channel model command.
+
+        Sends ``SYST:CHAN:MOD? …``.
+        """
         self._validate_channel(channel)
         return self.query_scpi(f"SYST:CHAN:MOD? {format_channel_list(channel)}").strip().strip('"')
 
     def channel_options(self, channel: int) -> list[str]:
+        """Issue the channel options command.
+
+        Sends ``SYST:CHAN:OPT? …``.
+        """
         self._validate_channel(channel)
         resp = self.query_scpi(f"SYST:CHAN:OPT? {format_channel_list(channel)}")
         normalized = resp.strip().strip('"')
@@ -274,10 +337,15 @@ class N6700:
         return [item.strip().strip('"') for item in resp.split(",") if item.strip().strip('"')]
 
     def channel_serial(self, channel: int) -> str:
+        """Issue the channel serial command.
+
+        Sends ``SYST:CHAN:SER? …``.
+        """
         self._validate_channel(channel)
         return self.query_scpi(f"SYST:CHAN:SER? {format_channel_list(channel)}").strip().strip('"')
 
     def discover_modules(self) -> dict[int, ChannelCapabilities]:
+        """Query which modules are installed and what they can do."""
         count = self.channel_count()
         self._capabilities.clear()
         self._channels.clear()
@@ -297,27 +365,32 @@ class N6700:
         return dict(self._capabilities)
 
     def channel(self, channel: int) -> BaseChannel:
+        """Return the channel object for a channel number."""
         self._validate_channel(channel)
         if channel not in self._channels:
             self.discover_modules()
         return self._channels[channel]
 
     def get_channel(self, channel: int) -> BaseChannel:
+        """Return the channel."""
         return self.channel(channel)
 
     def power_supply(self, channel: int) -> PowerSupplyChannel:
+        """Return the power-supply interface for a channel."""
         ch = self.channel(channel)
         if not isinstance(ch, PowerSupplyChannel) or isinstance(ch, ElectronicLoadChannel):
             raise UnsupportedFeatureError(f"channel {channel} is not a power-supply/SMU output")
         return ch
 
     def smu(self, channel: int) -> SMUChannel:
+        """Return the source-measure interface for a channel."""
         ch = self.channel(channel)
         if not isinstance(ch, SMUChannel):
             raise UnsupportedFeatureError(f"channel {channel} is not an SMU")
         return ch
 
     def load(self, channel: int) -> ElectronicLoadChannel:
+        """Return the electronic-load interface for a channel."""
         ch = self.channel(channel)
         if not isinstance(ch, ElectronicLoadChannel):
             raise UnsupportedFeatureError(f"channel {channel} is not an electronic load")
@@ -325,35 +398,45 @@ class N6700:
 
     # Optional wrapper APIs around type-specific channels.
     def set_smu_mode(self, channel: int, mode: Literal["voltage", "current"]) -> None:
+        """Set the smu mode."""
         self.smu(channel).set_smu_mode(mode)
 
     def get_smu_mode(self, channel: int) -> Literal["voltage", "current"]:
+        """Return the smu mode."""
         return self.smu(channel).get_smu_mode()
 
     def configure_smu_voltage_priority(self, channel: int, voltage: float, current_limit: float, **kw: Any) -> None:
+        """Configure smu voltage priority."""
         self.smu(channel).configure_voltage_priority(voltage, current_limit, **kw)
 
     def configure_smu_current_priority(self, channel: int, current: float, voltage_limit: float, **kw: Any) -> None:
+        """Configure smu current priority."""
         self.smu(channel).configure_current_priority(current, voltage_limit, **kw)
 
     def set_load_mode(self, channel: int, mode: Literal["cc", "cv", "cr", "cp"]) -> None:
+        """Set the load mode."""
         self.load(channel).set_load_mode(mode)
 
     def get_load_mode(self, channel: int) -> Literal["cc", "cv", "cr", "cp"]:
+        """Return the load mode."""
         return self.load(channel).get_load_mode()
 
     def configure_load_cc(self, channel: int, current: float, *, input_on: bool = False, verify: bool = True, **_: object) -> None:
+        """Configure load cc."""
         self.load(channel).configure_cc(current, input_on=input_on, verify=verify)
 
     def set_power_outputs(self, channels: Sequence[int], enabled: bool) -> None:
+        """Set the power outputs."""
         for ch in channels:
             self.power_supply(ch).set_output(enabled)
 
     def set_load_inputs(self, channels: Sequence[int], enabled: bool) -> None:
+        """Set the load inputs."""
         for ch in channels:
             self.load(ch).set_input(enabled)
 
     def set_channel_enabled(self, channels: Sequence[int], enabled: bool) -> None:
+        """Set the channel enabled."""
         for ch in channels:
             chan = self.channel(ch)
             if isinstance(chan, ElectronicLoadChannel):
@@ -364,6 +447,7 @@ class N6700:
                 raise UnsupportedFeatureError(f"channel {ch} cannot be enabled")
 
     def measure_all(self) -> dict[int, Measurement]:
+        """Measure the all."""
         return {ch: self._measure_channel(ch) for ch in self.channels}
 
     def _timestamp(self) -> tuple[str, float]:
@@ -410,6 +494,7 @@ class N6700:
         force_output_off_first: bool = True,
         verify_cleared: bool = True,
     ) -> ProtectionClearResult:
+        """Clear the protection."""
         return self.channel(channel).clear_protection(
             restore_output=restore_output,
             force_output_off_first=force_output_off_first,
@@ -431,16 +516,25 @@ class N6700:
         return int(stripped)
 
     def get_operation_status(self, channel: int | None = None) -> OperationStatus:
+        """Return the operation status.
+
+        Sends ``STAT:OPER:COND? …``.
+        """
         chanlist = self._status_channel_list(channel)
         raw = self.query_scpi(f"STAT:OPER:COND? {chanlist}")
         return OperationStatus(self._parse_status_response(raw))
 
     def get_questionable_status(self, channel: int | None = None) -> QuestionableStatus:
+        """Return the questionable status.
+
+        Sends ``STAT:QUES:COND? …``.
+        """
         chanlist = self._status_channel_list(channel)
         raw = self.query_scpi(f"STAT:QUES:COND? {chanlist}")
         return QuestionableStatus(self._parse_status_response(raw))
 
     def shutdown_all(self) -> ShutdownResult:
+        """Bring every channel to a safe state."""
         results: list[ShutdownChannelResult] = []
         for ch_num in sorted(self.channels):
             try:
@@ -455,12 +549,14 @@ class N6700:
         return ShutdownResult(tuple(results))
 
     def audit(self, record: AuditRecord) -> None:
+        """Append one record to the protocol audit log."""
         if self.audit_log_path is None:
             return
         with self.audit_log_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record.__dict__, default=str) + "\n")
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self.transport.close()
 
 

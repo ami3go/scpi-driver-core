@@ -48,24 +48,42 @@ class BaseChannel:
         self._driver.write_scpi(command)
 
     def measure_voltage(self) -> float:
+        """Measure the voltage.
+
+        Sends ``MEAS:VOLT? …``.
+        """
         return float(self._query(f"MEAS:VOLT? {self._chan}"))
 
     def measure_current(self) -> float:
+        """Measure the current.
+
+        Sends ``MEAS:CURR? …``.
+        """
         return float(self._query(f"MEAS:CURR? {self._chan}"))
 
     def measure_power(self) -> PowerMeasurement:
+        """Measure the power."""
         return self._driver._measure_power(self.channel)
 
     def measure(self) -> Measurement:
         return self._driver._measure_channel(self.channel)
 
     def fetch_voltage(self) -> float:
+        """Fetch the voltage.
+
+        Sends ``FETC:VOLT? …``.
+        """
         return float(self._query(f"FETC:VOLT? {self._chan}"))
 
     def fetch_current(self) -> float:
+        """Fetch the current.
+
+        Sends ``FETC:CURR? …``.
+        """
         return float(self._query(f"FETC:CURR? {self._chan}"))
 
     def fetch_power(self) -> PowerMeasurement:
+        """Fetch the power."""
         return self.measure_power()
 
     def fetch(self) -> Measurement:
@@ -101,6 +119,7 @@ class BaseChannel:
         )
 
     def get_status_snapshot(self) -> ChannelStatusSnapshot:
+        """Return the status snapshot."""
         return ChannelStatusSnapshot(
             channel=self.channel,
             output_or_input_enabled=self._get_enable_state(),
@@ -114,6 +133,10 @@ class BaseChannel:
         force_output_off_first: bool = True,
         verify_cleared: bool = True,
     ) -> ProtectionClearResult:
+        """Clear the protection.
+
+        Sends ``OUTP:PROT:CLE …``.
+        """
         before_prot = self.get_protection_status()
         before_state = self._get_enable_state()
         if force_output_off_first and before_state is not None:
@@ -144,9 +167,17 @@ class PowerSupplyChannel(BaseChannel):
         self.set_output(False)
 
     def set_output(self, enabled: bool) -> None:
+        """Set the output.
+
+        Sends ``OUTP , …``.
+        """
         self._write(f"OUTP {format_bool(enabled)},{self._chan}")
 
     def get_output(self) -> bool:
+        """Return the output.
+
+        Sends ``OUTP? …``.
+        """
         return self._query(f"OUTP? {self._chan}").strip() not in {"0", "+0"}
 
     def _get_enable_state(self) -> bool | None:
@@ -156,6 +187,10 @@ class PowerSupplyChannel(BaseChannel):
         self.set_output(enabled)
 
     def set_voltage_setpoint(self, value: float, *, voltage_range: float | str | None = None) -> None:
+        """Set the voltage setpoint.
+
+        Sends ``VOLT , …``.
+        """
         if voltage_range is None:
             self._write(f"VOLT {format_float(value)},{self._chan}")
         else:
@@ -164,9 +199,17 @@ class PowerSupplyChannel(BaseChannel):
             )
 
     def get_voltage_setpoint(self) -> float:
+        """Return the voltage setpoint.
+
+        Sends ``VOLT? …``.
+        """
         return float(self._query(f"VOLT? {self._chan}"))
 
     def set_current_limit(self, value: float, *, current_range: float | str | None = None) -> None:
+        """Set the current limit.
+
+        Sends ``CURR , …``.
+        """
         if current_range is None:
             self._write(f"CURR {format_float(value)},{self._chan}")
         else:
@@ -175,30 +218,66 @@ class PowerSupplyChannel(BaseChannel):
             )
 
     def get_current_limit(self) -> float:
+        """Return the current limit.
+
+        Sends ``CURR? …``.
+        """
         return float(self._query(f"CURR? {self._chan}"))
 
     def set_voltage_range(self, value: float | str) -> None:
+        """Set the voltage range.
+
+        Sends ``VOLT:RANG , …``.
+        """
         self._write(f"VOLT:RANG {value},{self._chan}")
 
     def set_current_range(self, value: float | str) -> None:
+        """Set the current range.
+
+        Sends ``CURR:RANG , …``.
+        """
         self._write(f"CURR:RANG {value},{self._chan}")
 
     def get_voltage_range(self) -> float:
+        """Return the voltage range.
+
+        Sends ``VOLT:RANG? …``.
+        """
         return float(self._query(f"VOLT:RANG? {self._chan}"))
 
     def get_current_range(self) -> float:
+        """Return the current range.
+
+        Sends ``CURR:RANG? …``.
+        """
         return float(self._query(f"CURR:RANG? {self._chan}"))
 
     def set_ovp(self, value: float) -> None:
+        """Set the ovp.
+
+        Sends ``VOLT:PROT , …``.
+        """
         self._write(f"VOLT:PROT {format_float(value)},{self._chan}")
 
     def get_ovp(self) -> float:
+        """Return the ovp.
+
+        Sends ``VOLT:PROT? …``.
+        """
         return float(self._query(f"VOLT:PROT? {self._chan}"))
 
     def set_ocp(self, enabled: bool) -> None:
+        """Set the ocp.
+
+        Sends ``CURR:PROT:STAT , …``.
+        """
         self._write(f"CURR:PROT:STAT {format_bool(enabled)},{self._chan}")
 
     def get_ocp(self) -> bool:
+        """Return the ocp.
+
+        Sends ``CURR:PROT:STAT? …``.
+        """
         return self._query(f"CURR:PROT:STAT? {self._chan}").strip() not in {"0", "+0"}
 
 
@@ -210,26 +289,38 @@ class SMUChannel(PowerSupplyChannel):
             raise UnsupportedFeatureError(f"channel {self.channel} is not an SMU")
 
     def set_smu_mode(self, mode: Literal["voltage", "current"]) -> None:
+        """Set the smu mode.
+
+        Sends ``FUNC:MODE , …``.
+        """
         self._require_smu()
         scpi_mode = "VOLT" if mode == "voltage" else "CURR"
         self._write(f"FUNC:MODE {scpi_mode},{self._chan}")
 
     def get_smu_mode(self) -> Literal["voltage", "current"]:
+        """Return the smu mode.
+
+        Sends ``FUNC:MODE? …``.
+        """
         self._require_smu()
         resp = self._query(f"FUNC:MODE? {self._chan}").upper()
         return "current" if "CURR" in resp else "voltage"
 
     def set_current_setpoint(self, value: float, *, current_range: float | str | None = None) -> None:
+        """Set the current setpoint."""
         self.set_current_limit(value, current_range=current_range)
 
     def get_current_setpoint(self) -> float:
+        """Return the current setpoint."""
         return self.get_current_limit()
 
     def set_voltage_limit(self, value: float) -> None:
         # Capability-gated wrapper; maps to OVP-style voltage protection for supported simulator/PSU behavior.
+        """Set the voltage limit."""
         self.set_ovp(value)
 
     def get_voltage_limit(self) -> float:
+        """Return the voltage limit."""
         return self.get_ovp()
 
     def configure_voltage_priority(
@@ -241,6 +332,7 @@ class SMUChannel(PowerSupplyChannel):
         output: bool = False,
         verify: bool = True,
     ) -> None:
+        """Configure voltage priority."""
         self.set_smu_mode("voltage")
         self.set_voltage_setpoint(voltage)
         self.set_current_limit(current_limit)
@@ -259,6 +351,7 @@ class SMUChannel(PowerSupplyChannel):
         output: bool = False,
         verify: bool = True,
     ) -> None:
+        """Configure current priority."""
         self.set_smu_mode("current")
         self.set_current_setpoint(current)
         self.set_voltage_limit(voltage_limit)
@@ -268,12 +361,20 @@ class SMUChannel(PowerSupplyChannel):
             self._driver.check_errors()  # type: ignore[attr-defined]
 
     def set_smu_output_off_mode(self, mode: Literal["high_z", "low_z"]) -> None:
+        """Set the smu output off mode.
+
+        Sends ``SIM:SMU:OFFMODE , …``.
+        """
         if not self.capabilities.supports_smu_output_off_mode:
             raise UnsupportedFeatureError("SMU output-off mode is not supported by this module")
         sim_mode = "LOWZ" if mode == "low_z" else "HIGHZ"
         self._write(f"SIM:SMU:OFFMODE {sim_mode},{self._chan}")
 
     def get_smu_output_off_mode(self) -> Literal["high_z", "low_z"]:
+        """Return the smu output off mode.
+
+        Sends ``SIM:SMU:OFFMODE? …``.
+        """
         if not self.capabilities.supports_smu_output_off_mode:
             raise UnsupportedFeatureError("SMU output-off mode is not supported by this module")
         resp = self._query(f"SIM:SMU:OFFMODE? {self._chan}").upper()
@@ -302,6 +403,10 @@ class ElectronicLoadChannel(BaseChannel):
         self.set_input(False)
 
     def set_input(self, enabled: bool) -> None:
+        """Set the input.
+
+        Sends ``SIM:LOAD:INP , …``.
+        """
         self._require_verified_or_sim()
         if self.capabilities.model == "SIM_LOAD":
             self._write(f"SIM:LOAD:INP {format_bool(enabled)},{self._chan}")
@@ -309,6 +414,10 @@ class ElectronicLoadChannel(BaseChannel):
         raise UnsupportedFeatureError("real load input command is not implemented without source map")
 
     def get_input(self) -> bool:
+        """Return the input.
+
+        Sends ``SIM:LOAD:INP? …``.
+        """
         self._require_verified_or_sim()
         if self.capabilities.model == "SIM_LOAD":
             return self._query(f"SIM:LOAD:INP? {self._chan}").strip() not in {"0", "+0"}
@@ -321,42 +430,82 @@ class ElectronicLoadChannel(BaseChannel):
         self.set_input(enabled)
 
     def set_load_mode(self, mode: Literal["cc", "cv", "cr", "cp"]) -> None:
+        """Set the load mode.
+
+        Sends ``SIM:LOAD:MODE , …``.
+        """
         self._require_verified_or_sim()
         self._write(f"SIM:LOAD:MODE {mode.upper()},{self._chan}")
 
     def get_load_mode(self) -> Literal["cc", "cv", "cr", "cp"]:
+        """Return the load mode.
+
+        Sends ``SIM:LOAD:MODE? …``.
+        """
         self._require_verified_or_sim()
         return self._query(f"SIM:LOAD:MODE? {self._chan}").strip().lower()  # type: ignore[return-value]
 
     def set_load_current(self, value: float) -> None:
+        """Set the load current.
+
+        Sends ``SIM:LOAD:CURR , …``.
+        """
         self._require_verified_or_sim()
         self._write(f"SIM:LOAD:CURR {format_float(value)},{self._chan}")
 
     def get_load_current(self) -> float:
+        """Return the load current.
+
+        Sends ``SIM:LOAD:CURR? …``.
+        """
         self._require_verified_or_sim()
         return float(self._query(f"SIM:LOAD:CURR? {self._chan}"))
 
     def set_load_voltage(self, value: float) -> None:
+        """Set the load voltage.
+
+        Sends ``SIM:LOAD:VOLT , …``.
+        """
         self._require_verified_or_sim()
         self._write(f"SIM:LOAD:VOLT {format_float(value)},{self._chan}")
 
     def get_load_voltage(self) -> float:
+        """Return the load voltage.
+
+        Sends ``SIM:LOAD:VOLT? …``.
+        """
         self._require_verified_or_sim()
         return float(self._query(f"SIM:LOAD:VOLT? {self._chan}"))
 
     def set_load_resistance(self, value: float) -> None:
+        """Set the load resistance.
+
+        Sends ``SIM:LOAD:RES , …``.
+        """
         self._require_verified_or_sim()
         self._write(f"SIM:LOAD:RES {format_float(value)},{self._chan}")
 
     def get_load_resistance(self) -> float:
+        """Return the load resistance.
+
+        Sends ``SIM:LOAD:RES? …``.
+        """
         self._require_verified_or_sim()
         return float(self._query(f"SIM:LOAD:RES? {self._chan}"))
 
     def set_load_power(self, value: float) -> None:
+        """Set the load power.
+
+        Sends ``SIM:LOAD:POW , …``.
+        """
         self._require_verified_or_sim()
         self._write(f"SIM:LOAD:POW {format_float(value)},{self._chan}")
 
     def get_load_power(self) -> float:
+        """Return the load power.
+
+        Sends ``SIM:LOAD:POW? …``.
+        """
         self._require_verified_or_sim()
         return float(self._query(f"SIM:LOAD:POW? {self._chan}"))
 
@@ -367,6 +516,7 @@ class ElectronicLoadChannel(BaseChannel):
         input_on: bool = False,
         verify: bool = True,
     ) -> None:
+        """Configure cc."""
         self.set_load_mode("cc")
         self.set_load_current(current)
         if input_on:

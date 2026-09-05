@@ -151,6 +151,7 @@ class EResistorClient:
         )
 
     def save_profile(self, path: str | Path, *, device_name: str | None = None) -> None:
+        """Save the profile."""
         save_profile(self.to_profile(device_name=device_name), path)
 
     def __enter__(self) -> "EResistorClient":
@@ -162,6 +163,7 @@ class EResistorClient:
 
     @property
     def connection_state(self) -> ConnectionState:
+        """The connection state."""
         with self._state_lock:
             return self._state
 
@@ -175,6 +177,7 @@ class EResistorClient:
     # Connection and system API
     # ---------------------------------------------------------------------
     def connect(self) -> None:
+        """Open the connection."""
         self.scpi.connect()
         idn = self.idn()
         serial, firmware = parse_idn(idn)
@@ -198,6 +201,7 @@ class EResistorClient:
             self.start_watchdog()
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self.stop_watchdog()
         try:
             if self.shutdown_policy == ShutdownPolicy.ALL_OFF:
@@ -233,9 +237,14 @@ class EResistorClient:
         signal.signal(signal.SIGTERM, handler)
 
     def idn(self) -> str:
+        """Issue the idn command.
+
+        Sends ``*IDN?``.
+        """
         return self.query("*IDN?")
 
     def ping(self) -> bool:
+        """Check that the instrument is reachable."""
         try:
             return self.http.ping()
         except Exception:
@@ -246,9 +255,14 @@ class EResistorClient:
 
     def identify(self, duration_s: float = 5.0) -> str:
         # Firmware currently exposes blink through HTTP; duration_s kept for API compatibility.
+        """Return the instrument identity."""
         return self.http.identify_led()
 
     def get_serial(self) -> str:
+        """Return the serial.
+
+        Sends ``SYST:SER?``.
+        """
         try:
             return self.query("SYST:SER?")
         except ScpiError:
@@ -256,6 +270,10 @@ class EResistorClient:
             return serial or ""
 
     def get_firmware_version(self) -> str:
+        """Return the firmware version.
+
+        Sends ``FIRM:VERS?``.
+        """
         try:
             return self.query("FIRM:VERS?")
         except ScpiError:
@@ -263,22 +281,43 @@ class EResistorClient:
             return fw or ""
 
     def get_firmware_build(self) -> str:
+        """Return the firmware build.
+
+        Sends ``FIRM:BUILD?``.
+        """
         return self.query("FIRM:BUILD?")
 
     def clear_errors(self) -> str:
+        """Clear the errors.
+
+        Sends ``SYST:ERR:CLEAR``.
+        """
         return self.query("SYST:ERR:CLEAR")
 
     def get_error(self) -> str:
+        """Return the error.
+
+        Sends ``SYST:ERR?``.
+        """
         return self.query("SYST:ERR?")
 
     def get_status(self) -> dict[str, str]:
+        """Return the status.
+
+        Sends ``SYST:STAT?``.
+        """
         text = self.query("SYST:STAT?")
         return _parse_key_value_text(text)
 
     def get_state(self) -> str:
+        """Return the state.
+
+        Sends ``STATE?``.
+        """
         return self.query("STATE?")
 
     def query(self, command: str, *, multiline_until: str | None = None) -> str:
+        """Send a query and return its reply."""
         self.metrics.inc("scpi_commands_total")
         with self.metrics.timeit("scpi_command_duration_seconds"):
             response = self.scpi.request(command, multiline_until=multiline_until)
@@ -290,6 +329,7 @@ class EResistorClient:
     # Watchdog, keepalive, recovery
     # ---------------------------------------------------------------------
     def start_watchdog(self) -> None:
+        """Start watchdog."""
         if self._watchdog_thread and self._watchdog_thread.is_alive():
             return
         self._watchdog_stop.clear()
@@ -297,6 +337,7 @@ class EResistorClient:
         self._watchdog_thread.start()
 
     def stop_watchdog(self) -> None:
+        """Stop watchdog."""
         self._watchdog_stop.set()
         if self._watchdog_thread and self._watchdog_thread.is_alive():
             self._watchdog_thread.join(timeout=2.0)
@@ -352,6 +393,10 @@ class EResistorClient:
     # Mask control
     # ---------------------------------------------------------------------
     def set_mask(self, channel: int, mask: int | str, *, force: bool = False) -> str:
+        """Set the mask.
+
+        Sends ``CH:MASK …``.
+        """
         channel = validate_channel(channel)
         self._ensure_channel_available(channel, force=force)
         mask_s = normalize_mask(mask)
@@ -363,6 +408,10 @@ class EResistorClient:
         return mask_s
 
     def get_mask(self, channel: int) -> str:
+        """Return the mask.
+
+        Sends ``CH:MASK? …``.
+        """
         channel = validate_channel(channel)
         response = self.query(f"CH{channel}:MASK?").strip()
         mask = normalize_mask(response.split(",")[0].split("=")[-1])
@@ -370,6 +419,7 @@ class EResistorClient:
         return mask
 
     def get_all_masks(self) -> dict[int, str]:
+        """Return the all masks."""
         state = self.get_state()
         masks = _parse_state_masks(state)
         if not masks:
@@ -378,6 +428,7 @@ class EResistorClient:
         return masks
 
     def set_all_masks(self, masks: Sequence[int | str], *, force: bool = False) -> dict[int, str]:
+        """Set the all masks."""
         masks_s = normalize_all_masks(list(masks))
         if not force:
             for ch in range(1, CHANNEL_COUNT + 1):
@@ -391,6 +442,7 @@ class EResistorClient:
         return dict(self._last_known_masks)
 
     def set_masks(self, masks: Mapping[int, int | str], *, force: bool = False) -> dict[int, str]:
+        """Set the masks."""
         current = self.get_all_masks()
         for ch, mask in masks.items():
             ch_i = validate_channel(int(ch))
@@ -400,6 +452,10 @@ class EResistorClient:
         return self.set_all_masks([current[ch] for ch in range(1, CHANNEL_COUNT + 1)], force=force)
 
     def all_off(self) -> str:
+        """Issue the all off command.
+
+        Sends ``ALL:OFF``.
+        """
         response = self.query("ALL:OFF")
         if response.strip().upper() not in {"OK", "0"}:
             raise ScpiError("Unexpected response for ALL:OFF", command="ALL:OFF", response=response)
@@ -411,12 +467,20 @@ class EResistorClient:
     # Calibration
     # ---------------------------------------------------------------------
     def list_calibration_files(self) -> str:
+        """Issue the list calibration files command.
+
+        Sends ``CAL:FILES?``.
+        """
         try:
             return self.query("CAL:FILES?")
         except Exception:
             return self.http.list_calibration_files()
 
     def download_calibration(self) -> DeviceCalibration:
+        """Issue the download calibration command.
+
+        Sends ``CAL:RES?``, ``CAL:ALL:FILES?``.
+        """
         errors: list[str] = []
         cal: DeviceCalibration | None = None
         try:
@@ -449,6 +513,10 @@ class EResistorClient:
         return cal
 
     def download_channel_calibration(self, channel: int) -> DeviceCalibration:
+        """Issue the download channel calibration command.
+
+        Sends ``CAL:FILE? CH …``.
+        """
         channel = validate_channel(channel)
         errors: list[str] = []
         try:
@@ -472,11 +540,13 @@ class EResistorClient:
         raise CalibrationError(f"Could not download CH{channel} calibration: {' | '.join(errors)}")
 
     def save_calibration(self, path: str | Path) -> None:
+        """Save the calibration."""
         if not self.calibration:
             raise CalibrationError("No calibration loaded")
         save_calibration_json(self.calibration, path)
 
     def load_calibration(self, path: str | Path) -> DeviceCalibration:
+        """Load the calibration."""
         cal = load_calibration_json(path)
         age = calibration_age_hours(cal)
         if self.calibration_config.max_age_hours is not None and age is not None and age > self.calibration_config.max_age_hours:
@@ -492,10 +562,12 @@ class EResistorClient:
         self._ensure_solver().build_cache()
 
     def clear_resistance_cache(self) -> None:
+        """Clear the resistance cache."""
         if self.solver:
             self.solver.clear_cache()
 
     def get_resistance_for_mask(self, channel: int, mask: int | str) -> float:
+        """Return the resistance for mask."""
         return self._ensure_solver().equivalent_resistance(channel, mask)
 
     def find_closest_resistance(self, channel: int, resistance_ohm: float, *, allow_closest_out_of_range: bool = False) -> SetResistanceResult:
@@ -521,6 +593,7 @@ class EResistorClient:
         allow_closest_out_of_range: bool = False,
         force: bool = False,
     ) -> SetResistanceResult:
+        """Set the resistance."""
         channel = validate_channel(channel)
         self._ensure_channel_available(channel, force=force)
         result = self.find_closest_resistance(channel, resistance_ohm, allow_closest_out_of_range=allow_closest_out_of_range)
@@ -538,6 +611,7 @@ class EResistorClient:
         atomic: bool = True,
         force: bool = False,
     ) -> list[SetResistanceResult]:
+        """Set the resistances."""
         normalized = _normalize_bulk_values(values)
         if not normalized:
             return []
@@ -555,17 +629,20 @@ class EResistorClient:
         return results
 
     def load_temperature_table(self, channel: int, path: str | Path) -> TemperatureTable:
+        """Load the temperature table."""
         channel = validate_channel(channel)
         table = TemperatureTable.from_csv(path)
         self.temperature_tables[channel] = table
         return table
 
     def load_temperature_table_for_all(self, path: str | Path) -> TemperatureTable:
+        """Load the temperature table for all."""
         table = TemperatureTable.from_csv(path)
         self.temperature_tables["default"] = table
         return table
 
     def get_temperature_table(self, channel: int) -> TemperatureTable:
+        """Return the temperature table."""
         channel = validate_channel(channel)
         table = self.temperature_tables.get(channel) or self.temperature_tables.get("default")
         if table is None:
@@ -573,6 +650,7 @@ class EResistorClient:
         return table
 
     def clear_temperature_table(self, channel: int) -> None:
+        """Clear the temperature table."""
         channel = validate_channel(channel)
         self.temperature_tables.pop(channel, None)
 
@@ -585,6 +663,7 @@ class EResistorClient:
         allow_extrapolation: bool = False,
         force: bool = False,
     ) -> SetTemperatureResult:
+        """Set the temperature."""
         table = self.get_temperature_table(channel)
         requested_r = table.resistance_at(temperature_c, mode=interpolation, allow_extrapolation=allow_extrapolation)
         res = self.set_resistance(channel, requested_r, force=force)
@@ -627,6 +706,7 @@ class EResistorClient:
         )
 
     def run_curve(self, channel: int, path: str | Path, *, input_type: str | None = None, repeat: int | None = 1, blocking: bool = True) -> CurveSimulation:
+        """Run the curve."""
         sim = self.create_curve_simulation(channel, path, input_type=input_type, repeat=repeat)
         with self._simulation_channel(channel):
             if blocking:
@@ -644,6 +724,7 @@ class EResistorClient:
     ) -> list[CurveSimulation]:
         # Basic implementation: start independent simulations. Synchronized exact multi-channel stepping
         # can be added above this using ROUT:ALL:MASK after merging time grids.
+        """Run the multi channel curve."""
         sims = [self.create_curve_simulation(ch, path, repeat=repeat) for ch, path in channel_profiles.items()]
         if synchronized:
             for sim in sims:
@@ -692,6 +773,7 @@ class EResistorClient:
     # Snapshot, export, verification
     # ---------------------------------------------------------------------
     def get_output_snapshot(self) -> OutputSnapshot:
+        """Return the output snapshot."""
         snapshot = OutputSnapshot(masks=self.get_all_masks())
         self._last_snapshot = snapshot
         return snapshot
@@ -707,6 +789,7 @@ class EResistorClient:
         return self.get_all_masks() == expected
 
     def get_all_resistances(self) -> dict[int, float]:
+        """Return the all resistances."""
         masks = self.get_all_masks()
         return {ch: self.get_resistance_for_mask(ch, mask) for ch, mask in masks.items()}
 

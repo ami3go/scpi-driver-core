@@ -264,3 +264,33 @@ Current `release/` files are deliberately marked as remediation/pending where ev
 ## License
 
 MIT. The incorporated core retains its original MIT licensing and attribution.
+
+## Built on scpi-driver-core
+
+This driver's transport and SCPI framing come from
+[`scpi-driver-core`](https://github.com/ami3go/scpi-driver-core) rather than
+being implemented here. HP 34401A speaks VISA GPIB, and all of that is the core's
+byte-oriented transport layer with this package's device semantics on top.
+
+What changed in the migration: hp34401a_dmm/visa_transport.py. Everything else — the command tree,
+the measurement semantics, the simulator, the safety policy, and the Robot
+Framework keywords — is unchanged, and the driver's own test suite passes
+exactly as it did before.
+
+What the core provides:
+
+- byte-oriented transports with an explicit state model and no unbounded reads
+- SCPI text framing that removes only the configured terminator, so binary
+  payloads survive intact
+- IEEE-488.2 identity, error-queue, and definite-length block parsing
+- protocol tracing and a JSONL audit sink, with redaction hooks
+
+What stays here, and should: everything that interprets this instrument's
+physical behaviour or command tree.
+
+### Installing
+
+```bash
+pip install -e .            # pulls in scpi-driver-core
+pytest tests
+```

@@ -202,3 +202,33 @@ reference/                 supplied Python-driver task and documentation
 - [Hardware qualification](guide/HARDWARE_QUALIFICATION.md)
 - [Evidence and diagnostics](guide/EVIDENCE_AND_DIAGNOSTICS.md)
 - [Release history](history/v26.01.md), [v26.02](history/v26.02.md)
+
+## Built on scpi-driver-core
+
+This driver's transport and SCPI framing come from
+[`scpi-driver-core`](https://github.com/ami3go/scpi-driver-core) rather than
+being implemented here. NGI N83624 speaks TCP, UDP and RS232, and all of that is the core's
+byte-oriented transport layer with this package's device semantics on top.
+
+What changed in the migration: ngi_n83624/transports.py. Everything else — the command tree,
+the measurement semantics, the simulator, the safety policy, and the Robot
+Framework keywords — is unchanged, and the driver's own test suite passes
+exactly as it did before.
+
+What the core provides:
+
+- byte-oriented transports with an explicit state model and no unbounded reads
+- SCPI text framing that removes only the configured terminator, so binary
+  payloads survive intact
+- IEEE-488.2 identity, error-queue, and definite-length block parsing
+- protocol tracing and a JSONL audit sink, with redaction hooks
+
+What stays here, and should: everything that interprets this instrument's
+physical behaviour or command tree.
+
+### Installing
+
+```bash
+pip install -e .            # pulls in scpi-driver-core
+pytest tests
+```

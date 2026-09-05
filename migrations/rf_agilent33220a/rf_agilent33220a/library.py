@@ -33,6 +33,7 @@ except ImportError:  # pragma: no cover
     class _FallbackLogger:
         @staticmethod
         def info(message: str, *_args: Any, **_kwargs: Any) -> None:
+            """Log an informational message."""
             print(message)
 
         warn = error = debug = info
@@ -331,6 +332,7 @@ class Agilent33220ALibrary:
 
     @keyword("Is Connected")
     def is_connected(self, alias: str | None = None) -> bool:
+        """Whether the connected."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return False
@@ -338,6 +340,7 @@ class Agilent33220ALibrary:
 
     @keyword("Get Connection State")
     def get_connection_state(self, alias: str | None = None, refresh: bool = False) -> dict[str, Any]:
+        """Return the connection state."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return {
@@ -361,10 +364,12 @@ class Agilent33220ALibrary:
 
     @keyword("Check Communication")
     def check_communication(self, alias: str | None = None) -> bool:
+        """Check the communication."""
         return self._session(alias).check_communication()
 
     @keyword("Get Identity")
     def get_identity(self, alias: str | None = None, refresh: bool = True) -> str:
+        """Return the identity."""
         return self._session(alias).identify(refresh=_as_bool(refresh, "refresh")).raw
 
     @keyword("Switch Generator")
@@ -375,6 +380,7 @@ class Agilent33220ALibrary:
 
     @keyword("Get Active Generator")
     def get_active_generator(self) -> str | None:
+        """Return the active generator."""
         return self._active_alias
 
     @keyword("List Generator Connections")
@@ -393,14 +399,17 @@ class Agilent33220ALibrary:
 
     @keyword("Get Function")
     def get_function(self, alias: str | None = None) -> str:
+        """Return the function."""
         return self._session(alias).get_function().value
 
     @keyword("Set Frequency")
     def set_frequency(self, frequency: float, alias: str | None = None) -> None:
+        """Set the frequency."""
         self._session(alias).set_frequency(float(frequency))
 
     @keyword("Get Frequency")
     def get_frequency(self, alias: str | None = None) -> float:
+        """Return the frequency."""
         return self._session(alias).get_frequency()
 
     @keyword("Set Amplitude")
@@ -411,14 +420,17 @@ class Agilent33220ALibrary:
 
     @keyword("Get Amplitude")
     def get_amplitude(self, alias: str | None = None) -> float:
+        """Return the amplitude."""
         return self._session(alias).get_amplitude()
 
     @keyword("Set Amplitude Unit")
     def set_amplitude_unit(self, unit: str, alias: str | None = None) -> None:
+        """Set the amplitude unit."""
         self._session(alias).set_amplitude_unit(unit)
 
     @keyword("Get Amplitude Unit")
     def get_amplitude_unit(self, alias: str | None = None) -> str:
+        """Return the amplitude unit."""
         return self._session(alias).get_amplitude_unit().value
 
     @keyword("Set Offset")
@@ -429,38 +441,47 @@ class Agilent33220ALibrary:
 
     @keyword("Get Offset")
     def get_offset(self, alias: str | None = None) -> float:
+        """Return the offset."""
         return self._session(alias).get_offset()
 
     @keyword("Set Output Load")
     def set_output_load(self, ohms: str, alias: str | None = None) -> None:
+        """Set the output load."""
         self._session(alias).set_output_load(ohms)
 
     @keyword("Get Output Load")
     def get_output_load(self, alias: str | None = None) -> str:
+        """Return the output load."""
         return self._session(alias).get_output_load()
 
     @keyword("Set Output Polarity")
     def set_output_polarity(self, polarity: str, alias: str | None = None) -> None:
+        """Set the output polarity."""
         self._session(alias).set_output_polarity(polarity)
 
     @keyword("Get Output Polarity")
     def get_output_polarity(self, alias: str | None = None) -> str:
+        """Return the output polarity."""
         return self._session(alias).get_output_polarity().value
 
     @keyword("Set Square Duty Cycle")
     def set_square_duty_cycle(self, percent: float, alias: str | None = None) -> None:
+        """Set the square duty cycle."""
         self._session(alias).set_square_duty_cycle(float(percent))
 
     @keyword("Get Square Duty Cycle")
     def get_square_duty_cycle(self, alias: str | None = None) -> float:
+        """Return the square duty cycle."""
         return self._session(alias).get_square_duty_cycle()
 
     @keyword("Set Ramp Symmetry")
     def set_ramp_symmetry(self, percent: float, alias: str | None = None) -> None:
+        """Set the ramp symmetry."""
         self._session(alias).set_ramp_symmetry(float(percent))
 
     @keyword("Get Ramp Symmetry")
     def get_ramp_symmetry(self, alias: str | None = None) -> float:
+        """Return the ramp symmetry."""
         return self._session(alias).get_ramp_symmetry()
 
     @keyword("Configure Output")
@@ -484,18 +505,22 @@ class Agilent33220ALibrary:
 
     @keyword("Enable Output")
     def enable_output(self, alias: str | None = None) -> None:
+        """Enable output."""
         self._session(alias).enable_output()
 
     @keyword("Disable Output")
     def disable_output(self, alias: str | None = None) -> None:
+        """Disable output."""
         self._session(alias).disable_output()
 
     @keyword("Is Output Enabled")
     def is_output_enabled(self, alias: str | None = None) -> bool:
+        """Whether the output enabled."""
         return self._session(alias).is_output_enabled()
 
     @keyword("Get Output Settings")
     def get_output_settings(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the output settings."""
         return _robot_value(self._session(alias).get_output_settings())
 
     @keyword("Lock Front Panel")
@@ -508,22 +533,27 @@ class Agilent33220ALibrary:
 
     @keyword("Is Front Panel Locked")
     def is_front_panel_locked(self, alias: str | None = None) -> bool:
+        """Whether the front panel locked."""
         return self._session(alias).is_front_panel_locked()
 
     @keyword("Set Display Text")
     def set_display_text(self, text: str, alias: str | None = None) -> None:
+        """Set the display text."""
         self._session(alias).set_display_text(text)
 
     @keyword("Clear Display Text")
     def clear_display_text(self, alias: str | None = None) -> None:
+        """Clear the display text."""
         self._session(alias).clear_display_text()
 
     @keyword("Enable Display")
     def enable_display(self, alias: str | None = None) -> None:
+        """Enable display."""
         self._session(alias).enable_display()
 
     @keyword("Disable Display")
     def disable_display(self, alias: str | None = None) -> None:
+        """Disable display."""
         self._session(alias).disable_display()
 
     # ------------------------------------------------------------------
@@ -538,6 +568,7 @@ class Agilent33220ALibrary:
         transition: float | None = None,
         alias: str | None = None,
     ) -> None:
+        """Configure pulse."""
         self._session(alias).configure_pulse(
             period=None if period is None else float(period),
             width=None if width is None else float(width),
@@ -553,14 +584,17 @@ class Agilent33220ALibrary:
         self, shape: str, frequency: float, depth_percent: float, source: str = "INTernal",
         alias: str | None = None,
     ) -> None:
+        """Configure amplitude modulation."""
         self._session(alias).configure_amplitude_modulation(shape, float(frequency), float(depth_percent), source)
 
     @keyword("Enable Amplitude Modulation")
     def enable_amplitude_modulation(self, alias: str | None = None) -> None:
+        """Enable amplitude modulation."""
         self._session(alias).enable_amplitude_modulation()
 
     @keyword("Disable Amplitude Modulation")
     def disable_amplitude_modulation(self, alias: str | None = None) -> None:
+        """Disable amplitude modulation."""
         self._session(alias).disable_amplitude_modulation()
 
     @keyword("Configure Frequency Modulation")
@@ -568,14 +602,17 @@ class Agilent33220ALibrary:
         self, shape: str, frequency: float, deviation_hz: float, source: str = "INTernal",
         alias: str | None = None,
     ) -> None:
+        """Configure frequency modulation."""
         self._session(alias).configure_frequency_modulation(shape, float(frequency), float(deviation_hz), source)
 
     @keyword("Enable Frequency Modulation")
     def enable_frequency_modulation(self, alias: str | None = None) -> None:
+        """Enable frequency modulation."""
         self._session(alias).enable_frequency_modulation()
 
     @keyword("Disable Frequency Modulation")
     def disable_frequency_modulation(self, alias: str | None = None) -> None:
+        """Disable frequency modulation."""
         self._session(alias).disable_frequency_modulation()
 
     @keyword("Configure Phase Modulation")
@@ -583,14 +620,17 @@ class Agilent33220ALibrary:
         self, shape: str, frequency: float, deviation_degrees: float, source: str = "INTernal",
         alias: str | None = None,
     ) -> None:
+        """Configure phase modulation."""
         self._session(alias).configure_phase_modulation(shape, float(frequency), float(deviation_degrees), source)
 
     @keyword("Enable Phase Modulation")
     def enable_phase_modulation(self, alias: str | None = None) -> None:
+        """Enable phase modulation."""
         self._session(alias).enable_phase_modulation()
 
     @keyword("Disable Phase Modulation")
     def disable_phase_modulation(self, alias: str | None = None) -> None:
+        """Disable phase modulation."""
         self._session(alias).disable_phase_modulation()
 
     @keyword("Configure Frequency Shift Keying")
@@ -598,14 +638,17 @@ class Agilent33220ALibrary:
         self, hop_frequency: float, rate_hz: float, source: str = "INTernal",
         alias: str | None = None,
     ) -> None:
+        """Configure frequency shift keying."""
         self._session(alias).configure_frequency_shift_keying(float(hop_frequency), float(rate_hz), source)
 
     @keyword("Enable Frequency Shift Keying")
     def enable_frequency_shift_keying(self, alias: str | None = None) -> None:
+        """Enable frequency shift keying."""
         self._session(alias).enable_frequency_shift_keying()
 
     @keyword("Disable Frequency Shift Keying")
     def disable_frequency_shift_keying(self, alias: str | None = None) -> None:
+        """Disable frequency shift keying."""
         self._session(alias).disable_frequency_shift_keying()
 
     @keyword("Configure Pulse Width Modulation")
@@ -613,14 +656,17 @@ class Agilent33220ALibrary:
         self, shape: str, frequency: float, deviation_seconds: float, source: str = "INTernal",
         alias: str | None = None,
     ) -> None:
+        """Configure pulse width modulation."""
         self._session(alias).configure_pulse_width_modulation(shape, float(frequency), float(deviation_seconds), source)
 
     @keyword("Enable Pulse Width Modulation")
     def enable_pulse_width_modulation(self, alias: str | None = None) -> None:
+        """Enable pulse width modulation."""
         self._session(alias).enable_pulse_width_modulation()
 
     @keyword("Disable Pulse Width Modulation")
     def disable_pulse_width_modulation(self, alias: str | None = None) -> None:
+        """Disable pulse width modulation."""
         self._session(alias).disable_pulse_width_modulation()
 
     # ------------------------------------------------------------------
@@ -631,30 +677,37 @@ class Agilent33220ALibrary:
         self, start: float, stop: float, spacing: str = "LINear", time_s: float = 1.0,
         alias: str | None = None,
     ) -> None:
+        """Configure frequency sweep."""
         self._session(alias).configure_frequency_sweep(float(start), float(stop), spacing, float(time_s))
 
     @keyword("Enable Sweep")
     def enable_sweep(self, alias: str | None = None) -> None:
+        """Enable sweep."""
         self._session(alias).enable_sweep()
 
     @keyword("Disable Sweep")
     def disable_sweep(self, alias: str | None = None) -> None:
+        """Disable sweep."""
         self._session(alias).disable_sweep()
 
     @keyword("Set Sweep Marker Frequency")
     def set_sweep_marker_frequency(self, frequency: float, alias: str | None = None) -> None:
+        """Set the sweep marker frequency."""
         self._session(alias).set_sweep_marker_frequency(float(frequency))
 
     @keyword("Get Sweep Marker Frequency")
     def get_sweep_marker_frequency(self, alias: str | None = None) -> float:
+        """Return the sweep marker frequency."""
         return self._session(alias).get_sweep_marker_frequency()
 
     @keyword("Enable Sweep Marker")
     def enable_sweep_marker(self, alias: str | None = None) -> None:
+        """Enable sweep marker."""
         self._session(alias).enable_sweep_marker()
 
     @keyword("Disable Sweep Marker")
     def disable_sweep_marker(self, alias: str | None = None) -> None:
+        """Disable sweep marker."""
         self._session(alias).disable_sweep_marker()
 
     # ------------------------------------------------------------------
@@ -665,20 +718,24 @@ class Agilent33220ALibrary:
         self, mode: str, cycles: float, period: float | None = None, phase_degrees: float = 0.0,
         alias: str | None = None,
     ) -> None:
+        """Configure burst."""
         self._session(alias).configure_burst(
             mode, float(cycles), None if period is None else float(period), float(phase_degrees)
         )
 
     @keyword("Enable Burst")
     def enable_burst(self, alias: str | None = None) -> None:
+        """Enable burst."""
         self._session(alias).enable_burst()
 
     @keyword("Disable Burst")
     def disable_burst(self, alias: str | None = None) -> None:
+        """Disable burst."""
         self._session(alias).disable_burst()
 
     @keyword("Set Burst Gate Polarity")
     def set_burst_gate_polarity(self, polarity: str, alias: str | None = None) -> None:
+        """Set the burst gate polarity."""
         self._session(alias).set_burst_gate_polarity(polarity)
 
     # ------------------------------------------------------------------
@@ -686,22 +743,27 @@ class Agilent33220ALibrary:
     # ------------------------------------------------------------------
     @keyword("Set Trigger Source")
     def set_trigger_source(self, source: str, alias: str | None = None) -> None:
+        """Set the trigger source."""
         self._session(alias).set_trigger_source(source)
 
     @keyword("Get Trigger Source")
     def get_trigger_source(self, alias: str | None = None) -> str:
+        """Return the trigger source."""
         return self._session(alias).get_trigger_source().value
 
     @keyword("Set Trigger Slope")
     def set_trigger_slope(self, slope: str, alias: str | None = None) -> None:
+        """Set the trigger slope."""
         self._session(alias).set_trigger_slope(slope)
 
     @keyword("Get Trigger Slope")
     def get_trigger_slope(self, alias: str | None = None) -> str:
+        """Return the trigger slope."""
         return self._session(alias).get_trigger_slope().value
 
     @keyword("Get Trigger Settings")
     def get_trigger_settings(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the trigger settings."""
         return _robot_value(self._session(alias).get_trigger_settings())
 
     @keyword("Trigger Now")
@@ -722,10 +784,12 @@ class Agilent33220ALibrary:
 
     @keyword("Copy Arbitrary Waveform To Nonvolatile")
     def copy_arbitrary_waveform_to_nonvolatile(self, name: str, alias: str | None = None) -> None:
+        """Copy the arbitrary waveform to nonvolatile."""
         self._session(alias).copy_arbitrary_waveform_to_nonvolatile(name)
 
     @keyword("Select Arbitrary Waveform")
     def select_arbitrary_waveform(self, name: str, alias: str | None = None) -> None:
+        """Select the arbitrary waveform."""
         self._session(alias).select_arbitrary_waveform(name)
 
     @keyword("List Arbitrary Waveforms")
@@ -734,14 +798,17 @@ class Agilent33220ALibrary:
 
     @keyword("Delete Arbitrary Waveform")
     def delete_arbitrary_waveform(self, name: str, alias: str | None = None) -> None:
+        """Delete the arbitrary waveform."""
         self._session(alias).delete_arbitrary_waveform(name)
 
     @keyword("Delete All Arbitrary Waveforms")
     def delete_all_arbitrary_waveforms(self, alias: str | None = None) -> None:
+        """Delete the all arbitrary waveforms."""
         self._session(alias).delete_all_arbitrary_waveforms()
 
     @keyword("Get Arbitrary Waveform Attributes")
     def get_arbitrary_waveform_attributes(self, name: str, alias: str | None = None) -> dict[str, Any]:
+        """Return the arbitrary waveform attributes."""
         return _robot_value(self._session(alias).get_arbitrary_waveform_attributes(name))
 
     # ------------------------------------------------------------------
@@ -761,6 +828,7 @@ class Agilent33220ALibrary:
 
     @keyword("Save Setup To Instrument Memory")
     def save_setup_to_instrument_memory(self, slot: int, alias: str | None = None) -> None:
+        """Save the setup to instrument memory."""
         self._session(alias).save_setup_to_instrument_memory(int(slot))
 
     @keyword("Restore Setup From Instrument Memory")
@@ -806,22 +874,27 @@ class Agilent33220ALibrary:
 
     @keyword("Set Calibration Security Code")
     def set_calibration_security_code(self, new_code: str, alias: str | None = None) -> None:
+        """Set the calibration security code."""
         self._session(alias).set_calibration_security_code(new_code)
 
     @keyword("Set Calibration Step")
     def set_calibration_step(self, step: int, alias: str | None = None) -> None:
+        """Set the calibration step."""
         self._session(alias).set_calibration_step(int(step))
 
     @keyword("Get Calibration Step")
     def get_calibration_step(self, alias: str | None = None) -> int:
+        """Return the calibration step."""
         return self._session(alias).get_calibration_step()
 
     @keyword("Set Calibration Value")
     def set_calibration_value(self, value: float, alias: str | None = None) -> None:
+        """Set the calibration value."""
         self._session(alias).set_calibration_value(float(value))
 
     @keyword("Get Calibration Value")
     def get_calibration_value(self, alias: str | None = None) -> float:
+        """Return the calibration value."""
         return self._session(alias).get_calibration_value()
 
     @keyword("Get Calibration Count")
@@ -832,10 +905,12 @@ class Agilent33220ALibrary:
 
     @keyword("Set Calibration String")
     def set_calibration_string(self, text: str, alias: str | None = None) -> None:
+        """Set the calibration string."""
         self._session(alias).set_calibration_string(text)
 
     @keyword("Get Calibration String")
     def get_calibration_string(self, alias: str | None = None) -> str:
+        """Return the calibration string."""
         return self._session(alias).get_calibration_string()
 
     # ------------------------------------------------------------------
@@ -843,34 +918,42 @@ class Agilent33220ALibrary:
     # ------------------------------------------------------------------
     @keyword("Set GPIB Address")
     def set_gpib_address(self, address: int, alias: str | None = None) -> None:
+        """Set the gpib address."""
         self._session(alias).set_gpib_address(int(address))
 
     @keyword("Get GPIB Address")
     def get_gpib_address(self, alias: str | None = None) -> int:
+        """Return the gpib address."""
         return self._session(alias).get_gpib_address()
 
     @keyword("Set LAN Auto IP")
     def set_lan_auto_ip(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan auto ip."""
         self._session(alias).set_lan_auto_ip(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN Auto IP")
     def get_lan_auto_ip(self, alias: str | None = None) -> bool:
+        """Return the lan auto ip."""
         return self._session(alias).get_lan_auto_ip()
 
     @keyword("Set LAN IP Address")
     def set_lan_ip_address(self, address: str, alias: str | None = None) -> None:
+        """Set the lan ip address."""
         self._session(alias).set_lan_ip_address(address)
 
     @keyword("Get LAN IP Address")
     def get_lan_ip_address(self, alias: str | None = None) -> str:
+        """Return the lan ip address."""
         return self._session(alias).get_lan_ip_address()
 
     @keyword("Get LAN Logical IP Address")
     def get_lan_logical_ip_address(self, alias: str | None = None) -> str:
+        """Return the lan logical ip address."""
         return self._session(alias).get_lan_logical_ip_address()
 
     @keyword("Get LAN MAC Address")
     def get_lan_mac_address(self, alias: str | None = None) -> str:
+        """Return the lan mac address."""
         return self._session(alias).get_lan_mac_address()
 
     @keyword("Set LAN Media Sense Enabled")
@@ -882,30 +965,37 @@ class Agilent33220ALibrary:
 
     @keyword("Get LAN Media Sense Enabled")
     def get_lan_media_sense_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan media sense enabled."""
         return self._session(alias).get_lan_media_sense_enabled()
 
     @keyword("Set LAN NetBIOS Enabled")
     def set_lan_netbios_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan netbios enabled."""
         self._session(alias).set_lan_netbios_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN NetBIOS Enabled")
     def get_lan_netbios_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan netbios enabled."""
         return self._session(alias).get_lan_netbios_enabled()
 
     @keyword("Set LAN Telnet Prompt")
     def set_lan_telnet_prompt(self, text: str, alias: str | None = None) -> None:
+        """Set the lan telnet prompt."""
         self._session(alias).set_lan_telnet_prompt(text)
 
     @keyword("Get LAN Telnet Prompt")
     def get_lan_telnet_prompt(self, alias: str | None = None) -> str:
+        """Return the lan telnet prompt."""
         return self._session(alias).get_lan_telnet_prompt()
 
     @keyword("Set LAN Telnet Welcome Message")
     def set_lan_telnet_welcome_message(self, text: str, alias: str | None = None) -> None:
+        """Set the lan telnet welcome message."""
         self._session(alias).set_lan_telnet_welcome_message(text)
 
     @keyword("Get LAN Telnet Welcome Message")
     def get_lan_telnet_welcome_message(self, alias: str | None = None) -> str:
+        """Return the lan telnet welcome message."""
         return self._session(alias).get_lan_telnet_welcome_message()
 
     # ------------------------------------------------------------------
@@ -913,6 +1003,7 @@ class Agilent33220ALibrary:
     # ------------------------------------------------------------------
     @keyword("Enable Raw SCPI")
     def enable_raw_scpi(self, confirmation: str, alias: str | None = None) -> None:
+        """Enable raw scpi."""
         self._session(alias).enable_raw_scpi(confirmation)
 
     @keyword("Raw SCPI Query")

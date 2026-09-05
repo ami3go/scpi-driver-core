@@ -19,6 +19,7 @@ class ResistanceCandidate:
 
     @property
     def mask(self) -> str:
+        """The mask."""
         return f"{self.mask_int:04X}"
 
 
@@ -33,6 +34,7 @@ class ResistanceSolver:
         self._lock = threading.RLock()
 
     def clear_cache(self) -> None:
+        """Clear the cache."""
         with self._lock:
             self._cache.clear()
             self._values.clear()

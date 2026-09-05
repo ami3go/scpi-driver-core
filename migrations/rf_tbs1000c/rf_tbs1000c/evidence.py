@@ -177,11 +177,13 @@ class _OperationContext:
         self.result: Any = None
 
     def set_result(self, value: Any) -> None:
+        """Set the result."""
         self.result = value
 
 
 class _NullOperationContext:
     def set_result(self, value: Any) -> None:  # pragma: no cover - trivial
+        """Set the result."""
         pass
 
 
@@ -291,6 +293,7 @@ class EvidenceRun:
         operation_id: str | None = None,
         session_alias: str | None = None,
     ) -> None:
+        """Record one event in the evidence log."""
         record = {
             "schema": "rfds.event",
             "schema_version": SCHEMA_VERSION,
@@ -337,6 +340,7 @@ class EvidenceRun:
         arguments: Mapping[str, Any] | None = None,
         session_alias: str | None = None,
     ):
+        """Record one operation in the evidence log."""
         with self._lock:
             self._operation_counter += 1
             operation_id = f"op-{self._operation_counter:06d}"
@@ -447,6 +451,7 @@ class EvidenceRun:
         session_alias: str | None = None,
         recoverable: bool | None = None,
     ) -> None:
+        """Record an error in the evidence log."""
         with self._lock:
             self._error_counter += 1
             error_id = f"err-{self._error_counter:06d}"
@@ -471,6 +476,7 @@ class EvidenceRun:
         logger.error("[%s] %s (%s): %s", error_id, capability or "?", type(exc).__name__, exc)
 
     def record_device_identity(self, session_alias: str, **fields: Any) -> None:
+        """Record the instrument identity in the evidence log."""
         self._device_identity.setdefault(session_alias, {}).update(
             {key: value for key, value in fields.items() if value is not None}
         )
@@ -516,6 +522,7 @@ class EvidenceRun:
             )
 
     def finalize(self, status: str = "PASS") -> Path:
+        """Finish the record and flush it."""
         if self._finalized:
             return self.root
         self.emit_event("RUN_FINISHING", f"Evidence run finalizing with status {status}", level="INFO")
@@ -566,6 +573,7 @@ class EvidenceRun:
         (self.root / "run_summary.md").write_text("\n".join(lines), encoding="utf-8")
 
     def export_diagnostic_bundle(self, destination: str | None = None) -> str:
+        """Write a diagnostic bundle for support."""
         self._write_manifest()
         if destination:
             zip_path = Path(destination)
@@ -609,28 +617,35 @@ class NullEvidenceRun:
 
     @contextlib.contextmanager
     def record_operation(self, capability: str, *, arguments: Mapping[str, Any] | None = None, session_alias=None):
+        """Record one operation in the evidence log."""
         logger.debug("%s(%s)", capability, dict(arguments or {}))
         yield _NullOperationContext()
 
     def emit_event(self, *_args: Any, **_kwargs: Any) -> None:
+        """Record one event in the evidence log."""
         pass
 
     def log_protocol(self, *_args: Any, **_kwargs: Any) -> None:
+        """Record one protocol exchange in the evidence log."""
         pass
 
     def record_error(self, exc: BaseException, **_kwargs: Any) -> None:
+        """Record an error in the evidence log."""
         logger.error("%s: %s", type(exc).__name__, exc)
 
     def record_device_identity(self, session_alias: str, **_kwargs: Any) -> None:
+        """Record the instrument identity in the evidence log."""
         pass
 
     def note_execution_mode(self, mode: str) -> None:
         pass
 
     def finalize(self, status: str = "PASS") -> None:
+        """Finish the record and flush it."""
         return None
 
     def export_diagnostic_bundle(self, destination: str | None = None) -> None:
+        """Write a diagnostic bundle for support."""
         logger.warning("Diagnostic bundle requested but evidence_enabled=False; nothing was recorded.")
 
 
@@ -640,21 +655,27 @@ class EvidenceListener:
     ROBOT_LISTENER_API_VERSION = 3
 
     def start_suite(self, data: Any, result: Any) -> None:
+        """Robot Framework hook: called when a suite starts."""
         _current_suite_id.set(getattr(data, "longname", str(data)))
 
     def end_suite(self, data: Any, result: Any) -> None:
+        """Robot Framework hook: called when a suite ends."""
         _current_suite_id.set(None)
 
     def start_test(self, data: Any, result: Any) -> None:
+        """Robot Framework hook: called when a test starts."""
         _current_test_id.set(getattr(data, "longname", str(data)))
 
     def end_test(self, data: Any, result: Any) -> None:
+        """Robot Framework hook: called when a test ends."""
         _current_test_id.set(None)
 
     def start_keyword(self, data: Any, result: Any) -> None:
+        """Robot Framework hook: called when a keyword starts."""
         _current_keyword.set(getattr(data, "name", str(data)))
 
     def end_keyword(self, data: Any, result: Any) -> None:
+        """Robot Framework hook: called when a keyword ends."""
         _current_keyword.set(None)
 
 
@@ -677,28 +698,35 @@ class InstrumentedTransport:
 
     @property
     def resource(self) -> str:
+        """The resource string this driver is connected to."""
         return self._inner.resource
 
     def open(self) -> None:
+        """Open the connection."""
         self._inner.open()
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self._inner.close()
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._inner.is_open()
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         self._evidence.log_protocol("outbound", "scpi", command, session_alias=self._session_alias)
         self._inner.write(command)
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         self._evidence.log_protocol("outbound", "scpi", command, session_alias=self._session_alias)
         response = self._inner.query(command)
         self._evidence.log_protocol("inbound", "scpi", response, session_alias=self._session_alias)
         return response
 
     def query_binary(self, command: str) -> bytes:
+        """Query the binary."""
         self._evidence.log_protocol("outbound", "scpi", command, session_alias=self._session_alias)
         data = self._inner.query_binary(command)
         digest = hashlib.sha256(data).hexdigest()[:16]
@@ -708,6 +736,7 @@ class InstrumentedTransport:
         return data
 
     def write_binary(self, command_prefix: str, data: bytes) -> None:
+        """Write the binary."""
         digest = hashlib.sha256(data).hexdigest()[:16]
         self._evidence.log_protocol(
             "outbound",
@@ -719,10 +748,12 @@ class InstrumentedTransport:
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self._inner.timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self._inner.timeout_s = value
 
     @property

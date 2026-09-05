@@ -192,6 +192,7 @@ class Hp34401A:
     def from_serial(
         cls, config: SerialRs232Config, driver_config: DriverConfig | None = None
     ) -> Hp34401A:
+        """Build a driver over a serial connection."""
         from .serial_transport import SerialRs232Transport
 
         dc = driver_config or DriverConfig()
@@ -202,6 +203,7 @@ class Hp34401A:
     def from_visa_gpib(
         cls, config: VisaGpibConfig, driver_config: DriverConfig | None = None
     ) -> Hp34401A:
+        """Build a driver over a VISA GPIB connection."""
         from .visa_transport import VisaGpibTransport
 
         dc = driver_config or DriverConfig()
@@ -218,6 +220,10 @@ class Hp34401A:
 
     # ------------------------------------------------------------------ connection
     def connect(self) -> None:
+        """Open the connection.
+
+        Sends ``SYSTem:VERSion?``.
+        """
         with self._locked():
             try:
                 self._t.open()
@@ -289,6 +295,10 @@ class Hp34401A:
         self._state = CommandState.CONNECTED_REMOTE
 
     def close(self) -> None:
+        """Close the connection and release the transport.
+
+        Sends ``SYSTem:LOCal``.
+        """
         with self._locked():
             try:
                 if self._is_serial:
@@ -303,10 +313,12 @@ class Hp34401A:
                 self._state = CommandState.CLOSED
 
     def is_connected(self) -> bool:
+        """Whether the connected."""
         return self._t.is_open() and self._state != CommandState.CLOSED
 
     # ------------------------------------------------------------------ raw SCPI
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         with self._locked():
             self._guard_safety(command)
             if self.trace_callback is not None:
@@ -393,9 +405,11 @@ class Hp34401A:
         self._transport_recover(drain_errors=False)
 
     def query_float(self, command: str) -> float:
+        """Query the float."""
         return parser.parse_float(self.query(command))
 
     def query_int(self, command: str) -> int:
+        """Query the int."""
         return int(round(self.query_float(command)))
 
     def _guard_safety(self, command: str) -> None:
@@ -409,6 +423,10 @@ class Hp34401A:
 
     # ------------------------------------------------------------------ identity / health
     def identify(self) -> Identity:
+        """Return the instrument identity.
+
+        Sends ``*IDN?``.
+        """
         raw = self.query("*IDN?")
         ident = Identity(*parser.parse_identity(raw), raw=raw)
         self._identity = ident
@@ -416,6 +434,10 @@ class Hp34401A:
 
     def self_test(self) -> SelfTestResult:
         # R8: dedicated long timeout for *TST?.
+        """Run the instrument self-test.
+
+        Sends ``*TST?``.
+        """
         self._t.set_timeout(self._cfg.self_test_timeout_s)
         try:
             raw = self.query("*TST?")
@@ -431,10 +453,18 @@ class Hp34401A:
         )
 
     def clear_status(self) -> None:
+        """Clear the status.
+
+        Sends ``*CLS``.
+        """
         self.write("*CLS")
 
     def reset(self, confirm: bool = False) -> None:
         # spec section 24: *RST requires explicit confirmation.
+        """Reset the instrument to its power-on defaults.
+
+        Sends ``*RST``.
+        """
         if not confirm:
             raise SafetyError("reset() requires confirm=True (sends *RST).")
         self.write("*RST")
@@ -445,6 +475,7 @@ class Hp34401A:
         self._last_configure = None
 
     def heartbeat(self) -> HealthReport:
+        """Check that the instrument is still responding."""
         now = _dt.datetime.now(_dt.timezone.utc)
         try:
             ident = self._identity or self.identify()
@@ -470,6 +501,7 @@ class Hp34401A:
             )
 
     def recover(self) -> RecoveryReport:
+        """Attempt to return the instrument to a usable state."""
         actions: list[str] = []
         try:
             self._transport_recover(actions)
@@ -530,11 +562,16 @@ class Hp34401A:
 
     # ------------------------------------------------------------------ errors
     def read_error(self) -> ErrorRecord:
+        """Read the error.
+
+        Sends ``SYSTem:ERRor?``.
+        """
         raw = self.query("SYSTem:ERRor?")
         parsed = parser.parse_error(raw)
         return ErrorRecord(parsed.code, parsed.message, parsed.raw)
 
     def drain_error_queue(self, max_errors: int = 25) -> list[ErrorRecord]:
+        """Drain the error queue."""
         out: list[ErrorRecord] = []
         for _ in range(max_errors):
             rec = self.read_error()
@@ -544,6 +581,7 @@ class Hp34401A:
         return out
 
     def assert_no_error(self, context: str = "") -> None:
+        """Raise if the instrument's error queue is not empty."""
         rec = self.read_error()
         if not rec.is_no_error:
             # drain the rest so the queue is clean before we raise
@@ -553,6 +591,10 @@ class Hp34401A:
 
     # ------------------------------------------------------------------ terminals
     def query_terminal(self) -> InputTerminal:
+        """Query the terminal.
+
+        Sends ``ROUTe:TERMinals?``.
+        """
         raw = self.query("ROUTe:TERMinals?").strip().upper()
         if raw.startswith("FRON"):
             self._terminal = InputTerminal.FRONT
@@ -563,6 +605,7 @@ class Hp34401A:
         return self._terminal
 
     def require_terminal(self, expected: InputTerminal) -> None:
+        """Raise unless the instrument is in the terminal state."""
         actual = self.query_terminal()
         if actual != expected:
             raise Hp34401AError(
@@ -652,6 +695,7 @@ class Hp34401A:
     def configure_dc_voltage(
         self, range_v: float | AutoRange, nplc: Nplc, autozero: AutozeroMode = AutozeroMode.ON
     ) -> None:
+        """Configure dc voltage."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.VOLT_DC, range_v, nplc=nplc, autozero=autozero
         )
@@ -660,6 +704,7 @@ class Hp34401A:
     def configure_ac_voltage(
         self, range_v: float | AutoRange, ac_filter_hz: AcFilterHz = AcFilterHz.HZ20
     ) -> None:
+        """Configure ac voltage."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.VOLT_AC, range_v, ac_filter_hz=ac_filter_hz
         )
@@ -668,6 +713,7 @@ class Hp34401A:
     def configure_dc_current(
         self, range_a: float | AutoRange, nplc: Nplc, autozero: AutozeroMode = AutozeroMode.ON
     ) -> None:
+        """Configure dc current."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.CURR_DC, range_a, nplc=nplc, autozero=autozero
         )
@@ -676,6 +722,7 @@ class Hp34401A:
     def configure_ac_current(
         self, range_a: float | AutoRange, ac_filter_hz: AcFilterHz = AcFilterHz.HZ20
     ) -> None:
+        """Configure ac current."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.CURR_AC, range_a, ac_filter_hz=ac_filter_hz
         )
@@ -684,6 +731,7 @@ class Hp34401A:
     def configure_2wire_resistance(
         self, range_ohm: float | AutoRange, nplc: Nplc, autozero: AutozeroMode = AutozeroMode.ON
     ) -> None:
+        """Configure 2wire resistance."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.RES_2W, range_ohm, nplc=nplc, autozero=autozero
         )
@@ -692,12 +740,17 @@ class Hp34401A:
     def configure_4wire_resistance(
         self, range_ohm: float | AutoRange, nplc: Nplc, autozero: AutozeroMode = AutozeroMode.ON
     ) -> None:
+        """Configure 4wire resistance."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.RES_4W, range_ohm, nplc=nplc, autozero=autozero
         )
         self._last_configure()
 
     def configure_frequency(self, voltage_range_v: float | AutoRange, aperture_s: Aperture) -> None:
+        """Configure frequency.
+
+        Sends ``SENSe:FREQuency:APERture …``.
+        """
         def _do() -> None:
             self._apply_configure(MeasurementFunction.FREQ, voltage_range_v, aperture_s=aperture_s)
             self.write(f"SENSe:FREQuency:APERture {_num(aperture_s.value)}")
@@ -705,6 +758,10 @@ class Hp34401A:
         _do()
 
     def configure_period(self, voltage_range_v: float | AutoRange, aperture_s: Aperture) -> None:
+        """Configure period.
+
+        Sends ``SENSe:PERiod:APERture …``.
+        """
         def _do() -> None:
             self._apply_configure(MeasurementFunction.PERIOD, voltage_range_v, aperture_s=aperture_s)
             self.write(f"SENSe:PERiod:APERture {_num(aperture_s.value)}")
@@ -712,12 +769,14 @@ class Hp34401A:
         _do()
 
     def configure_continuity(self) -> None:
+        """Configure continuity."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.CONTINUITY, AutoRange.DEF
         )
         self._last_configure()
 
     def configure_diode(self) -> None:
+        """Configure diode."""
         self._last_configure = lambda: self._apply_configure(
             MeasurementFunction.DIODE, AutoRange.DEF
         )
@@ -813,6 +872,7 @@ class Hp34401A:
     def measure_dc_voltage(
         self, range_v: float | AutoRange = AutoRange.DEF, nplc: Nplc = Nplc.PLC10
     ) -> MeasurementReading:
+        """Measure the dc voltage."""
         with self._locked():
             self.configure_dc_voltage(range_v, nplc)
             return self.read_once()
@@ -820,6 +880,7 @@ class Hp34401A:
     def measure_ac_voltage(
         self, range_v: float | AutoRange = AutoRange.DEF, ac_filter_hz: AcFilterHz = AcFilterHz.HZ20
     ) -> MeasurementReading:
+        """Measure the ac voltage."""
         with self._locked():
             self.configure_ac_voltage(range_v, ac_filter_hz)
             return self.read_once()
@@ -827,6 +888,7 @@ class Hp34401A:
     def measure_dc_current(
         self, range_a: float | AutoRange = AutoRange.DEF, nplc: Nplc = Nplc.PLC10
     ) -> MeasurementReading:
+        """Measure the dc current."""
         with self._locked():
             self.configure_dc_current(range_a, nplc)
             return self.read_once()
@@ -834,6 +896,7 @@ class Hp34401A:
     def measure_2wire_resistance(
         self, range_ohm: float | AutoRange = AutoRange.DEF, nplc: Nplc = Nplc.PLC10
     ) -> MeasurementReading:
+        """Measure the 2wire resistance."""
         with self._locked():
             self.configure_2wire_resistance(range_ohm, nplc)
             return self.read_once()
@@ -841,6 +904,7 @@ class Hp34401A:
     def measure_4wire_resistance(
         self, range_ohm: float | AutoRange = AutoRange.DEF, nplc: Nplc = Nplc.PLC10
     ) -> MeasurementReading:
+        """Measure the 4wire resistance."""
         with self._locked():
             self.configure_4wire_resistance(range_ohm, nplc)
             return self.read_once()
@@ -871,6 +935,10 @@ class Hp34401A:
 
     # ------------------------------------------------------------------ bus trigger
     def set_trigger_source(self, source: TriggerSource) -> None:
+        """Set the trigger source.
+
+        Sends ``TRIGger:SOURce …``.
+        """
         self.write(f"TRIGger:SOURce {source.value}")
         self._trigger_source = source
 
@@ -878,16 +946,28 @@ class Hp34401A:
         # FETCh? returns readings from internal memory. Ensure that memory is
         # enabled because a user/raw command may have disabled it before this API
         # call or during recovery.
+        """Initiate the configured operation.
+
+        Sends ``INITiate``.
+        """
         self.write('DATA:FEED RDG_STORE,"CALC"')
         self.write("INITiate")
         self._state = CommandState.WAITING_FOR_TRIGGER
 
     def trigger_bus(self) -> None:
+        """Trigger bus.
+
+        Sends ``*TRG``.
+        """
         if self._trigger_source != TriggerSource.BUS:
             raise ProtocolError("trigger_bus() requires trigger source BUS.")
         self.write("*TRG")
 
     def fetch(self) -> list[MeasurementReading]:
+        """Issue the fetch command.
+
+        Sends ``FETCh?``.
+        """
         raw = self.query("FETCh?")
         values = parser.parse_reading_list(raw)
         return [self._build_reading(v, raw, reconnect_count=self._reconnect_count) for v in values]
@@ -920,6 +1000,10 @@ class Hp34401A:
 
     # guard: forbid READ? with BUS (spec section 22)
     def read_query(self) -> str:
+        """Read the query.
+
+        Sends ``READ?``.
+        """
         if self._trigger_source == TriggerSource.BUS:
             raise ProtocolError(
                 "READ? is forbidden with trigger source BUS (deadlock). Use the "
@@ -929,10 +1013,12 @@ class Hp34401A:
 
     @property
     def state(self) -> CommandState:
+        """The state."""
         return self._state
 
     @property
     def identity_cached(self) -> Identity | None:
+        """The identity cached."""
         return self._identity
 
 

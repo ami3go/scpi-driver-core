@@ -59,6 +59,7 @@ class CsvMeasurementLog:
                 os.fsync(fh.fileno())
 
     def write_row(self, row: dict[str, Any]) -> None:
+        """Write the row."""
         ordered = [_cell(row.get(col)) for col in CSV_COLUMNS]
         with self.path.open("a", newline="", encoding="utf-8") as fh:
             csv.writer(fh).writerow(ordered)
@@ -76,6 +77,7 @@ class JsonlEventLog:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def write_event(self, event: dict[str, Any]) -> None:
+        """Write the event."""
         line = json.dumps(event, default=_json_default)
         with self.path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")

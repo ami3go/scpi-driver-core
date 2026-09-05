@@ -77,33 +77,40 @@ class Tbs1000c:
     # ------------------------------------------------------------------
     @classmethod
     def connect_usbtmc(cls, resource: str, timeout_s: float = 5.0) -> Tbs1000c:
+        """Open a USBTMC connection and return a connected driver."""
         transport = PyvisaUsbtmcTransport(resource, timeout_s=timeout_s)
         transport.open()
         return cls(transport)
 
     @classmethod
     def connect_simulated(cls, simulator: SimTbs1000cInstrument | None = None) -> Tbs1000c:
+        """Return a driver backed by the in-process simulator."""
         transport = SimulatedTransport(simulator)
         transport.open()
         return cls(transport)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self.transport.close()
 
     @property
     def connected(self) -> bool:
+        """Whether the transport is currently open."""
         return self.transport.is_open()
 
     @property
     def resource(self) -> str:
+        """The resource string this driver is connected to."""
         return self.transport.resource
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self.transport.timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self.transport.timeout_s = value
 
     # ------------------------------------------------------------------
@@ -139,6 +146,10 @@ class Tbs1000c:
     # Identity / communication (RFDS-002)
     # ------------------------------------------------------------------
     def identify(self, *, refresh: bool = True) -> InstrumentIdentity:
+        """Return the instrument identity.
+
+        Sends ``*IDN?``.
+        """
         if not refresh and self._identity is not None:
             return self._identity
         raw = self._query("*IDN?")
@@ -147,6 +158,10 @@ class Tbs1000c:
         return identity
 
     def check_communication(self) -> bool:
+        """Check the communication.
+
+        Sends ``*IDN?``.
+        """
         self._query("*IDN?")
         return True
 
@@ -154,6 +169,10 @@ class Tbs1000c:
     # Channel configuration (task §8)
     # ------------------------------------------------------------------
     def set_channel_scale(self, channel: int, volts_per_div: float) -> None:
+        """Set the channel scale.
+
+        Sends ``CH:SCAle …``.
+        """
         channel = _validate_channel(channel)
         volts_per_div = float(volts_per_div)
         if volts_per_div <= 0:
@@ -161,31 +180,59 @@ class Tbs1000c:
         self._write(f"CH{channel}:SCAle {volts_per_div}")
 
     def get_channel_scale(self, channel: int) -> float:
+        """Return the channel scale.
+
+        Sends ``CH:SCAle? …``.
+        """
         channel = _validate_channel(channel)
         return float(self._query(f"CH{channel}:SCAle?"))
 
     def set_channel_position(self, channel: int, divisions: float) -> None:
+        """Set the channel position.
+
+        Sends ``CH:POSition …``.
+        """
         channel = _validate_channel(channel)
         self._write(f"CH{channel}:POSition {float(divisions)}")
 
     def get_channel_position(self, channel: int) -> float:
+        """Return the channel position.
+
+        Sends ``CH:POSition? …``.
+        """
         channel = _validate_channel(channel)
         return float(self._query(f"CH{channel}:POSition?"))
 
     def set_channel_offset(self, channel: int, volts: float) -> None:
+        """Set the channel offset.
+
+        Sends ``CH:OFFSet …``.
+        """
         channel = _validate_channel(channel)
         self._write(f"CH{channel}:OFFSet {float(volts)}")
 
     def get_channel_offset(self, channel: int) -> float:
+        """Return the channel offset.
+
+        Sends ``CH:OFFSet? …``.
+        """
         channel = _validate_channel(channel)
         return float(self._query(f"CH{channel}:OFFSet?"))
 
     def set_channel_coupling(self, channel: int, coupling: Coupling | str) -> None:
+        """Set the channel coupling.
+
+        Sends ``CH:COUPling …``.
+        """
         channel = _validate_channel(channel)
         coupling = Coupling(coupling)
         self._write(f"CH{channel}:COUPling {coupling.value}")
 
     def get_channel_coupling(self, channel: int) -> Coupling:
+        """Return the channel coupling.
+
+        Sends ``CH:COUPling? …``.
+        """
         channel = _validate_channel(channel)
         return Coupling(self._query(f"CH{channel}:COUPling?").strip())
 
@@ -196,10 +243,18 @@ class Tbs1000c:
         self._write(f"CH{channel}:BANdwidth {value}")
 
     def get_channel_bandwidth_limit(self, channel: int) -> str:
+        """Return the channel bandwidth limit.
+
+        Sends ``CH:BANdwidth? …``.
+        """
         channel = _validate_channel(channel)
         return self._query(f"CH{channel}:BANdwidth?").strip()
 
     def set_channel_probe_gain(self, channel: int, gain: float) -> None:
+        """Set the channel probe gain.
+
+        Sends ``CH:PRObe:GAIN …``.
+        """
         channel = _validate_channel(channel)
         gain = float(gain)
         if gain <= 0:
@@ -207,6 +262,10 @@ class Tbs1000c:
         self._write(f"CH{channel}:PRObe:GAIN {gain}")
 
     def get_channel_probe_gain(self, channel: int) -> float:
+        """Return the channel probe gain.
+
+        Sends ``CH:PRObe:GAIN? …``.
+        """
         channel = _validate_channel(channel)
         return float(self._query(f"CH{channel}:PRObe:GAIN?"))
 
@@ -222,10 +281,15 @@ class Tbs1000c:
         self._write(f'CH{channel}:LABel "{text}"')
 
     def get_channel_name(self, channel: int) -> str:
+        """Return the channel name.
+
+        Sends ``CH:LABel? …``.
+        """
         channel = _validate_channel(channel)
         return self._query(f"CH{channel}:LABel?").strip().strip('"')
 
     def get_channel_settings(self, channel: int) -> ChannelSettings:
+        """Return the channel settings."""
         channel = _validate_channel(channel)
         return ChannelSettings(
             channel=channel,
@@ -242,30 +306,62 @@ class Tbs1000c:
     # Trigger (task §8)
     # ------------------------------------------------------------------
     def set_trigger_source(self, channel: int) -> None:
+        """Set the trigger source.
+
+        Sends ``TRIGger:A:EDGE:SOUrce CH …``.
+        """
         channel = _validate_channel(channel)
         self._write(f"TRIGger:A:EDGE:SOUrce CH{channel}")
 
     def get_trigger_source(self) -> str:
+        """Return the trigger source.
+
+        Sends ``TRIGger:A:EDGE:SOUrce?``.
+        """
         return self._query("TRIGger:A:EDGE:SOUrce?").strip()
 
     def set_trigger_slope(self, slope: TriggerSlope | str) -> None:
+        """Set the trigger slope.
+
+        Sends ``TRIGger:A:EDGE:SLOpe …``.
+        """
         slope = TriggerSlope(slope)
         self._write(f"TRIGger:A:EDGE:SLOpe {slope.value}")
 
     def get_trigger_slope(self) -> TriggerSlope:
+        """Return the trigger slope.
+
+        Sends ``TRIGger:A:EDGE:SLOpe?``.
+        """
         return TriggerSlope(self._query("TRIGger:A:EDGE:SLOpe?").strip())
 
     def set_trigger_coupling(self, coupling: TriggerCoupling | str) -> None:
+        """Set the trigger coupling.
+
+        Sends ``TRIGger:A:EDGE:COUPling …``.
+        """
         coupling = TriggerCoupling(coupling)
         self._write(f"TRIGger:A:EDGE:COUPling {coupling.value}")
 
     def get_trigger_coupling(self) -> TriggerCoupling:
+        """Return the trigger coupling.
+
+        Sends ``TRIGger:A:EDGE:COUPling?``.
+        """
         return TriggerCoupling(self._query("TRIGger:A:EDGE:COUPling?").strip())
 
     def set_trigger_level(self, level_v: float) -> None:
+        """Set the trigger level.
+
+        Sends ``TRIGger:A:LEVel …``.
+        """
         self._write(f"TRIGger:A:LEVel {float(level_v)}")
 
     def get_trigger_level(self) -> float:
+        """Return the trigger level.
+
+        Sends ``TRIGger:A:LEVel?``.
+        """
         return float(self._query("TRIGger:A:LEVel?"))
 
     def auto_set_trigger_level(self) -> None:
@@ -274,10 +370,15 @@ class Tbs1000c:
         self._write("TRIGger:A SETLevel")
 
     def force_trigger(self) -> None:
+        """Force a trigger regardless of the configured source.
+
+        Sends ``TRIGger FORCe``.
+        """
         logger.info("TBS1000C: forcing a trigger event; any in-progress acquisition ends now")
         self._write("TRIGger FORCe")
 
     def get_trigger_settings(self) -> TriggerSettings:
+        """Return the trigger settings."""
         return TriggerSettings(
             source=self.get_trigger_source(),
             slope=self.get_trigger_slope().value,
@@ -289,6 +390,10 @@ class Tbs1000c:
     # Acquisition and autoset (task §6 item 1, §8)
     # ------------------------------------------------------------------
     def run_autoset(self) -> None:
+        """Run the autoset.
+
+        Sends ``AUTOSet``.
+        """
         before = {
             "ch1": self.get_channel_settings(1),
             "ch2": self.get_channel_settings(2),
@@ -303,25 +408,49 @@ class Tbs1000c:
         logger.info("TBS1000C: AUTOSet changed configuration. before=%s after=%s", before, after)
 
     def start_acquisition(self) -> None:
+        """Start acquisition.
+
+        Sends ``ACQuire:STATE RUN``.
+        """
         self._write("ACQuire:STATE RUN")
 
     def stop_acquisition(self) -> None:
+        """Stop acquisition.
+
+        Sends ``ACQuire:STATE STOP``.
+        """
         self._write("ACQuire:STATE STOP")
 
     def set_acquisition_mode(self, mode: AcquisitionMode | str) -> None:
+        """Set the acquisition mode.
+
+        Sends ``ACQuire:MODe …``.
+        """
         mode = AcquisitionMode(mode)
         self._write(f"ACQuire:MODe {mode.value}")
 
     def get_acquisition_mode(self) -> AcquisitionMode:
+        """Return the acquisition mode.
+
+        Sends ``ACQuire:MODe?``.
+        """
         return AcquisitionMode(self._query("ACQuire:MODe?").strip())
 
     def get_acquisition_count(self) -> int:
+        """Return the acquisition count.
+
+        Sends ``ACQuire:NUMACq?``.
+        """
         return int(float(self._query("ACQuire:NUMACq?")))
 
     # ------------------------------------------------------------------
     # Calibration (task §6 item 2, §8)
     # ------------------------------------------------------------------
     def run_internal_calibration(self) -> None:
+        """Run the internal calibration.
+
+        Sends ``CALibrate:INTERNal:STARt``.
+        """
         if self.get_calibration_status().running:
             raise Tbs1000cCalibrationError("internal calibration is already running")
         self._write("CALibrate:INTERNal:STARt")
@@ -330,17 +459,29 @@ class Tbs1000c:
             raise Tbs1000cCalibrationError(f"internal calibration reported: {status.results}")
 
     def get_calibration_status(self) -> CalibrationStatus:
+        """Return the calibration status.
+
+        Sends ``CALibrate:INTERNal:STATus?``, ``CALibrate:RESults?``.
+        """
         running = self._query("CALibrate:INTERNal:STATus?").strip() not in ("0", "")
         results = self._query("CALibrate:RESults?").strip() if not running else ""
         return CalibrationStatus(running=running, results=results)
 
     def get_calibration_results(self) -> str:
+        """Return the calibration results.
+
+        Sends ``CALibrate:RESults?``.
+        """
         return self._query("CALibrate:RESults?").strip()
 
     # ------------------------------------------------------------------
     # Measurement (task §6 item 4, §9)
     # ------------------------------------------------------------------
     def get_immediate_measurement(self, measurement_type: MeasurementType | str, channel: int) -> float:
+        """Return the immediate measurement.
+
+        Sends ``MEASUrement:IMMed:TYPe …``, ``MEASUrement:IMMed?``.
+        """
         channel = _validate_channel(channel)
         measurement_type = MeasurementType(measurement_type)
         self._select_waveform_source(channel)
@@ -414,6 +555,10 @@ class Tbs1000c:
         image_format: ImageFormat | str | None = None,
         layout: ImageLayout | str | None = None,
     ) -> None:
+        """Save the screen image.
+
+        Sends ``SAVe:IMAge:FILEFormat …``, ``SAVe:IMAge:LAYout …``.
+        """
         host_path = Path(host_path)
         fmt = ImageFormat(image_format) if image_format else ImageFormat(
             {".png": "PNG", ".bmp": "BMP", ".jpg": "JPG", ".jpeg": "JPG"}.get(
@@ -506,12 +651,20 @@ class Tbs1000c:
         self._check_events("Restore Setup")
 
     def save_setup_to_instrument_memory(self, slot: int) -> None:
+        """Save the setup to instrument memory.
+
+        Sends ``*SAV …``.
+        """
         slot = int(slot)
         if not (1 <= slot <= 10):
             raise Tbs1000cValidationError("slot must be between 1 and 10")
         self._write(f"*SAV {slot}")
 
     def restore_setup_from_instrument_memory(self, slot: int) -> None:
+        """Issue the restore setup from instrument memory command.
+
+        Sends ``*RCL …``.
+        """
         slot = int(slot)
         if not (1 <= slot <= 10):
             raise Tbs1000cValidationError("slot must be between 1 and 10")
@@ -519,12 +672,17 @@ class Tbs1000c:
         self._check_events("Restore Setup From Instrument Memory")
 
     def restore_factory_setup(self) -> None:
+        """Issue the restore factory setup command.
+
+        Sends ``RECAll:SETUp FACtory``.
+        """
         self._write("RECAll:SETUp FACtory")
 
     # ------------------------------------------------------------------
     # Raw SCPI escape hatch (task §11)
     # ------------------------------------------------------------------
     def enable_raw_scpi(self, confirmation: str) -> None:
+        """Enable raw scpi."""
         if confirmation != _RAW_SCPI_CONFIRMATION:
             raise Tbs1000cValidationError(
                 f'raw SCPI requires the exact confirmation text "{_RAW_SCPI_CONFIRMATION}"'
@@ -538,9 +696,11 @@ class Tbs1000c:
             )
 
     def raw_query(self, command: str) -> str:
+        """Send a raw SCPI query, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         return self._query(command)
 
     def raw_write(self, command: str) -> None:
+        """Send a raw SCPI command, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         self._write(command)

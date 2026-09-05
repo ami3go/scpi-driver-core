@@ -71,6 +71,7 @@ class VisaGpibTransport(BaseTransport):
 
     @property
     def name(self) -> str:
+        """A human-readable name for this connection."""
         return f"visa:{self.config.resource}"
 
     def _do_open(self) -> None:

@@ -206,6 +206,7 @@ class ConfigurationManager:
         return f"sha256:{digest}"
 
     def save_profile(self, name: str, *, overwrite: bool = False) -> str:
+        """Save the profile."""
         profile_name = _safe_profile_name(name)
         root = _profile_root()
         root.mkdir(parents=True, exist_ok=True)
@@ -225,6 +226,7 @@ class ConfigurationManager:
         return str(path)
 
     def load_profile(self, name: str, *, validate_only: bool = False) -> dict[str, Any]:
+        """Load the profile."""
         profile_name = _safe_profile_name(name)
         path = _profile_root() / f"{profile_name}.json"
         if not path.exists():
@@ -238,12 +240,14 @@ class ConfigurationManager:
         return sorted(path.stem for path in root.glob("*.json") if path.is_file())
 
     def delete_profile(self, name: str) -> None:
+        """Delete the profile."""
         profile_name = _safe_profile_name(name)
         path = _profile_root() / f"{profile_name}.json"
         if path.exists():
             path.unlink()
 
     def reset(self) -> dict[str, Any]:
+        """Reset the instrument to its power-on defaults."""
         self._effective = deepcopy(self._default)
         self._sources = _source_map(self._effective.get("settings", {}), "PACKAGE_DEFAULT")
         return self.effective(include_sources=True)

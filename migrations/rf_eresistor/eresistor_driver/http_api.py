@@ -19,9 +19,11 @@ class EResistorHttpApi:
 
     @property
     def base_url(self) -> str:
+        """The base url."""
         return f"http://{self.host}:{self.port}"
 
     def get_text(self, path: str) -> str:
+        """Return the text."""
         if not path.startswith("/"):
             path = "/" + path
         url = self.base_url + path
@@ -33,6 +35,7 @@ class EResistorHttpApi:
             raise HttpApiError(f"HTTP GET {url} failed: {exc}") from exc
 
     def ping(self) -> bool:
+        """Check that the instrument is reachable."""
         try:
             return self.get_text("/ping").strip().lower() == "pong"
         except HttpApiError:

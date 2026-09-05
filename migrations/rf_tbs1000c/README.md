@@ -160,3 +160,33 @@ python -m robot --outputdir results rf_tbs1000c/tests/robot/acceptance.robot   #
 `tests/hardware/verify_all_keywords.robot` (above) needs real hardware.
 `tests/unit/` and `tests/evidence/` use the bundled simulator or an
 injectable test double and need no hardware or vendor SDK at all.
+
+## Built on scpi-driver-core
+
+This driver's transport and SCPI framing come from
+[`scpi-driver-core`](https://github.com/ami3go/scpi-driver-core) rather than
+being implemented here. Tektronix TBS1000C speaks USBTMC, with IEEE-488.2 binary blocks, and all of that is the core's
+byte-oriented transport layer with this package's device semantics on top.
+
+What changed in the migration: tbs1000c/transport.py and the block/identity halves of tbs1000c/codec.py. Everything else — the command tree,
+the measurement semantics, the simulator, the safety policy, and the Robot
+Framework keywords — is unchanged, and the driver's own test suite passes
+exactly as it did before.
+
+What the core provides:
+
+- byte-oriented transports with an explicit state model and no unbounded reads
+- SCPI text framing that removes only the configured terminator, so binary
+  payloads survive intact
+- IEEE-488.2 identity, error-queue, and definite-length block parsing
+- protocol tracing and a JSONL audit sink, with redaction hooks
+
+What stays here, and should: everything that interprets this instrument's
+physical behaviour or command tree.
+
+### Installing
+
+```bash
+pip install -e .            # pulls in scpi-driver-core
+pytest tests
+```

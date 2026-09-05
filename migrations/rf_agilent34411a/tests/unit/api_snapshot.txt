@@ -1,147 +1,147 @@
-method check_communication(self) -> 'bool'  [undocumented]
-method clear_display_text(self) -> 'None'  [undocumented]
-method clear_lan_history(self) -> 'None'  [undocumented]
-method clear_nonvolatile_readings(self) -> 'None'  [undocumented]
-method clear_statistics(self) -> 'None'  [undocumented]
-method close(self) -> 'None'  [undocumented]
-method connect_simulated(simulator: 'SimAgilent34411AInstrument | None' = None) -> 'Agilent34411A'  [undocumented]
-method connect_visa(resource: 'str', timeout_s: 'float' = 5.0) -> 'Agilent34411A'  [undocumented]
-method copy_readings_to_nonvolatile_memory(self) -> 'None'  [undocumented]
-method delete_all_instrument_memory_slots(self) -> 'None'  [undocumented]
-method delete_instrument_memory_slot(self, slot: 'int') -> 'None'  [undocumented]
-method disable_math(self) -> 'None'  [undocumented]
-method drain_nonvolatile_readings(self, max_count: 'int | None' = None) -> 'list[float]'  [undocumented]
-method drain_readings(self, count: 'int') -> 'list[float]'  [undocumented]
-method enable_calibration_mode(self, confirmation: 'str') -> 'None'  [undocumented]
-method enable_db_measurement(self) -> 'None'  [undocumented]
-method enable_dbm_measurement(self) -> 'None'  [undocumented]
-method enable_limit_test(self) -> 'None'  [undocumented]
-method enable_raw_scpi(self, confirmation: 'str') -> 'None'  [undocumented]
-method enable_statistics(self) -> 'None'  [undocumented]
-method get_ac_filter_bandwidth(self, function: 'Function | str') -> 'AcFilter'  [undocumented]
+method check_communication(self) -> 'bool'
+method clear_display_text(self) -> 'None'
+method clear_lan_history(self) -> 'None'
+method clear_nonvolatile_readings(self) -> 'None'
+method clear_statistics(self) -> 'None'
+method close(self) -> 'None'
+method connect_simulated(simulator: 'SimAgilent34411AInstrument | None' = None) -> 'Agilent34411A'
+method connect_visa(resource: 'str', timeout_s: 'float' = 5.0) -> 'Agilent34411A'
+method copy_readings_to_nonvolatile_memory(self) -> 'None'
+method delete_all_instrument_memory_slots(self) -> 'None'
+method delete_instrument_memory_slot(self, slot: 'int') -> 'None'
+method disable_math(self) -> 'None'
+method drain_nonvolatile_readings(self, max_count: 'int | None' = None) -> 'list[float]'
+method drain_readings(self, count: 'int') -> 'list[float]'
+method enable_calibration_mode(self, confirmation: 'str') -> 'None'
+method enable_db_measurement(self) -> 'None'
+method enable_dbm_measurement(self) -> 'None'
+method enable_limit_test(self) -> 'None'
+method enable_raw_scpi(self, confirmation: 'str') -> 'None'
+method enable_statistics(self) -> 'None'
+method get_ac_filter_bandwidth(self, function: 'Function | str') -> 'AcFilter'
 method get_active_input_terminals(self) -> 'str'
 method get_actual_calibration_line_frequency(self) -> 'float'
-method get_auto_range(self, function: 'Function | str') -> 'bool'  [undocumented]
-method get_auto_zero(self, function: 'Function | str') -> 'AutoZeroMode'  [undocumented]
-method get_beeper_enabled(self) -> 'bool'  [undocumented]
+method get_auto_range(self, function: 'Function | str') -> 'bool'
+method get_auto_zero(self, function: 'Function | str') -> 'AutoZeroMode'
+method get_beeper_enabled(self) -> 'bool'
 method get_calibration_count(self) -> 'int'
-method get_calibration_line_frequency(self) -> 'int'  [undocumented]
-method get_calibration_string(self) -> 'str'  [undocumented]
-method get_calibration_value(self) -> 'float'  [undocumented]
-method get_display_enabled(self) -> 'bool'  [undocumented]
-method get_function(self) -> 'Function'  [undocumented]
-method get_immediate_measurement(self) -> 'float | list[float]'  [undocumented]
-method get_input_impedance_auto(self) -> 'bool'  [undocumented]
-method get_instrument_memory_catalog(self) -> 'list[int]'  [undocumented]
-method get_instrument_memory_slot_count(self) -> 'int'  [undocumented]
-method get_instrument_memory_slot_name(self, slot: 'int') -> 'str'  [undocumented]
-method get_integration_time_aperture(self, function: 'Function | str') -> 'float'  [undocumented]
-method get_integration_time_nplc(self, function: 'Function | str') -> 'float'  [undocumented]
-method get_lan_auto_ip(self) -> 'bool'  [undocumented]
+method get_calibration_line_frequency(self) -> 'int'
+method get_calibration_string(self) -> 'str'
+method get_calibration_value(self) -> 'float'
+method get_display_enabled(self) -> 'bool'
+method get_function(self) -> 'Function'
+method get_immediate_measurement(self) -> 'float | list[float]'
+method get_input_impedance_auto(self) -> 'bool'
+method get_instrument_memory_catalog(self) -> 'list[int]'
+method get_instrument_memory_slot_count(self) -> 'int'
+method get_instrument_memory_slot_name(self, slot: 'int') -> 'str'
+method get_integration_time_aperture(self, function: 'Function | str') -> 'float'
+method get_integration_time_nplc(self, function: 'Function | str') -> 'float'
+method get_lan_auto_ip(self) -> 'bool'
 method get_lan_connection_status(self) -> 'str'
 method get_lan_control_connection_status(self) -> 'str'
-method get_lan_ddns_enabled(self) -> 'bool'  [undocumented]
-method get_lan_dhcp_enabled(self) -> 'bool'  [undocumented]
-method get_lan_dns(self) -> 'str'  [undocumented]
-method get_lan_domain(self, selector: 'str | None' = None) -> 'str'  [undocumented]
-method get_lan_gateway(self, selector: 'str | None' = None) -> 'str'  [undocumented]
-method get_lan_history(self) -> 'str'  [undocumented]
-method get_lan_hostname(self, selector: 'str | None' = None) -> 'str'  [undocumented]
-method get_lan_ip_address(self, selector: 'str | None' = None) -> 'str'  [undocumented]
-method get_lan_keepalive(self) -> 'float'  [undocumented]
+method get_lan_ddns_enabled(self) -> 'bool'
+method get_lan_dhcp_enabled(self) -> 'bool'
+method get_lan_dns(self) -> 'str'
+method get_lan_domain(self, selector: 'str | None' = None) -> 'str'
+method get_lan_gateway(self, selector: 'str | None' = None) -> 'str'
+method get_lan_history(self) -> 'str'
+method get_lan_hostname(self, selector: 'str | None' = None) -> 'str'
+method get_lan_ip_address(self, selector: 'str | None' = None) -> 'str'
+method get_lan_keepalive(self) -> 'float'
 method get_lan_logical_ip_address(self) -> 'str'
 method get_lan_mac_address(self) -> 'str'
-method get_lan_mdns_enabled(self) -> 'bool'  [undocumented]
-method get_lan_netbios_enabled(self) -> 'bool'  [undocumented]
-method get_lan_subnet_mask(self, selector: 'str | None' = None) -> 'str'  [undocumented]
-method get_lan_telnet_prompt(self) -> 'str'  [undocumented]
-method get_lan_telnet_welcome_message(self) -> 'str'  [undocumented]
-method get_latest_reading(self) -> 'float | list[float]'  [undocumented]
-method get_limits(self) -> 'tuple[float, float]'  [undocumented]
+method get_lan_mdns_enabled(self) -> 'bool'
+method get_lan_netbios_enabled(self) -> 'bool'
+method get_lan_subnet_mask(self, selector: 'str | None' = None) -> 'str'
+method get_lan_telnet_prompt(self) -> 'str'
+method get_lan_telnet_welcome_message(self) -> 'str'
+method get_latest_reading(self) -> 'float | list[float]'
+method get_limits(self) -> 'tuple[float, float]'
 method get_math_function(self) -> 'MathFunction'
-method get_measurement_settings(self, function: 'Function | str | None' = None) -> 'MeasurementSettings'  [undocumented]
-method get_most_recent_reading(self) -> 'float'  [undocumented]
-method get_nonvolatile_reading_count(self) -> 'int'  [undocumented]
-method get_nonvolatile_readings(self) -> 'list[float]'  [undocumented]
-method get_null(self, function: 'Function | str') -> 'bool'  [undocumented]
-method get_null_value(self, function: 'Function | str') -> 'float'  [undocumented]
-method get_offset_compensation(self, function: 'Function | str') -> 'bool'  [undocumented]
-method get_range(self, function: 'Function | str') -> 'float'  [undocumented]
-method get_reading(self) -> 'float | list[float]'  [undocumented]
-method get_reading_count(self) -> 'int'  [undocumented]
-method get_sample_count(self) -> 'float'  [undocumented]
-method get_statistics(self) -> 'StatisticsResult'  [undocumented]
-method get_temperature_probe_type(self) -> 'TemperatureProbeType'  [undocumented]
-method get_temperature_units(self) -> 'TemperatureUnit'  [undocumented]
-method get_trigger_count(self) -> 'float'  [undocumented]
-method get_trigger_level(self) -> 'float'  [undocumented]
-method get_trigger_settings(self) -> 'TriggerSettings'  [undocumented]
-method get_trigger_slope(self) -> 'TriggerSlope'  [undocumented]
-method get_trigger_source(self) -> 'TriggerSource'  [undocumented]
-method identify(self, *, refresh: 'bool' = True) -> 'InstrumentIdentity'  [undocumented]
+method get_measurement_settings(self, function: 'Function | str | None' = None) -> 'MeasurementSettings'
+method get_most_recent_reading(self) -> 'float'
+method get_nonvolatile_reading_count(self) -> 'int'
+method get_nonvolatile_readings(self) -> 'list[float]'
+method get_null(self, function: 'Function | str') -> 'bool'
+method get_null_value(self, function: 'Function | str') -> 'float'
+method get_offset_compensation(self, function: 'Function | str') -> 'bool'
+method get_range(self, function: 'Function | str') -> 'float'
+method get_reading(self) -> 'float | list[float]'
+method get_reading_count(self) -> 'int'
+method get_sample_count(self) -> 'float'
+method get_statistics(self) -> 'StatisticsResult'
+method get_temperature_probe_type(self) -> 'TemperatureProbeType'
+method get_temperature_units(self) -> 'TemperatureUnit'
+method get_trigger_count(self) -> 'float'
+method get_trigger_level(self) -> 'float'
+method get_trigger_settings(self) -> 'TriggerSettings'
+method get_trigger_slope(self) -> 'TriggerSlope'
+method get_trigger_source(self) -> 'TriggerSource'
+method identify(self, *, refresh: 'bool' = True) -> 'InstrumentIdentity'
 method is_calibration_locked(self) -> 'bool'
-method is_instrument_memory_slot_valid(self, slot: 'int') -> 'bool'  [undocumented]
-method is_math_enabled(self) -> 'bool'  [undocumented]
-method lock_calibration(self) -> 'None'  [undocumented]
-method raw_query(self, command: 'str') -> 'str'  [undocumented]
-method raw_write(self, command: 'str') -> 'None'  [undocumented]
-method rename_instrument_memory_slot(self, slot: 'int', name: 'str') -> 'None'  [undocumented]
+method is_instrument_memory_slot_valid(self, slot: 'int') -> 'bool'
+method is_math_enabled(self) -> 'bool'
+method lock_calibration(self) -> 'None'
+method raw_query(self, command: 'str') -> 'str'
+method raw_write(self, command: 'str') -> 'None'
+method rename_instrument_memory_slot(self, slot: 'int', name: 'str') -> 'None'
 method restore_setup_from_instrument_memory(self, slot: 'int') -> 'None'
 method run_adc_calibration(self) -> 'float'
 method run_full_calibration(self) -> 'bool'
-method save_setup_to_instrument_memory(self, slot: 'int') -> 'None'  [undocumented]
-method set_ac_filter_bandwidth(self, function: 'Function | str', filter_: 'AcFilter | str') -> 'None'  [undocumented]
-method set_auto_range(self, function: 'Function | str', enabled: 'bool' = True) -> 'None'  [undocumented]
-method set_auto_zero(self, function: 'Function | str', mode: 'AutoZeroMode | str') -> 'None'  [undocumented]
-method set_beeper_enabled(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_calibration_line_frequency(self, hz: 'int') -> 'None'  [undocumented]
-method set_calibration_security_code(self, new_code: 'str') -> 'None'  [undocumented]
-method set_calibration_string(self, text: 'str') -> 'None'  [undocumented]
-method set_calibration_value(self, value: 'float') -> 'None'  [undocumented]
-method set_db_reference(self, value: 'float') -> 'None'  [undocumented]
-method set_dbm_reference_resistance(self, ohms: 'float') -> 'None'  [undocumented]
-method set_display_enabled(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_display_text(self, text: 'str') -> 'None'  [undocumented]
-method set_function(self, function: 'Function | str') -> 'None'  [undocumented]
+method save_setup_to_instrument_memory(self, slot: 'int') -> 'None'
+method set_ac_filter_bandwidth(self, function: 'Function | str', filter_: 'AcFilter | str') -> 'None'
+method set_auto_range(self, function: 'Function | str', enabled: 'bool' = True) -> 'None'
+method set_auto_zero(self, function: 'Function | str', mode: 'AutoZeroMode | str') -> 'None'
+method set_beeper_enabled(self, enabled: 'bool') -> 'None'
+method set_calibration_line_frequency(self, hz: 'int') -> 'None'
+method set_calibration_security_code(self, new_code: 'str') -> 'None'
+method set_calibration_string(self, text: 'str') -> 'None'
+method set_calibration_value(self, value: 'float') -> 'None'
+method set_db_reference(self, value: 'float') -> 'None'
+method set_dbm_reference_resistance(self, ohms: 'float') -> 'None'
+method set_display_enabled(self, enabled: 'bool') -> 'None'
+method set_display_text(self, text: 'str') -> 'None'
+method set_function(self, function: 'Function | str') -> 'None'
 method set_input_impedance_auto(self, enabled: 'bool') -> 'None'
-method set_integration_time_aperture(self, function: 'Function | str', seconds: 'float') -> 'None'  [undocumented]
-method set_integration_time_nplc(self, function: 'Function | str', nplc: 'float') -> 'None'  [undocumented]
-method set_lan_auto_ip(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_lan_ddns_enabled(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_lan_dhcp_enabled(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_lan_dns(self, address: 'str') -> 'None'  [undocumented]
-method set_lan_domain(self, name: 'str') -> 'None'  [undocumented]
-method set_lan_gateway(self, gateway: 'str') -> 'None'  [undocumented]
-method set_lan_hostname(self, name: 'str') -> 'None'  [undocumented]
-method set_lan_ip_address(self, address: 'str') -> 'None'  [undocumented]
-method set_lan_keepalive(self, seconds: 'float') -> 'None'  [undocumented]
+method set_integration_time_aperture(self, function: 'Function | str', seconds: 'float') -> 'None'
+method set_integration_time_nplc(self, function: 'Function | str', nplc: 'float') -> 'None'
+method set_lan_auto_ip(self, enabled: 'bool') -> 'None'
+method set_lan_ddns_enabled(self, enabled: 'bool') -> 'None'
+method set_lan_dhcp_enabled(self, enabled: 'bool') -> 'None'
+method set_lan_dns(self, address: 'str') -> 'None'
+method set_lan_domain(self, name: 'str') -> 'None'
+method set_lan_gateway(self, gateway: 'str') -> 'None'
+method set_lan_hostname(self, name: 'str') -> 'None'
+method set_lan_ip_address(self, address: 'str') -> 'None'
+method set_lan_keepalive(self, seconds: 'float') -> 'None'
 method set_lan_mdns_enabled(self, enabled: 'bool') -> 'None'
-method set_lan_netbios_enabled(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_lan_subnet_mask(self, mask: 'str') -> 'None'  [undocumented]
-method set_lan_telnet_prompt(self, text: 'str') -> 'None'  [undocumented]
-method set_lan_telnet_welcome_message(self, text: 'str') -> 'None'  [undocumented]
-method set_limits(self, low: 'float', high: 'float') -> 'None'  [undocumented]
-method set_null(self, function: 'Function | str', enabled: 'bool') -> 'None'  [undocumented]
-method set_null_value(self, function: 'Function | str', value: 'float') -> 'None'  [undocumented]
-method set_offset_compensation(self, function: 'Function | str', enabled: 'bool') -> 'None'  [undocumented]
-method set_power_on_state(self, slot: 'int') -> 'None'  [undocumented]
-method set_power_on_state_recall(self, enabled: 'bool') -> 'None'  [undocumented]
-method set_pretrigger_sample_count(self, count: 'float') -> 'None'  [undocumented]
-method set_range(self, function: 'Function | str', range_value: 'float') -> 'None'  [undocumented]
-method set_sample_count(self, count: 'float') -> 'None'  [undocumented]
-method set_sample_source(self, source: 'SampleSource | str') -> 'None'  [undocumented]
-method set_sample_timer_interval(self, seconds: 'float') -> 'None'  [undocumented]
-method set_temperature_probe_type(self, probe_type: 'TemperatureProbeType | str', thermistor_type: 'ThermistorType | str | None' = None) -> 'None'  [undocumented]
-method set_temperature_units(self, unit: 'TemperatureUnit | str') -> 'None'  [undocumented]
-method set_trigger_count(self, count: 'float') -> 'None'  [undocumented]
-method set_trigger_delay(self, seconds: 'float') -> 'None'  [undocumented]
-method set_trigger_delay_auto(self) -> 'None'  [undocumented]
-method set_trigger_level(self, level: 'float') -> 'None'  [undocumented]
-method set_trigger_slope(self, slope: 'TriggerSlope | str') -> 'None'  [undocumented]
-method set_trigger_source(self, source: 'TriggerSource | str') -> 'None'  [undocumented]
+method set_lan_netbios_enabled(self, enabled: 'bool') -> 'None'
+method set_lan_subnet_mask(self, mask: 'str') -> 'None'
+method set_lan_telnet_prompt(self, text: 'str') -> 'None'
+method set_lan_telnet_welcome_message(self, text: 'str') -> 'None'
+method set_limits(self, low: 'float', high: 'float') -> 'None'
+method set_null(self, function: 'Function | str', enabled: 'bool') -> 'None'
+method set_null_value(self, function: 'Function | str', value: 'float') -> 'None'
+method set_offset_compensation(self, function: 'Function | str', enabled: 'bool') -> 'None'
+method set_power_on_state(self, slot: 'int') -> 'None'
+method set_power_on_state_recall(self, enabled: 'bool') -> 'None'
+method set_pretrigger_sample_count(self, count: 'float') -> 'None'
+method set_range(self, function: 'Function | str', range_value: 'float') -> 'None'
+method set_sample_count(self, count: 'float') -> 'None'
+method set_sample_source(self, source: 'SampleSource | str') -> 'None'
+method set_sample_timer_interval(self, seconds: 'float') -> 'None'
+method set_temperature_probe_type(self, probe_type: 'TemperatureProbeType | str', thermistor_type: 'ThermistorType | str | None' = None) -> 'None'
+method set_temperature_units(self, unit: 'TemperatureUnit | str') -> 'None'
+method set_trigger_count(self, count: 'float') -> 'None'
+method set_trigger_delay(self, seconds: 'float') -> 'None'
+method set_trigger_delay_auto(self) -> 'None'
+method set_trigger_level(self, level: 'float') -> 'None'
+method set_trigger_slope(self, slope: 'TriggerSlope | str') -> 'None'
+method set_trigger_source(self, source: 'TriggerSource | str') -> 'None'
 method store_calibration(self) -> 'None'
 method trigger_now(self) -> 'None'
-method unlock_calibration(self, security_code: 'str') -> 'None'  [undocumented]
-property connected  [undocumented]
-property resource  [undocumented]
-property timeout_s  [undocumented]
+method unlock_calibration(self, security_code: 'str') -> 'None'
+property connected
+property resource
+property timeout_s

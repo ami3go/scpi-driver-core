@@ -34,6 +34,7 @@ class ErrorRecord:
 
     @property
     def is_no_error(self) -> bool:
+        """Whether the no error."""
         return self.code == 0
 
 
@@ -117,6 +118,7 @@ class TestSequenceResult:
 
     @property
     def pass_fail(self) -> Literal["PASS", "FAIL", "ERROR"]:
+        """The pass fail."""
         if any(r.pass_fail == "ERROR" for r in self.step_results):
             return "ERROR"
         if any(r.pass_fail == "FAIL" for r in self.step_results):

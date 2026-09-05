@@ -127,33 +127,40 @@ class Agilent34411A:
     # ------------------------------------------------------------------
     @classmethod
     def connect_visa(cls, resource: str, timeout_s: float = 5.0) -> Agilent34411A:
+        """Open a VISA connection and return a connected driver."""
         transport = PyvisaTransport(resource, timeout_s=timeout_s)
         transport.open()
         return cls(transport)
 
     @classmethod
     def connect_simulated(cls, simulator: SimAgilent34411AInstrument | None = None) -> Agilent34411A:
+        """Return a driver backed by the in-process simulator."""
         transport = SimulatedTransport(simulator)
         transport.open()
         return cls(transport)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self.transport.close()
 
     @property
     def connected(self) -> bool:
+        """Whether the transport is currently open."""
         return self.transport.is_open()
 
     @property
     def resource(self) -> str:
+        """The resource string this driver is connected to."""
         return self.transport.resource
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self.transport.timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self.transport.timeout_s = value
 
     # ------------------------------------------------------------------
@@ -194,6 +201,10 @@ class Agilent34411A:
     # Identity / communication (RFDS-002)
     # ------------------------------------------------------------------
     def identify(self, *, refresh: bool = True) -> InstrumentIdentity:
+        """Return the instrument identity.
+
+        Sends ``*IDN?``.
+        """
         if not refresh and self._identity is not None:
             return self._identity
         raw = self._query("*IDN?")
@@ -202,6 +213,10 @@ class Agilent34411A:
         return identity
 
     def check_communication(self) -> bool:
+        """Check the communication.
+
+        Sends ``*IDN?``, ``SYSTem:LANguage?``.
+        """
         self._query("*IDN?")
         language = self._query("SYSTem:LANguage?").strip().strip('"')
         if language != _NATIVE_LANGUAGE:
@@ -217,16 +232,22 @@ class Agilent34411A:
     # Function selection (task §8)
     # ------------------------------------------------------------------
     def set_function(self, function: Function | str) -> None:
+        """Set the function."""
         function = Function(function)
         self._write(f'FUNCtion "{function.value}"')
 
     def get_function(self) -> Function:
+        """Return the function.
+
+        Sends ``FUNCtion?``.
+        """
         return Function(self._query("FUNCtion?").strip().strip('"'))
 
     # ------------------------------------------------------------------
     # Per-function measurement configuration (task §8)
     # ------------------------------------------------------------------
     def set_range(self, function: Function | str, range_value: float) -> None:
+        """Set the range."""
         function = Function(function)
         if function in _RANGE_FUNCTIONS:
             self._write(f"{self._prefix(function)}:RANGe {float(range_value)}")
@@ -236,6 +257,7 @@ class Agilent34411A:
             raise Agilent34411AValidationError(f"{function.value} has no range setting")
 
     def get_range(self, function: Function | str) -> float:
+        """Return the range."""
         function = Function(function)
         if function in _RANGE_FUNCTIONS:
             return float(self._query(f"{self._prefix(function)}:RANGe?"))
@@ -244,6 +266,7 @@ class Agilent34411A:
         raise Agilent34411AValidationError(f"{function.value} has no range setting")
 
     def set_auto_range(self, function: Function | str, enabled: bool = True) -> None:
+        """Set the auto range."""
         function = Function(function)
         token = "ON" if enabled else "OFF"
         if function in _RANGE_FUNCTIONS:
@@ -254,6 +277,7 @@ class Agilent34411A:
             raise Agilent34411AValidationError(f"{function.value} has no range setting")
 
     def get_auto_range(self, function: Function | str) -> bool:
+        """Return the auto range."""
         function = Function(function)
         if function in _RANGE_FUNCTIONS:
             return self._query(f"{self._prefix(function)}:RANGe:AUTO?").strip() in ("1", "ON")
@@ -262,30 +286,35 @@ class Agilent34411A:
         raise Agilent34411AValidationError(f"{function.value} has no range setting")
 
     def set_integration_time_nplc(self, function: Function | str, nplc: float) -> None:
+        """Set the integration time nplc."""
         function = Function(function)
         if function not in _NPLC_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no NPLC integration setting")
         self._write(f"{self._prefix(function)}:NPLC {float(nplc)}")
 
     def get_integration_time_nplc(self, function: Function | str) -> float:
+        """Return the integration time nplc."""
         function = Function(function)
         if function not in _NPLC_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no NPLC integration setting")
         return float(self._query(f"{self._prefix(function)}:NPLC?"))
 
     def set_integration_time_aperture(self, function: Function | str, seconds: float) -> None:
+        """Set the integration time aperture."""
         function = Function(function)
         if function not in _APERTURE_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no aperture integration setting")
         self._write(f"{self._prefix(function)}:APERture {float(seconds)}")
 
     def get_integration_time_aperture(self, function: Function | str) -> float:
+        """Return the integration time aperture."""
         function = Function(function)
         if function not in _APERTURE_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no aperture integration setting")
         return float(self._query(f"{self._prefix(function)}:APERture?"))
 
     def set_auto_zero(self, function: Function | str, mode: AutoZeroMode | str) -> None:
+        """Set the auto zero."""
         function = Function(function)
         if function == Function.RESISTANCE_4W:
             raise Agilent34411AValidationError(
@@ -298,6 +327,7 @@ class Agilent34411A:
         self._write(f"{self._prefix(function)}:ZERO:AUTO {mode.value}")
 
     def get_auto_zero(self, function: Function | str) -> AutoZeroMode:
+        """Return the auto zero."""
         function = Function(function)
         if function not in _ZERO_AUTO_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no auto-zero setting")
@@ -305,18 +335,21 @@ class Agilent34411A:
         return AutoZeroMode("ON" if raw in ("1", "ON") else "OFF")
 
     def set_offset_compensation(self, function: Function | str, enabled: bool) -> None:
+        """Set the offset compensation."""
         function = Function(function)
         if function not in _OCOMP_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no offset compensation setting")
         self._write(f"{self._prefix(function)}:OCOMpensated {'ON' if enabled else 'OFF'}")
 
     def get_offset_compensation(self, function: Function | str) -> bool:
+        """Return the offset compensation."""
         function = Function(function)
         if function not in _OCOMP_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no offset compensation setting")
         return self._query(f"{self._prefix(function)}:OCOMpensated?").strip() in ("1", "ON")
 
     def set_ac_filter_bandwidth(self, function: Function | str, filter_: AcFilter | str) -> None:
+        """Set the ac filter bandwidth."""
         function = Function(function)
         if function not in _BANDWIDTH_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no ac filter bandwidth setting")
@@ -325,6 +358,7 @@ class Agilent34411A:
         self._write(f"{prefix}:BANDwidth {filter_.value}")
 
     def get_ac_filter_bandwidth(self, function: Function | str) -> AcFilter:
+        """Return the ac filter bandwidth."""
         function = Function(function)
         if function not in _BANDWIDTH_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no ac filter bandwidth setting")
@@ -337,33 +371,42 @@ class Agilent34411A:
         self._write(f"VOLTage:IMPedance:AUTO {'ON' if enabled else 'OFF'}")
 
     def get_input_impedance_auto(self) -> bool:
+        """Return the input impedance auto.
+
+        Sends ``VOLTage:IMPedance:AUTO?``.
+        """
         return self._query("VOLTage:IMPedance:AUTO?").strip() in ("1", "ON")
 
     def set_null(self, function: Function | str, enabled: bool) -> None:
+        """Set the null."""
         function = Function(function)
         if function not in _NULL_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no null setting")
         self._write(f"{self._prefix(function)}:NULL {'ON' if enabled else 'OFF'}")
 
     def get_null(self, function: Function | str) -> bool:
+        """Return the null."""
         function = Function(function)
         if function not in _NULL_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no null setting")
         return self._query(f"{self._prefix(function)}:NULL?").strip() in ("1", "ON")
 
     def set_null_value(self, function: Function | str, value: float) -> None:
+        """Set the null value."""
         function = Function(function)
         if function not in _NULL_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no null setting")
         self._write(f"{self._prefix(function)}:NULL:VALue {float(value)}")
 
     def get_null_value(self, function: Function | str) -> float:
+        """Return the null value."""
         function = Function(function)
         if function not in _NULL_FUNCTIONS:
             raise Agilent34411AValidationError(f"{function.value} has no null setting")
         return float(self._query(f"{self._prefix(function)}:NULL:VALue?"))
 
     def get_measurement_settings(self, function: Function | str | None = None) -> MeasurementSettings:
+        """Return the measurement settings."""
         function = Function(function) if function is not None else self.get_function()
         range_value = self.get_range(function) if function in (_RANGE_FUNCTIONS | _VOLTAGE_RANGE_FUNCTIONS) else None
         auto_range = self.get_auto_range(function) if function in (_RANGE_FUNCTIONS | _VOLTAGE_RANGE_FUNCTIONS) else None
@@ -397,19 +440,35 @@ class Agilent34411A:
     def set_temperature_probe_type(
         self, probe_type: TemperatureProbeType | str, thermistor_type: ThermistorType | str | None = None,
     ) -> None:
+        """Set the temperature probe type.
+
+        Sends ``TEMPerature:TRANsducer:TYPE …``, ``TEMPerature:TRANsducer:THERmistor:TYPE …``.
+        """
         probe_type = TemperatureProbeType(probe_type)
         self._write(f"TEMPerature:TRANsducer:TYPE {probe_type.value}")
         if probe_type == TemperatureProbeType.THERMISTOR and thermistor_type is not None:
             self._write(f"TEMPerature:TRANsducer:THERmistor:TYPE {ThermistorType(thermistor_type).value}")
 
     def get_temperature_probe_type(self) -> TemperatureProbeType:
+        """Return the temperature probe type.
+
+        Sends ``TEMPerature:TRANsducer:TYPE?``.
+        """
         return TemperatureProbeType(self._query("TEMPerature:TRANsducer:TYPE?").strip())
 
     def set_temperature_units(self, unit: TemperatureUnit | str) -> None:
+        """Set the temperature units.
+
+        Sends ``UNIT:TEMPerature …``.
+        """
         unit = TemperatureUnit(unit)
         self._write(f"UNIT:TEMPerature {unit.value}")
 
     def get_temperature_units(self) -> TemperatureUnit:
+        """Return the temperature units.
+
+        Sends ``UNIT:TEMPerature?``.
+        """
         return TemperatureUnit(self._query("UNIT:TEMPerature?").strip())
 
     # ------------------------------------------------------------------
@@ -433,11 +492,19 @@ class Agilent34411A:
         return values[0] if len(values) == 1 else values
 
     def get_immediate_measurement(self) -> float | list[float]:
+        """Return the immediate measurement.
+
+        Sends ``READ?``.
+        """
         values = self._parse_readings(self._query("READ?"))
         self._check_overload(values)
         return self._single_or_list(values)
 
     def get_reading(self) -> float | list[float]:
+        """Return the reading.
+
+        Sends ``FETCh?``.
+        """
         values = self._parse_readings(self._query("FETCh?"))
         self._check_overload(values)
         return self._single_or_list(values)
@@ -451,20 +518,40 @@ class Agilent34411A:
         return MathFunction(self._query("CALCulate:FUNCtion?").strip())
 
     def is_math_enabled(self) -> bool:
+        """Whether the math enabled.
+
+        Sends ``CALCulate:STATe?``.
+        """
         return self._query("CALCulate:STATe?").strip() in ("1", "ON")
 
     def enable_db_measurement(self) -> None:
+        """Enable db measurement.
+
+        Sends ``CALCulate:FUNCtion …``, ``CALCulate:STATe ON``.
+        """
         self._write(f"CALCulate:FUNCtion {MathFunction.DB.value}")
         self._write("CALCulate:STATe ON")
 
     def set_db_reference(self, value: float) -> None:
+        """Set the db reference.
+
+        Sends ``CALCulate:DB:REFerence …``.
+        """
         self._write(f"CALCulate:DB:REFerence {float(value)}")
 
     def enable_dbm_measurement(self) -> None:
+        """Enable dbm measurement.
+
+        Sends ``CALCulate:FUNCtion …``, ``CALCulate:STATe ON``.
+        """
         self._write(f"CALCulate:FUNCtion {MathFunction.DBM.value}")
         self._write("CALCulate:STATe ON")
 
     def set_dbm_reference_resistance(self, ohms: float) -> None:
+        """Set the dbm reference resistance.
+
+        Sends ``CALCulate:DBM:REFerence …``.
+        """
         if int(ohms) not in _DBM_REFERENCE_OHMS:
             raise Agilent34411AValidationError(
                 f"dBm reference resistance must be one of {sorted(_DBM_REFERENCE_OHMS)}, got {ohms!r}"
@@ -472,10 +559,18 @@ class Agilent34411A:
         self._write(f"CALCulate:DBM:REFerence {float(ohms)}")
 
     def enable_statistics(self) -> None:
+        """Enable statistics.
+
+        Sends ``CALCulate:FUNCtion …``, ``CALCulate:STATe ON``.
+        """
         self._write(f"CALCulate:FUNCtion {MathFunction.STATISTICS.value}")
         self._write("CALCulate:STATe ON")
 
     def get_statistics(self) -> StatisticsResult:
+        """Return the statistics.
+
+        Sends ``CALCulate:AVERage:AVERage?``, ``CALCulate:AVERage:MINimum?``, ``CALCulate:AVERage:MAXimum?``, ``CALCulate:AVERage:SDEViation?``, ``CALCulate:AVERage:PTPeak?``, ``CALCulate:AVERage:COUNt?``.
+        """
         return StatisticsResult(
             average=float(self._query("CALCulate:AVERage:AVERage?")),
             minimum=float(self._query("CALCulate:AVERage:MINimum?")),
@@ -486,31 +581,55 @@ class Agilent34411A:
         )
 
     def clear_statistics(self) -> None:
+        """Clear the statistics.
+
+        Sends ``CALCulate:AVERage:CLEar``.
+        """
         self._write("CALCulate:AVERage:CLEar")
 
     def enable_limit_test(self) -> None:
+        """Enable limit test.
+
+        Sends ``CALCulate:FUNCtion …``, ``CALCulate:STATe ON``.
+        """
         self._write(f"CALCulate:FUNCtion {MathFunction.LIMIT.value}")
         self._write("CALCulate:STATe ON")
 
     def set_limits(self, low: float, high: float) -> None:
+        """Set the limits.
+
+        Sends ``CALCulate:LIMit:LOWer …``, ``CALCulate:LIMit:UPPer …``.
+        """
         if not float(low) < float(high):
             raise Agilent34411AValidationError(f"low limit ({low}) must be less than high limit ({high})")
         self._write(f"CALCulate:LIMit:LOWer {float(low)}")
         self._write(f"CALCulate:LIMit:UPPer {float(high)}")
 
     def get_limits(self) -> tuple[float, float]:
+        """Return the limits.
+
+        Sends ``CALCulate:LIMit:LOWer?``, ``CALCulate:LIMit:UPPer?``.
+        """
         return (
             float(self._query("CALCulate:LIMit:LOWer?")),
             float(self._query("CALCulate:LIMit:UPPer?")),
         )
 
     def disable_math(self) -> None:
+        """Disable math.
+
+        Sends ``CALCulate:STATe OFF``.
+        """
         self._write("CALCulate:STATe OFF")
 
     # ------------------------------------------------------------------
     # Trigger / sample (task §9)
     # ------------------------------------------------------------------
     def set_trigger_source(self, source: TriggerSource | str) -> None:
+        """Set the trigger source.
+
+        Sends ``TRIGger:SOURce …``.
+        """
         source = TriggerSource(source)
         if source == TriggerSource.INTERNAL and self.get_function() not in _TRIGGER_INTERNAL_ELIGIBLE:
             raise Agilent34411AValidationError(
@@ -520,34 +639,74 @@ class Agilent34411A:
         self._write(f"TRIGger:SOURce {source.value}")
 
     def get_trigger_source(self) -> TriggerSource:
+        """Return the trigger source.
+
+        Sends ``TRIGger:SOURce?``.
+        """
         return TriggerSource(self._query("TRIGger:SOURce?").strip())
 
     def set_trigger_level(self, level: float) -> None:
+        """Set the trigger level.
+
+        Sends ``TRIGger:LEVel …``.
+        """
         self._write(f"TRIGger:LEVel {float(level)}")
 
     def get_trigger_level(self) -> float:
+        """Return the trigger level.
+
+        Sends ``TRIGger:LEVel?``.
+        """
         return float(self._query("TRIGger:LEVel?"))
 
     def set_trigger_slope(self, slope: TriggerSlope | str) -> None:
+        """Set the trigger slope.
+
+        Sends ``TRIGger:SLOPe …``.
+        """
         slope = TriggerSlope(slope)
         self._write(f"TRIGger:SLOPe {slope.value}")
 
     def get_trigger_slope(self) -> TriggerSlope:
+        """Return the trigger slope.
+
+        Sends ``TRIGger:SLOPe?``.
+        """
         return TriggerSlope(self._query("TRIGger:SLOPe?").strip())
 
     def set_trigger_count(self, count: float) -> None:
+        """Set the trigger count.
+
+        Sends ``TRIGger:COUNt …``.
+        """
         self._write(f"TRIGger:COUNt {count}")
 
     def get_trigger_count(self) -> float:
+        """Return the trigger count.
+
+        Sends ``TRIGger:COUNt?``.
+        """
         return float(self._query("TRIGger:COUNt?"))
 
     def set_trigger_delay(self, seconds: float) -> None:
+        """Set the trigger delay.
+
+        Sends ``TRIGger:DELay …``.
+        """
         self._write(f"TRIGger:DELay {float(seconds)}")
 
     def set_trigger_delay_auto(self) -> None:
+        """Set the trigger delay auto.
+
+        Sends ``TRIGger:DELay:AUTO ON``.
+        """
         self._write("TRIGger:DELay:AUTO ON")
 
     def get_trigger_settings(self) -> TriggerSettings:
+        """Return the trigger settings.
+
+        Sends ``TRIGger:DELay?``, ``SAMPle:TIMer?``, ``SAMPle:COUNt:PRETrigger?``, ``SAMPle:SOURce?``, ``TRIGger:DELay:AUTO?``.
+        """
         return TriggerSettings(
             source=self.get_trigger_source().value,
             level=self.get_trigger_level(),
@@ -562,19 +721,39 @@ class Agilent34411A:
         )
 
     def set_sample_count(self, count: float) -> None:
+        """Set the sample count.
+
+        Sends ``SAMPle:COUNt …``.
+        """
         self._write(f"SAMPle:COUNt {count}")
 
     def get_sample_count(self) -> float:
+        """Return the sample count.
+
+        Sends ``SAMPle:COUNt?``.
+        """
         return float(self._query("SAMPle:COUNt?"))
 
     def set_sample_source(self, source: SampleSource | str) -> None:
+        """Set the sample source.
+
+        Sends ``SAMPle:SOURce …``.
+        """
         source = SampleSource(source)
         self._write(f"SAMPle:SOURce {source.value}")
 
     def set_sample_timer_interval(self, seconds: float) -> None:
+        """Set the sample timer interval.
+
+        Sends ``SAMPle:TIMer …``.
+        """
         self._write(f"SAMPle:TIMer {float(seconds)}")
 
     def set_pretrigger_sample_count(self, count: float) -> None:
+        """Set the pretrigger sample count.
+
+        Sends ``SAMPle:COUNt:PRETrigger …``.
+        """
         if float(count) >= self.get_sample_count():
             raise Agilent34411AValidationError(
                 "pre-trigger sample count must be less than the sample count (task §9)"
@@ -594,32 +773,62 @@ class Agilent34411A:
     # Reading memory and data logging (task §10)
     # ------------------------------------------------------------------
     def get_latest_reading(self) -> float | list[float]:
+        """Return the latest reading."""
         return self.get_reading()
 
     def get_most_recent_reading(self) -> float:
+        """Return the most recent reading.
+
+        Sends ``DATA:LAST?``.
+        """
         value = float(self._query("DATA:LAST?"))
         self._check_overload([value])
         return value
 
     def get_reading_count(self) -> int:
+        """Return the reading count.
+
+        Sends ``DATA:POINts?``.
+        """
         return int(float(self._query("DATA:POINts?")))
 
     def drain_readings(self, count: int) -> list[float]:
+        """Drain the readings.
+
+        Sends ``DATA:REMove? …``.
+        """
         return self._parse_readings(self._query(f"DATA:REMove? {int(count)}"))
 
     def copy_readings_to_nonvolatile_memory(self) -> None:
+        """Copy the readings to nonvolatile memory.
+
+        Sends ``DATA:COPY NVMEM, RDG_STORE``.
+        """
         self._write("DATA:COPY NVMEM, RDG_STORE")
 
     def get_nonvolatile_reading_count(self) -> int:
+        """Return the nonvolatile reading count.
+
+        Sends ``DATA:POINts? NVMEM``.
+        """
         return int(float(self._query("DATA:POINts? NVMEM")))
 
     def get_nonvolatile_readings(self) -> list[float]:
+        """Return the nonvolatile readings.
+
+        Sends ``DATA:DATA? NVMEM``.
+        """
         return self._parse_readings(self._query("DATA:DATA? NVMEM"))
 
     def clear_nonvolatile_readings(self) -> None:
+        """Clear the nonvolatile readings.
+
+        Sends ``DATA:DELete NVMEM``.
+        """
         self._write("DATA:DELete NVMEM")
 
     def drain_nonvolatile_readings(self, max_count: int | None = None) -> list[float]:
+        """Drain the nonvolatile readings."""
         command = f"R? {int(max_count)}" if max_count is not None else "R?"
         return self._parse_readings(self._query(command))
 
@@ -634,6 +843,10 @@ class Agilent34411A:
         return slot
 
     def save_setup_to_instrument_memory(self, slot: int) -> None:
+        """Save the setup to instrument memory.
+
+        Sends ``*SAV …``.
+        """
         slot = self._validate_slot(slot)
         self._write(f"*SAV {slot}")
 
@@ -647,35 +860,68 @@ class Agilent34411A:
         self._check_events(f"Restore Setup From Instrument Memory({slot})")
 
     def get_instrument_memory_catalog(self) -> list[int]:
+        """Return the instrument memory catalog.
+
+        Sends ``MEMory:STATe:CATalog?``.
+        """
         raw = self._query("MEMory:STATe:CATalog?").strip()
         return [int(token) for token in raw.split(",") if token.strip()]
 
     def rename_instrument_memory_slot(self, slot: int, name: str) -> None:
+        """Give a stored-state memory slot a name."""
         slot = self._validate_slot(slot)
         self._write(f'MEMory:STATe:NAME {slot},"{name}"')
 
     def get_instrument_memory_slot_name(self, slot: int) -> str:
+        """Return the instrument memory slot name.
+
+        Sends ``MEMory:STATe:NAME? …``.
+        """
         slot = self._validate_slot(slot)
         return self._query(f"MEMory:STATe:NAME? {slot}").strip().strip('"')
 
     def delete_instrument_memory_slot(self, slot: int) -> None:
+        """Delete the instrument memory slot.
+
+        Sends ``MEMory:STATe:DELete …``.
+        """
         slot = self._validate_slot(slot)
         self._write(f"MEMory:STATe:DELete {slot}")
 
     def delete_all_instrument_memory_slots(self) -> None:
+        """Delete the all instrument memory slots.
+
+        Sends ``MEMory:STATe:DELete:ALL``.
+        """
         self._write("MEMory:STATe:DELete:ALL")
 
     def is_instrument_memory_slot_valid(self, slot: int) -> bool:
+        """Whether the instrument memory slot valid.
+
+        Sends ``MEMory:STATe:VALid? …``.
+        """
         slot = self._validate_slot(slot)
         return self._query(f"MEMory:STATe:VALid? {slot}").strip() in ("1", "ON")
 
     def get_instrument_memory_slot_count(self) -> int:
+        """Return the instrument memory slot count.
+
+        Sends ``MEMory:NSTates?``.
+        """
         return int(float(self._query("MEMory:NSTates?")))
 
     def set_power_on_state_recall(self, enabled: bool) -> None:
+        """Set the power on state recall.
+
+        Sends ``MEMory:STATe:RECall:AUTO …``.
+        """
         self._write(f"MEMory:STATe:RECall:AUTO {'ON' if enabled else 'OFF'}")
 
     def set_power_on_state(self, slot: int) -> None:
+        """Set the power on state.
+
+        Sends ``MEMory:STATe:RECall:SELect …``.
+        """
         slot = self._validate_slot(slot)
         self._write(f"MEMory:STATe:RECall:SELect {slot}")
 
@@ -688,21 +934,42 @@ class Agilent34411A:
         return self._query("ROUTe:TERMinals?").strip()
 
     def set_beeper_enabled(self, enabled: bool) -> None:
+        """Set the beeper enabled.
+
+        Sends ``SYSTem:BEEPer:STATe …``.
+        """
         self._write(f"SYSTem:BEEPer:STATe {'ON' if enabled else 'OFF'}")
 
     def get_beeper_enabled(self) -> bool:
+        """Return the beeper enabled.
+
+        Sends ``SYSTem:BEEPer:STATe?``.
+        """
         return self._query("SYSTem:BEEPer:STATe?").strip() in ("1", "ON")
 
     def set_display_enabled(self, enabled: bool) -> None:
+        """Set the display enabled.
+
+        Sends ``DISPlay …``.
+        """
         self._write(f"DISPlay {'ON' if enabled else 'OFF'}")
 
     def get_display_enabled(self) -> bool:
+        """Return the display enabled.
+
+        Sends ``DISPlay?``.
+        """
         return self._query("DISPlay?").strip() in ("1", "ON")
 
     def set_display_text(self, text: str) -> None:
+        """Set the display text."""
         self._write(f'DISPlay:TEXT "{text}"')
 
     def clear_display_text(self) -> None:
+        """Clear the display text.
+
+        Sends ``DISPlay:TEXT:CLEar``.
+        """
         self._write("DISPlay:TEXT:CLEar")
 
     # ------------------------------------------------------------------
@@ -718,6 +985,7 @@ class Agilent34411A:
     # calibration and vice versa.
     # ------------------------------------------------------------------
     def enable_calibration_mode(self, confirmation: str) -> None:
+        """Enable calibration mode."""
         if confirmation != _CALIBRATION_CONFIRMATION:
             raise Agilent34411AValidationError(
                 f'calibration requires the exact confirmation text "{_CALIBRATION_CONFIRMATION}"'
@@ -732,11 +1000,19 @@ class Agilent34411A:
             )
 
     def unlock_calibration(self, security_code: str) -> None:
+        """Issue the unlock calibration command.
+
+        Sends ``CALibration:SECure:STATe OFF, …``.
+        """
         self._require_calibration_enabled()
         self._write(f"CALibration:SECure:STATe OFF,{security_code}")
         self._check_events("Unlock Calibration")
 
     def lock_calibration(self) -> None:
+        """Issue the lock calibration command.
+
+        Sends ``CALibration:SECure:STATe ON``.
+        """
         self._require_calibration_enabled()
         self._write("CALibration:SECure:STATe ON")
         self._check_events("Lock Calibration")
@@ -747,6 +1023,10 @@ class Agilent34411A:
         return self._query("CALibration:SECure:STATe?").strip() in ("1", "ON")
 
     def set_calibration_security_code(self, new_code: str) -> None:
+        """Set the calibration security code.
+
+        Sends ``CALibration:SECure:CODE …``.
+        """
         self._require_calibration_enabled()
         self._write(f"CALibration:SECure:CODE {new_code}")
         self._check_events("Set Calibration Security Code")
@@ -787,6 +1067,10 @@ class Agilent34411A:
         return float(response)
 
     def set_calibration_line_frequency(self, hz: int) -> None:
+        """Set the calibration line frequency.
+
+        Sends ``CALibration:LFRequency …``.
+        """
         self._require_calibration_enabled()
         hz = int(hz)
         if hz not in (50, 60):
@@ -797,6 +1081,10 @@ class Agilent34411A:
         self._check_events("Set Calibration Line Frequency")
 
     def get_calibration_line_frequency(self) -> int:
+        """Return the calibration line frequency.
+
+        Sends ``CALibration:LFRequency?``.
+        """
         self._require_calibration_enabled()
         return int(float(self._query("CALibration:LFRequency?")))
 
@@ -818,20 +1106,33 @@ class Agilent34411A:
         return int(float(self._query("CALibration:COUNt?")))
 
     def set_calibration_string(self, text: str) -> None:
+        """Set the calibration string."""
         self._require_calibration_enabled()
         self._write(f'CALibration:STRing "{text}"')
         self._check_events("Set Calibration String")
 
     def get_calibration_string(self) -> str:
+        """Return the calibration string.
+
+        Sends ``CALibration:STRing?``.
+        """
         self._require_calibration_enabled()
         return self._query("CALibration:STRing?").strip().strip('"')
 
     def set_calibration_value(self, value: float) -> None:
+        """Set the calibration value.
+
+        Sends ``CALibration:VALue …``.
+        """
         self._require_calibration_enabled()
         self._write(f"CALibration:VALue {float(value)}")
         self._check_events("Set Calibration Value")
 
     def get_calibration_value(self) -> float:
+        """Return the calibration value.
+
+        Sends ``CALibration:VALue?``.
+        """
         self._require_calibration_enabled()
         return float(self._query("CALibration:VALue?"))
 
@@ -858,73 +1159,132 @@ class Agilent34411A:
         return token
 
     def set_lan_dhcp_enabled(self, enabled: bool) -> None:
+        """Set the lan dhcp enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:DHCP …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:DHCP {'ON' if enabled else 'OFF'}")
 
     def get_lan_dhcp_enabled(self) -> bool:
+        """Return the lan dhcp enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:DHCP?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DHCP?").strip() in ("1", "ON")
 
     def set_lan_ip_address(self, address: str) -> None:
+        """Set the lan ip address.
+
+        Sends ``SYSTem:COMMunicate:LAN:IPADdress …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:IPADdress {address}")
 
     def get_lan_ip_address(self, selector: str | None = None) -> str:
+        """Return the lan ip address."""
         token = self._validate_lan_selector(selector)
         command = "SYSTem:COMMunicate:LAN:IPADdress?" + (f" {token}" if token else "")
         return self._query(command).strip().strip('"')
 
     def set_lan_subnet_mask(self, mask: str) -> None:
+        """Set the lan subnet mask.
+
+        Sends ``SYSTem:COMMunicate:LAN:SMASk …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:SMASk {mask}")
 
     def get_lan_subnet_mask(self, selector: str | None = None) -> str:
+        """Return the lan subnet mask."""
         token = self._validate_lan_selector(selector)
         command = "SYSTem:COMMunicate:LAN:SMASk?" + (f" {token}" if token else "")
         return self._query(command).strip().strip('"')
 
     def set_lan_gateway(self, gateway: str) -> None:
+        """Set the lan gateway.
+
+        Sends ``SYSTem:COMMunicate:LAN:GATEway …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:GATEway {gateway}")
 
     def get_lan_gateway(self, selector: str | None = None) -> str:
+        """Return the lan gateway."""
         token = self._validate_lan_selector(selector)
         command = "SYSTem:COMMunicate:LAN:GATEway?" + (f" {token}" if token else "")
         return self._query(command).strip().strip('"')
 
     def set_lan_dns(self, address: str) -> None:
+        """Set the lan dns.
+
+        Sends ``SYSTem:COMMunicate:LAN:DNS …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:DNS {address}")
 
     def get_lan_dns(self) -> str:
+        """Return the lan dns.
+
+        Sends ``SYSTem:COMMunicate:LAN:DNS?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DNS?").strip().strip('"')
 
     def set_lan_hostname(self, name: str) -> None:
+        """Set the lan hostname."""
         self._write(f'SYSTem:COMMunicate:LAN:HOSTname "{name}"')
 
     def get_lan_hostname(self, selector: str | None = None) -> str:
+        """Return the lan hostname."""
         token = self._validate_lan_selector(selector)
         command = "SYSTem:COMMunicate:LAN:HOSTname?" + (f" {token}" if token else "")
         return self._query(command).strip().strip('"')
 
     def set_lan_domain(self, name: str) -> None:
+        """Set the lan domain."""
         self._write(f'SYSTem:COMMunicate:LAN:DOMain "{name}"')
 
     def get_lan_domain(self, selector: str | None = None) -> str:
+        """Return the lan domain."""
         token = self._validate_lan_selector(selector)
         command = "SYSTem:COMMunicate:LAN:DOMain?" + (f" {token}" if token else "")
         return self._query(command).strip().strip('"')
 
     def set_lan_auto_ip(self, enabled: bool) -> None:
+        """Set the lan auto ip.
+
+        Sends ``SYSTem:COMMunicate:LAN:AUTOip:STATe …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:AUTOip:STATe {'ON' if enabled else 'OFF'}")
 
     def get_lan_auto_ip(self) -> bool:
+        """Return the lan auto ip.
+
+        Sends ``SYSTem:COMMunicate:LAN:AUTOip:STATe?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:AUTOip:STATe?").strip() in ("1", "ON")
 
     def set_lan_ddns_enabled(self, enabled: bool) -> None:
+        """Set the lan ddns enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:DDNS …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:DDNS {'ON' if enabled else 'OFF'}")
 
     def get_lan_ddns_enabled(self) -> bool:
+        """Return the lan ddns enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:DDNS?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DDNS?").strip() in ("1", "ON")
 
     def set_lan_keepalive(self, seconds: float) -> None:
+        """Set the lan keepalive.
+
+        Sends ``SYSTem:COMMunicate:LAN:KEEPalive …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:KEEPalive {float(seconds)}")
 
     def get_lan_keepalive(self) -> float:
+        """Return the lan keepalive.
+
+        Sends ``SYSTem:COMMunicate:LAN:KEEPalive?``.
+        """
         return float(self._query("SYSTem:COMMunicate:LAN:KEEPalive?"))
 
     def get_lan_logical_ip_address(self) -> str:
@@ -953,36 +1313,67 @@ class Agilent34411A:
         self._write(f"SYSTem:COMMunicate:LAN:MEDiasense {'ON' if enabled else 'OFF'}")
 
     def get_lan_mdns_enabled(self) -> bool:
+        """Return the lan mdns enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:MEDiasense?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:MEDiasense?").strip() in ("1", "ON")
 
     def set_lan_netbios_enabled(self, enabled: bool) -> None:
+        """Set the lan netbios enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:NETBios …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:NETBios {'ON' if enabled else 'OFF'}")
 
     def get_lan_netbios_enabled(self) -> bool:
+        """Return the lan netbios enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:NETBios?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:NETBios?").strip() in ("1", "ON")
 
     def set_lan_telnet_prompt(self, text: str) -> None:
+        """Set the lan telnet prompt."""
         self._write(f'SYSTem:COMMunicate:LAN:TELNet:PROMpt "{text}"')
 
     def get_lan_telnet_prompt(self) -> str:
+        """Return the lan telnet prompt.
+
+        Sends ``SYSTem:COMMunicate:LAN:TELNet:PROMpt?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:TELNet:PROMpt?").strip().strip('"')
 
     def set_lan_telnet_welcome_message(self, text: str) -> None:
+        """Set the lan telnet welcome message."""
         self._write(f'SYSTem:COMMunicate:LAN:TELNet:WMESsage "{text}"')
 
     def get_lan_telnet_welcome_message(self) -> str:
+        """Return the lan telnet welcome message.
+
+        Sends ``SYSTem:COMMunicate:LAN:TELNet:WMESsage?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:TELNet:WMESsage?").strip().strip('"')
 
     def clear_lan_history(self) -> None:
+        """Clear the lan history.
+
+        Sends ``SYSTem:COMMunicate:LAN:HISTory:CLEar``.
+        """
         self._write("SYSTem:COMMunicate:LAN:HISTory:CLEar")
 
     def get_lan_history(self) -> str:
+        """Return the lan history.
+
+        Sends ``SYSTem:COMMunicate:LAN:HISTory?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:HISTory?").strip().strip('"')
 
     # ------------------------------------------------------------------
     # Raw SCPI escape hatch (task §12)
     # ------------------------------------------------------------------
     def enable_raw_scpi(self, confirmation: str) -> None:
+        """Enable raw scpi."""
         if confirmation != _RAW_SCPI_CONFIRMATION:
             raise Agilent34411AValidationError(
                 f'raw SCPI requires the exact confirmation text "{_RAW_SCPI_CONFIRMATION}"'
@@ -996,9 +1387,11 @@ class Agilent34411A:
             )
 
     def raw_query(self, command: str) -> str:
+        """Send a raw SCPI query, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         return self._query(command)
 
     def raw_write(self, command: str) -> None:
+        """Send a raw SCPI command, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         self._write(command)

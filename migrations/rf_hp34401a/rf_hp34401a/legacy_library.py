@@ -1188,16 +1188,19 @@ class Hp34401ALibrary:
     @keyword("Select DMM", tags=['rfds:connection', 'rfds:low_risk'])
     @_evidenced
     def select_dmm(self, alias: str) -> str:
+        """Select the dmm."""
         return self._execute("Select DMM", lambda: self._sessions.select(alias).alias, alias)
 
     @keyword("Get Active DMM Alias", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_active_dmm_alias(self) -> str | None:
+        """Return the active dmm alias."""
         return self._sessions.active_alias
 
     @keyword("Get Open DMM Aliases", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_open_dmm_aliases(self) -> list[str]:
+        """Return the open dmm aliases."""
         return self._sessions.aliases()
 
     @keyword("DMM Should Be Connected", tags=['rfds:assertion', 'rfds:low_risk'])
@@ -1243,6 +1246,7 @@ class Hp34401ALibrary:
 
     # Robot Framework listener callback; auto-keywords are disabled, so it is not exposed.
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self._sessions.close_all()
 
     # ------------------------------- identity/health
@@ -1264,6 +1268,7 @@ class Hp34401ALibrary:
     @keyword("Run DMM Self Test", tags=['rfds:diagnostic', 'rfds:medium_risk'])
     @_evidenced
     def run_dmm_self_test(self, alias: object | None = None) -> dict[str, Any]:
+        """Run the dmm self test."""
         session = self._session(alias)
         return self._execute(
             "Run DMM self-test",
@@ -1283,6 +1288,7 @@ class Hp34401ALibrary:
     @keyword("Get DMM Health", tags=['rfds:diagnostic', 'rfds:low_risk'])
     @_evidenced
     def get_dmm_health(self, alias: object | None = None) -> dict[str, Any]:
+        """Return the dmm health."""
         session = self._session(alias)
         return self._execute(
             "Get DMM health", lambda: self._model_to_dict(session.driver.heartbeat()), session.alias
@@ -1299,12 +1305,14 @@ class Hp34401ALibrary:
     @keyword("Clear DMM Status", tags=['rfds:diagnostic', 'rfds:low_risk'])
     @_evidenced
     def clear_dmm_status(self, alias: object | None = None) -> None:
+        """Clear the dmm status."""
         session = self._session(alias)
         self._execute("Clear DMM status", session.driver.clear_status, session.alias)
 
     @keyword("Read DMM Error", tags=['rfds:diagnostic', 'rfds:low_risk'])
     @_evidenced
     def read_dmm_error(self, alias: object | None = None) -> dict[str, Any]:
+        """Read the dmm error."""
         session = self._session(alias)
         return self._execute(
             "Read DMM error",
@@ -1317,6 +1325,7 @@ class Hp34401ALibrary:
     def get_dmm_error_queue(
         self, max_errors: object = 25, alias: object | None = None
     ) -> list[dict[str, Any]]:
+        """Return the dmm error queue."""
         session = self._session(alias)
         return self._execute(
             "Get DMM error queue",
@@ -1336,6 +1345,7 @@ class Hp34401ALibrary:
     @keyword("Get DMM Input Terminal", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_dmm_input_terminal(self, alias: object | None = None) -> str:
+        """Return the dmm input terminal."""
         session = self._session(alias)
         return self._execute(
             "Get DMM input terminal", lambda: session.driver.query_terminal().value, session.alias
@@ -1355,16 +1365,19 @@ class Hp34401ALibrary:
     @keyword("Get DMM State", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_dmm_state(self, alias: object | None = None) -> str:
+        """Return the dmm state."""
         return self._session(alias).driver.state.value
 
     @keyword("Get DMM Driver Version", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_dmm_driver_version(self) -> str:
+        """Return the dmm driver version."""
         return CORE_VERSION
 
     @keyword("Get Robot DMM Library Version", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_robot_dmm_library_version(self) -> str:
+        """Return the robot dmm library version."""
         return __version__
 
     @keyword("Get Driver Capabilities", tags=["rfds:query", "rfds:low_risk"])
@@ -1423,6 +1436,7 @@ class Hp34401ALibrary:
         autozero: object = "ON",
         alias: object | None = None,
     ) -> None:
+        """Configure dc voltage."""
         s = self._session(alias)
         self._execute(
             "Configure DC voltage",
@@ -1437,6 +1451,7 @@ class Hp34401ALibrary:
     def configure_ac_voltage(
         self, range_value: object = "DEF", ac_filter_hz: object = 20, alias: object | None = None
     ) -> None:
+        """Configure ac voltage."""
         s = self._session(alias)
         self._execute(
             "Configure AC voltage",
@@ -1455,6 +1470,7 @@ class Hp34401ALibrary:
         autozero: object = "ON",
         alias: object | None = None,
     ) -> None:
+        """Configure dc current."""
         s = self._session(alias)
         self._execute(
             "Configure DC current",
@@ -1469,6 +1485,7 @@ class Hp34401ALibrary:
     def configure_ac_current(
         self, range_value: object = "DEF", ac_filter_hz: object = 20, alias: object | None = None
     ) -> None:
+        """Configure ac current."""
         s = self._session(alias)
         self._execute(
             "Configure AC current",
@@ -1487,6 +1504,7 @@ class Hp34401ALibrary:
         autozero: object = "ON",
         alias: object | None = None,
     ) -> None:
+        """Configure 2wire resistance."""
         s = self._session(alias)
         self._execute(
             "Configure 2-wire resistance",
@@ -1505,6 +1523,7 @@ class Hp34401ALibrary:
         autozero: object = "ON",
         alias: object | None = None,
     ) -> None:
+        """Configure 4wire resistance."""
         s = self._session(alias)
         self._execute(
             "Configure 4-wire resistance",
@@ -1519,6 +1538,7 @@ class Hp34401ALibrary:
     def configure_frequency(
         self, voltage_range: object = "DEF", aperture: object = 0.1, alias: object | None = None
     ) -> None:
+        """Configure frequency."""
         s = self._session(alias)
         self._execute(
             "Configure frequency",
@@ -1531,6 +1551,7 @@ class Hp34401ALibrary:
     def configure_period(
         self, voltage_range: object = "DEF", aperture: object = 0.1, alias: object | None = None
     ) -> None:
+        """Configure period."""
         s = self._session(alias)
         self._execute(
             "Configure period",
@@ -1541,12 +1562,14 @@ class Hp34401ALibrary:
     @keyword("Configure Continuity", tags=['rfds:configuration', 'rfds:low_risk'])
     @_evidenced
     def configure_continuity(self, alias: object | None = None) -> None:
+        """Configure continuity."""
         s = self._session(alias)
         self._execute("Configure continuity", s.driver.configure_continuity, s.alias)
 
     @keyword("Configure Diode", tags=['rfds:configuration', 'rfds:low_risk'])
     @_evidenced
     def configure_diode(self, alias: object | None = None) -> None:
+        """Configure diode."""
         s = self._session(alias)
         self._execute("Configure diode", s.driver.configure_diode, s.alias)
 
@@ -1554,6 +1577,7 @@ class Hp34401ALibrary:
     @keyword("Read DMM", tags=['rfds:measurement', 'rfds:low_risk'])
     @_evidenced
     def read_dmm(self, alias: object | None = None) -> float:
+        """Read the dmm."""
         return self._measure("Read DMM", lambda d: d.read_once(), alias)
 
     @keyword("Measure DC Voltage", tags=['rfds:measurement', 'rfds:low_risk'])
@@ -1561,6 +1585,7 @@ class Hp34401ALibrary:
     def measure_dc_voltage(
         self, range_value: object = "DEF", nplc: object = 10, alias: object | None = None
     ) -> float:
+        """Measure the dc voltage."""
         return self._measure(
             "Measure DC voltage",
             lambda d: d.measure_dc_voltage(as_range(range_value), as_nplc(nplc)),
@@ -1572,6 +1597,7 @@ class Hp34401ALibrary:
     def measure_ac_voltage(
         self, range_value: object = "DEF", ac_filter_hz: object = 20, alias: object | None = None
     ) -> float:
+        """Measure the ac voltage."""
         return self._measure(
             "Measure AC voltage",
             lambda d: d.measure_ac_voltage(as_range(range_value), as_ac_filter(ac_filter_hz)),
@@ -1583,6 +1609,7 @@ class Hp34401ALibrary:
     def measure_dc_current(
         self, range_value: object = "DEF", nplc: object = 10, alias: object | None = None
     ) -> float:
+        """Measure the dc current."""
         return self._measure(
             "Measure DC current",
             lambda d: d.measure_dc_current(as_range(range_value), as_nplc(nplc)),
@@ -1594,6 +1621,7 @@ class Hp34401ALibrary:
     def measure_ac_current(
         self, range_value: object = "DEF", ac_filter_hz: object = 20, alias: object | None = None
     ) -> float:
+        """Measure the ac current."""
         def producer(d: Hp34401A) -> MeasurementReading:
             d.configure_ac_current(as_range(range_value), as_ac_filter(ac_filter_hz))
             return d.read_once()
@@ -1605,6 +1633,7 @@ class Hp34401ALibrary:
     def measure_2wire_resistance(
         self, range_value: object = "DEF", nplc: object = 10, alias: object | None = None
     ) -> float:
+        """Measure the 2wire resistance."""
         return self._measure(
             "Measure 2-wire resistance",
             lambda d: d.measure_2wire_resistance(as_range(range_value), as_nplc(nplc)),
@@ -1616,6 +1645,7 @@ class Hp34401ALibrary:
     def measure_4wire_resistance(
         self, range_value: object = "DEF", nplc: object = 10, alias: object | None = None
     ) -> float:
+        """Measure the 4wire resistance."""
         return self._measure(
             "Measure 4-wire resistance",
             lambda d: d.measure_4wire_resistance(as_range(range_value), as_nplc(nplc)),
@@ -1627,6 +1657,7 @@ class Hp34401ALibrary:
     def measure_frequency(
         self, voltage_range: object = "DEF", aperture: object = 0.1, alias: object | None = None
     ) -> float:
+        """Measure the frequency."""
         def producer(d: Hp34401A) -> MeasurementReading:
             d.configure_frequency(as_range(voltage_range), as_aperture(aperture))
             return d.read_once()
@@ -1638,6 +1669,7 @@ class Hp34401ALibrary:
     def measure_period(
         self, voltage_range: object = "DEF", aperture: object = 0.1, alias: object | None = None
     ) -> float:
+        """Measure the period."""
         def producer(d: Hp34401A) -> MeasurementReading:
             d.configure_period(as_range(voltage_range), as_aperture(aperture))
             return d.read_once()
@@ -1647,6 +1679,7 @@ class Hp34401ALibrary:
     @keyword("Measure Continuity", tags=['rfds:measurement', 'rfds:low_risk'])
     @_evidenced
     def measure_continuity(self, alias: object | None = None) -> float:
+        """Measure the continuity."""
         def producer(d: Hp34401A) -> MeasurementReading:
             d.configure_continuity()
             return d.read_once()
@@ -1656,6 +1689,7 @@ class Hp34401ALibrary:
     @keyword("Measure Diode", tags=['rfds:measurement', 'rfds:low_risk'])
     @_evidenced
     def measure_diode(self, alias: object | None = None) -> float:
+        """Measure the diode."""
         def producer(d: Hp34401A) -> MeasurementReading:
             d.configure_diode()
             return d.read_once()
@@ -1786,6 +1820,7 @@ class Hp34401ALibrary:
     @keyword("Get Last DMM Reading", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_last_dmm_reading(self, alias: object | None = None) -> dict[str, Any]:
+        """Return the last dmm reading."""
         session = self._session(alias)
         if session.last_reading is None:
             raise Hp34401ARobotError(f"No DMM reading is available [alias={session.alias}]")
@@ -1794,6 +1829,7 @@ class Hp34401ALibrary:
     @keyword("Get Last DMM Reading Value", tags=['rfds:query', 'rfds:low_risk'])
     @_evidenced
     def get_last_dmm_reading_value(self, alias: object | None = None) -> float:
+        """Return the last dmm reading value."""
         data = self.get_last_dmm_reading(alias)
         if not data["is_valid"] or data["is_overload"] or data["value"] is None:
             raise Hp34401ARobotError("Last DMM reading is not a valid scalar")
@@ -1803,6 +1839,7 @@ class Hp34401ALibrary:
     @keyword("Set DMM Trigger Source", tags=['rfds:configuration', 'rfds:low_risk'])
     @_evidenced
     def set_dmm_trigger_source(self, source: object, alias: object | None = None) -> None:
+        """Set the dmm trigger source."""
         s = self._session(alias)
         self._execute(
             "Set DMM trigger source",
@@ -1819,12 +1856,14 @@ class Hp34401ALibrary:
     @keyword("Send DMM Bus Trigger", tags=['rfds:configuration', 'rfds:low_risk'])
     @_evidenced
     def send_dmm_bus_trigger(self, alias: object | None = None) -> None:
+        """Send the dmm bus trigger."""
         s = self._session(alias)
         self._execute("Send DMM bus trigger", s.driver.trigger_bus, s.alias)
 
     @keyword("Fetch DMM Readings", tags=['rfds:measurement', 'rfds:low_risk'])
     @_evidenced
     def fetch_dmm_readings(self, alias: object | None = None) -> list[dict[str, Any]]:
+        """Fetch the dmm readings."""
         s = self._session(alias)
         readings = self._execute("Fetch DMM readings", s.driver.fetch, s.alias)
         if readings:
@@ -1834,6 +1873,7 @@ class Hp34401ALibrary:
     @keyword("Read DMM Once With Bus Trigger", tags=['rfds:measurement', 'rfds:low_risk'])
     @_evidenced
     def read_dmm_once_with_bus_trigger(self, alias: object | None = None) -> float:
+        """Read the dmm once with bus trigger."""
         return self._measure("Read DMM once with bus trigger", lambda d: d.read_once_bus(), alias)
 
     # ------------------------------- assertions
@@ -1937,6 +1977,7 @@ class Hp34401ALibrary:
     @keyword("Write DMM Command", tags=['rfds:raw_io', 'rfds:high_risk'])
     @_evidenced
     def write_dmm_command(self, command: str, alias: object | None = None) -> None:
+        """Write the dmm command."""
         self._require_raw_io("Write DMM Command")
         s = self._session(alias)
         logger.debug(f"{s.alias}: raw SCPI write {command!r}")
@@ -1945,6 +1986,7 @@ class Hp34401ALibrary:
     @keyword("Query DMM Command", tags=['rfds:raw_io', 'rfds:high_risk'])
     @_evidenced
     def query_dmm_command(self, command: str, alias: object | None = None) -> str:
+        """Query the dmm command."""
         self._require_raw_io("Query DMM Command")
         s = self._session(alias)
         logger.debug(f"{s.alias}: raw SCPI query {command!r}")

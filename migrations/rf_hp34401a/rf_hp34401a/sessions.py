@@ -31,6 +31,7 @@ class DmmSession:
 
     @property
     def connected(self) -> bool:
+        """Whether the transport is currently open."""
         try:
             return bool(self.driver.is_connected())
         except Exception:
@@ -145,6 +146,7 @@ class SessionManager:
 
     @property
     def active_alias(self) -> str | None:
+        """The active alias."""
         if self._active_key is None:
             return None
         return self._sessions[self._active_key].alias
@@ -159,6 +161,7 @@ class SessionManager:
         ]
 
     def close(self, alias: object | None = None, *, idempotent: bool = False) -> bool:
+        """Close the connection and release the transport."""
         session = self.find(alias)
         if session is None:
             if idempotent:

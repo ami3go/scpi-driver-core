@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover
     class _FallbackLogger:
         @staticmethod
         def info(message: str, *_args: Any, **_kwargs: Any) -> None:
+            """Log an informational message."""
             print(message)
 
         warn = error = debug = info
@@ -308,6 +309,7 @@ class Agilent34411ALibrary:
 
     @keyword("Is Connected")
     def is_connected(self, alias: str | None = None) -> bool:
+        """Whether the connected."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return False
@@ -315,6 +317,7 @@ class Agilent34411ALibrary:
 
     @keyword("Get Connection State")
     def get_connection_state(self, alias: str | None = None, refresh: bool = False) -> dict[str, Any]:
+        """Return the connection state."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return {
@@ -338,10 +341,12 @@ class Agilent34411ALibrary:
 
     @keyword("Check Communication")
     def check_communication(self, alias: str | None = None) -> bool:
+        """Check the communication."""
         return self._session(alias).check_communication()
 
     @keyword("Get Identity")
     def get_identity(self, alias: str | None = None, refresh: bool = True) -> str:
+        """Return the identity."""
         return self._session(alias).identify(refresh=_as_bool(refresh, "refresh")).raw
 
     @keyword("Switch Multimeter")
@@ -352,6 +357,7 @@ class Agilent34411ALibrary:
 
     @keyword("Get Active Multimeter")
     def get_active_multimeter(self) -> str | None:
+        """Return the active multimeter."""
         return self._active_alias
 
     @keyword("List Multimeter Connections")
@@ -363,10 +369,12 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Set Function")
     def set_function(self, function: str, alias: str | None = None) -> None:
+        """Set the function."""
         self._session(alias).set_function(function)
 
     @keyword("Get Function")
     def get_function(self, alias: str | None = None) -> str:
+        """Return the function."""
         return self._session(alias).get_function().value
 
     # ------------------------------------------------------------------
@@ -374,34 +382,42 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Set Range")
     def set_range(self, function: str, range_value: float, alias: str | None = None) -> None:
+        """Set the range."""
         self._session(alias).set_range(function, float(range_value))
 
     @keyword("Get Range")
     def get_range(self, function: str, alias: str | None = None) -> float:
+        """Return the range."""
         return self._session(alias).get_range(function)
 
     @keyword("Set Auto Range")
     def set_auto_range(self, function: str, enabled: bool = True, alias: str | None = None) -> None:
+        """Set the auto range."""
         self._session(alias).set_auto_range(function, _as_bool(enabled, "enabled"))
 
     @keyword("Get Auto Range")
     def get_auto_range(self, function: str, alias: str | None = None) -> bool:
+        """Return the auto range."""
         return self._session(alias).get_auto_range(function)
 
     @keyword("Set Integration Time NPLC")
     def set_integration_time_nplc(self, function: str, nplc: float, alias: str | None = None) -> None:
+        """Set the integration time nplc."""
         self._session(alias).set_integration_time_nplc(function, float(nplc))
 
     @keyword("Get Integration Time NPLC")
     def get_integration_time_nplc(self, function: str, alias: str | None = None) -> float:
+        """Return the integration time nplc."""
         return self._session(alias).get_integration_time_nplc(function)
 
     @keyword("Set Integration Time Aperture")
     def set_integration_time_aperture(self, function: str, seconds: float, alias: str | None = None) -> None:
+        """Set the integration time aperture."""
         self._session(alias).set_integration_time_aperture(function, float(seconds))
 
     @keyword("Get Integration Time Aperture")
     def get_integration_time_aperture(self, function: str, alias: str | None = None) -> float:
+        """Return the integration time aperture."""
         return self._session(alias).get_integration_time_aperture(function)
 
     @keyword("Set Auto Zero")
@@ -412,22 +428,27 @@ class Agilent34411ALibrary:
 
     @keyword("Get Auto Zero")
     def get_auto_zero(self, function: str, alias: str | None = None) -> str:
+        """Return the auto zero."""
         return self._session(alias).get_auto_zero(function).value
 
     @keyword("Set Offset Compensation")
     def set_offset_compensation(self, function: str, enabled: bool, alias: str | None = None) -> None:
+        """Set the offset compensation."""
         self._session(alias).set_offset_compensation(function, _as_bool(enabled, "enabled"))
 
     @keyword("Get Offset Compensation")
     def get_offset_compensation(self, function: str, alias: str | None = None) -> bool:
+        """Return the offset compensation."""
         return self._session(alias).get_offset_compensation(function)
 
     @keyword("Set AC Filter Bandwidth")
     def set_ac_filter_bandwidth(self, function: str, filter_: str, alias: str | None = None) -> None:
+        """Set the ac filter bandwidth."""
         self._session(alias).set_ac_filter_bandwidth(function, filter_)
 
     @keyword("Get AC Filter Bandwidth")
     def get_ac_filter_bandwidth(self, function: str, alias: str | None = None) -> str:
+        """Return the ac filter bandwidth."""
         return self._session(alias).get_ac_filter_bandwidth(function).value
 
     @keyword("Set Input Impedance Auto")
@@ -438,26 +459,32 @@ class Agilent34411ALibrary:
 
     @keyword("Get Input Impedance Auto")
     def get_input_impedance_auto(self, alias: str | None = None) -> bool:
+        """Return the input impedance auto."""
         return self._session(alias).get_input_impedance_auto()
 
     @keyword("Set Null")
     def set_null(self, function: str, enabled: bool, alias: str | None = None) -> None:
+        """Set the null."""
         self._session(alias).set_null(function, _as_bool(enabled, "enabled"))
 
     @keyword("Get Null")
     def get_null(self, function: str, alias: str | None = None) -> bool:
+        """Return the null."""
         return self._session(alias).get_null(function)
 
     @keyword("Set Null Value")
     def set_null_value(self, function: str, value: float, alias: str | None = None) -> None:
+        """Set the null value."""
         self._session(alias).set_null_value(function, float(value))
 
     @keyword("Get Null Value")
     def get_null_value(self, function: str, alias: str | None = None) -> float:
+        """Return the null value."""
         return self._session(alias).get_null_value(function)
 
     @keyword("Get Measurement Settings")
     def get_measurement_settings(self, function: str | None = None, alias: str | None = None) -> dict[str, Any]:
+        """Return the measurement settings."""
         return _robot_value(self._session(alias).get_measurement_settings(function))
 
     # ------------------------------------------------------------------
@@ -467,18 +494,22 @@ class Agilent34411ALibrary:
     def set_temperature_probe_type(
         self, probe_type: str, thermistor_type: str | None = None, alias: str | None = None,
     ) -> None:
+        """Set the temperature probe type."""
         self._session(alias).set_temperature_probe_type(probe_type, thermistor_type)
 
     @keyword("Get Temperature Probe Type")
     def get_temperature_probe_type(self, alias: str | None = None) -> str:
+        """Return the temperature probe type."""
         return self._session(alias).get_temperature_probe_type().value
 
     @keyword("Set Temperature Units")
     def set_temperature_units(self, unit: str, alias: str | None = None) -> None:
+        """Set the temperature units."""
         self._session(alias).set_temperature_units(unit)
 
     @keyword("Get Temperature Units")
     def get_temperature_units(self, alias: str | None = None) -> str:
+        """Return the temperature units."""
         return self._session(alias).get_temperature_units().value
 
     # ------------------------------------------------------------------
@@ -501,54 +532,67 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Get Math Function")
     def get_math_function(self, alias: str | None = None) -> str:
+        """Return the math function."""
         return self._session(alias).get_math_function().value
 
     @keyword("Is Math Enabled")
     def is_math_enabled(self, alias: str | None = None) -> bool:
+        """Whether the math enabled."""
         return self._session(alias).is_math_enabled()
 
     @keyword("Enable dB Measurement")
     def enable_db_measurement(self, alias: str | None = None) -> None:
+        """Enable db measurement."""
         self._session(alias).enable_db_measurement()
 
     @keyword("Set dB Reference")
     def set_db_reference(self, value: float, alias: str | None = None) -> None:
+        """Set the db reference."""
         self._session(alias).set_db_reference(float(value))
 
     @keyword("Enable dBm Measurement")
     def enable_dbm_measurement(self, alias: str | None = None) -> None:
+        """Enable dbm measurement."""
         self._session(alias).enable_dbm_measurement()
 
     @keyword("Set dBm Reference Resistance")
     def set_dbm_reference_resistance(self, ohms: float, alias: str | None = None) -> None:
+        """Set the dbm reference resistance."""
         self._session(alias).set_dbm_reference_resistance(float(ohms))
 
     @keyword("Enable Statistics")
     def enable_statistics(self, alias: str | None = None) -> None:
+        """Enable statistics."""
         self._session(alias).enable_statistics()
 
     @keyword("Get Statistics")
     def get_statistics(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the statistics."""
         return _robot_value(self._session(alias).get_statistics())
 
     @keyword("Clear Statistics")
     def clear_statistics(self, alias: str | None = None) -> None:
+        """Clear the statistics."""
         self._session(alias).clear_statistics()
 
     @keyword("Enable Limit Test")
     def enable_limit_test(self, alias: str | None = None) -> None:
+        """Enable limit test."""
         self._session(alias).enable_limit_test()
 
     @keyword("Set Limits")
     def set_limits(self, low: float, high: float, alias: str | None = None) -> None:
+        """Set the limits."""
         self._session(alias).set_limits(float(low), float(high))
 
     @keyword("Get Limits")
     def get_limits(self, alias: str | None = None) -> list[float]:
+        """Return the limits."""
         return list(self._session(alias).get_limits())
 
     @keyword("Disable Math")
     def disable_math(self, alias: str | None = None) -> None:
+        """Disable math."""
         self._session(alias).disable_math()
 
     # ------------------------------------------------------------------
@@ -562,58 +606,72 @@ class Agilent34411ALibrary:
 
     @keyword("Get Trigger Source")
     def get_trigger_source(self, alias: str | None = None) -> str:
+        """Return the trigger source."""
         return self._session(alias).get_trigger_source().value
 
     @keyword("Set Trigger Level")
     def set_trigger_level(self, level: float, alias: str | None = None) -> None:
+        """Set the trigger level."""
         self._session(alias).set_trigger_level(float(level))
 
     @keyword("Get Trigger Level")
     def get_trigger_level(self, alias: str | None = None) -> float:
+        """Return the trigger level."""
         return self._session(alias).get_trigger_level()
 
     @keyword("Set Trigger Slope")
     def set_trigger_slope(self, slope: str, alias: str | None = None) -> None:
+        """Set the trigger slope."""
         self._session(alias).set_trigger_slope(slope)
 
     @keyword("Get Trigger Slope")
     def get_trigger_slope(self, alias: str | None = None) -> str:
+        """Return the trigger slope."""
         return self._session(alias).get_trigger_slope().value
 
     @keyword("Set Trigger Count")
     def set_trigger_count(self, count: float, alias: str | None = None) -> None:
+        """Set the trigger count."""
         self._session(alias).set_trigger_count(count)
 
     @keyword("Get Trigger Count")
     def get_trigger_count(self, alias: str | None = None) -> float:
+        """Return the trigger count."""
         return self._session(alias).get_trigger_count()
 
     @keyword("Set Trigger Delay")
     def set_trigger_delay(self, seconds: float, alias: str | None = None) -> None:
+        """Set the trigger delay."""
         self._session(alias).set_trigger_delay(float(seconds))
 
     @keyword("Set Trigger Delay Auto")
     def set_trigger_delay_auto(self, alias: str | None = None) -> None:
+        """Set the trigger delay auto."""
         self._session(alias).set_trigger_delay_auto()
 
     @keyword("Get Trigger Settings")
     def get_trigger_settings(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the trigger settings."""
         return _robot_value(self._session(alias).get_trigger_settings())
 
     @keyword("Set Sample Count")
     def set_sample_count(self, count: float, alias: str | None = None) -> None:
+        """Set the sample count."""
         self._session(alias).set_sample_count(count)
 
     @keyword("Get Sample Count")
     def get_sample_count(self, alias: str | None = None) -> float:
+        """Return the sample count."""
         return self._session(alias).get_sample_count()
 
     @keyword("Set Sample Source")
     def set_sample_source(self, source: str, alias: str | None = None) -> None:
+        """Set the sample source."""
         self._session(alias).set_sample_source(source)
 
     @keyword("Set Sample Timer Interval")
     def set_sample_timer_interval(self, seconds: float, alias: str | None = None) -> None:
+        """Set the sample timer interval."""
         self._session(alias).set_sample_timer_interval(float(seconds))
 
     @keyword("Set Pre-Trigger Sample Count")
@@ -633,14 +691,17 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Get Latest Reading")
     def get_latest_reading(self, alias: str | None = None):
+        """Return the latest reading."""
         return self._session(alias).get_latest_reading()
 
     @keyword("Get Most Recent Reading")
     def get_most_recent_reading(self, alias: str | None = None) -> float:
+        """Return the most recent reading."""
         return self._session(alias).get_most_recent_reading()
 
     @keyword("Get Reading Count")
     def get_reading_count(self, alias: str | None = None) -> int:
+        """Return the reading count."""
         return self._session(alias).get_reading_count()
 
     @keyword("Drain Readings")
@@ -657,14 +718,17 @@ class Agilent34411ALibrary:
 
     @keyword("Get Non-Volatile Reading Count")
     def get_nonvolatile_reading_count(self, alias: str | None = None) -> int:
+        """Return the nonvolatile reading count."""
         return self._session(alias).get_nonvolatile_reading_count()
 
     @keyword("Get Non-Volatile Readings")
     def get_nonvolatile_readings(self, alias: str | None = None) -> list[float]:
+        """Return the nonvolatile readings."""
         return self._session(alias).get_nonvolatile_readings()
 
     @keyword("Clear Non-Volatile Readings")
     def clear_nonvolatile_readings(self, alias: str | None = None) -> None:
+        """Clear the nonvolatile readings."""
         self._session(alias).clear_nonvolatile_readings()
 
     @keyword("Drain Non-Volatile Readings")
@@ -680,6 +744,7 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Save Setup To Instrument Memory")
     def save_setup_to_instrument_memory(self, slot: int, alias: str | None = None) -> None:
+        """Save the setup to instrument memory."""
         self._session(alias).save_setup_to_instrument_memory(int(slot))
 
     @keyword("Restore Setup From Instrument Memory")
@@ -690,38 +755,47 @@ class Agilent34411ALibrary:
 
     @keyword("Get Instrument Memory Catalog")
     def get_instrument_memory_catalog(self, alias: str | None = None) -> list[int]:
+        """Return the instrument memory catalog."""
         return self._session(alias).get_instrument_memory_catalog()
 
     @keyword("Rename Instrument Memory Slot")
     def rename_instrument_memory_slot(self, slot: int, name: str, alias: str | None = None) -> None:
+        """Give a stored-state memory slot a name."""
         self._session(alias).rename_instrument_memory_slot(int(slot), name)
 
     @keyword("Get Instrument Memory Slot Name")
     def get_instrument_memory_slot_name(self, slot: int, alias: str | None = None) -> str:
+        """Return the instrument memory slot name."""
         return self._session(alias).get_instrument_memory_slot_name(int(slot))
 
     @keyword("Delete Instrument Memory Slot")
     def delete_instrument_memory_slot(self, slot: int, alias: str | None = None) -> None:
+        """Delete the instrument memory slot."""
         self._session(alias).delete_instrument_memory_slot(int(slot))
 
     @keyword("Delete All Instrument Memory Slots")
     def delete_all_instrument_memory_slots(self, alias: str | None = None) -> None:
+        """Delete the all instrument memory slots."""
         self._session(alias).delete_all_instrument_memory_slots()
 
     @keyword("Is Instrument Memory Slot Valid")
     def is_instrument_memory_slot_valid(self, slot: int, alias: str | None = None) -> bool:
+        """Whether the instrument memory slot valid."""
         return self._session(alias).is_instrument_memory_slot_valid(int(slot))
 
     @keyword("Get Instrument Memory Slot Count")
     def get_instrument_memory_slot_count(self, alias: str | None = None) -> int:
+        """Return the instrument memory slot count."""
         return self._session(alias).get_instrument_memory_slot_count()
 
     @keyword("Set Power-On State Recall")
     def set_power_on_state_recall(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the power on state recall."""
         self._session(alias).set_power_on_state_recall(_as_bool(enabled, "enabled"))
 
     @keyword("Set Power-On State")
     def set_power_on_state(self, slot: int, alias: str | None = None) -> None:
+        """Set the power on state."""
         self._session(alias).set_power_on_state(int(slot))
 
     # ------------------------------------------------------------------
@@ -735,26 +809,32 @@ class Agilent34411ALibrary:
 
     @keyword("Set Beeper Enabled")
     def set_beeper_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the beeper enabled."""
         self._session(alias).set_beeper_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get Beeper Enabled")
     def get_beeper_enabled(self, alias: str | None = None) -> bool:
+        """Return the beeper enabled."""
         return self._session(alias).get_beeper_enabled()
 
     @keyword("Set Display Enabled")
     def set_display_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the display enabled."""
         self._session(alias).set_display_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get Display Enabled")
     def get_display_enabled(self, alias: str | None = None) -> bool:
+        """Return the display enabled."""
         return self._session(alias).get_display_enabled()
 
     @keyword("Set Display Text")
     def set_display_text(self, text: str, alias: str | None = None) -> None:
+        """Set the display text."""
         self._session(alias).set_display_text(text)
 
     @keyword("Clear Display Text")
     def clear_display_text(self, alias: str | None = None) -> None:
+        """Clear the display text."""
         self._session(alias).clear_display_text()
 
     # ------------------------------------------------------------------
@@ -762,6 +842,7 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Enable Calibration Mode")
     def enable_calibration_mode(self, confirmation: str, alias: str | None = None) -> None:
+        """Enable calibration mode."""
         self._session(alias).enable_calibration_mode(confirmation)
 
     @keyword("Unlock Calibration")
@@ -780,22 +861,27 @@ class Agilent34411ALibrary:
 
     @keyword("Set Calibration Security Code")
     def set_calibration_security_code(self, new_code: str, alias: str | None = None) -> None:
+        """Set the calibration security code."""
         self._session(alias).set_calibration_security_code(new_code)
 
     @keyword("Run Full Calibration")
     def run_full_calibration(self, alias: str | None = None) -> bool:
+        """Run the full calibration."""
         return self._session(alias).run_full_calibration()
 
     @keyword("Run ADC Calibration")
     def run_adc_calibration(self, alias: str | None = None) -> float:
+        """Run the adc calibration."""
         return self._session(alias).run_adc_calibration()
 
     @keyword("Set Calibration Line Frequency")
     def set_calibration_line_frequency(self, hz: int, alias: str | None = None) -> None:
+        """Set the calibration line frequency."""
         self._session(alias).set_calibration_line_frequency(int(hz))
 
     @keyword("Get Calibration Line Frequency")
     def get_calibration_line_frequency(self, alias: str | None = None) -> int:
+        """Return the calibration line frequency."""
         return self._session(alias).get_calibration_line_frequency()
 
     @keyword("Get Actual Calibration Line Frequency")
@@ -806,6 +892,7 @@ class Agilent34411ALibrary:
 
     @keyword("Store Calibration")
     def store_calibration(self, alias: str | None = None) -> None:
+        """Store the calibration."""
         self._session(alias).store_calibration()
 
     @keyword("Get Calibration Count")
@@ -816,18 +903,22 @@ class Agilent34411ALibrary:
 
     @keyword("Set Calibration String")
     def set_calibration_string(self, text: str, alias: str | None = None) -> None:
+        """Set the calibration string."""
         self._session(alias).set_calibration_string(text)
 
     @keyword("Get Calibration String")
     def get_calibration_string(self, alias: str | None = None) -> str:
+        """Return the calibration string."""
         return self._session(alias).get_calibration_string()
 
     @keyword("Set Calibration Value")
     def set_calibration_value(self, value: float, alias: str | None = None) -> None:
+        """Set the calibration value."""
         self._session(alias).set_calibration_value(float(value))
 
     @keyword("Get Calibration Value")
     def get_calibration_value(self, alias: str | None = None) -> float:
+        """Return the calibration value."""
         return self._session(alias).get_calibration_value()
 
     # ------------------------------------------------------------------
@@ -835,82 +926,102 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Set LAN DHCP Enabled")
     def set_lan_dhcp_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan dhcp enabled."""
         self._session(alias).set_lan_dhcp_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN DHCP Enabled")
     def get_lan_dhcp_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan dhcp enabled."""
         return self._session(alias).get_lan_dhcp_enabled()
 
     @keyword("Set LAN IP Address")
     def set_lan_ip_address(self, address: str, alias: str | None = None) -> None:
+        """Set the lan ip address."""
         self._session(alias).set_lan_ip_address(address)
 
     @keyword("Get LAN IP Address")
     def get_lan_ip_address(self, selector: str | None = None, alias: str | None = None) -> str:
+        """Return the lan ip address."""
         return self._session(alias).get_lan_ip_address(selector)
 
     @keyword("Set LAN Subnet Mask")
     def set_lan_subnet_mask(self, mask: str, alias: str | None = None) -> None:
+        """Set the lan subnet mask."""
         self._session(alias).set_lan_subnet_mask(mask)
 
     @keyword("Get LAN Subnet Mask")
     def get_lan_subnet_mask(self, selector: str | None = None, alias: str | None = None) -> str:
+        """Return the lan subnet mask."""
         return self._session(alias).get_lan_subnet_mask(selector)
 
     @keyword("Set LAN Gateway")
     def set_lan_gateway(self, gateway: str, alias: str | None = None) -> None:
+        """Set the lan gateway."""
         self._session(alias).set_lan_gateway(gateway)
 
     @keyword("Get LAN Gateway")
     def get_lan_gateway(self, selector: str | None = None, alias: str | None = None) -> str:
+        """Return the lan gateway."""
         return self._session(alias).get_lan_gateway(selector)
 
     @keyword("Set LAN DNS")
     def set_lan_dns(self, address: str, alias: str | None = None) -> None:
+        """Set the lan dns."""
         self._session(alias).set_lan_dns(address)
 
     @keyword("Get LAN DNS")
     def get_lan_dns(self, alias: str | None = None) -> str:
+        """Return the lan dns."""
         return self._session(alias).get_lan_dns()
 
     @keyword("Set LAN Hostname")
     def set_lan_hostname(self, name: str, alias: str | None = None) -> None:
+        """Set the lan hostname."""
         self._session(alias).set_lan_hostname(name)
 
     @keyword("Get LAN Hostname")
     def get_lan_hostname(self, selector: str | None = None, alias: str | None = None) -> str:
+        """Return the lan hostname."""
         return self._session(alias).get_lan_hostname(selector)
 
     @keyword("Set LAN Domain")
     def set_lan_domain(self, name: str, alias: str | None = None) -> None:
+        """Set the lan domain."""
         self._session(alias).set_lan_domain(name)
 
     @keyword("Get LAN Domain")
     def get_lan_domain(self, selector: str | None = None, alias: str | None = None) -> str:
+        """Return the lan domain."""
         return self._session(alias).get_lan_domain(selector)
 
     @keyword("Set LAN Auto IP")
     def set_lan_auto_ip(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan auto ip."""
         self._session(alias).set_lan_auto_ip(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN Auto IP")
     def get_lan_auto_ip(self, alias: str | None = None) -> bool:
+        """Return the lan auto ip."""
         return self._session(alias).get_lan_auto_ip()
 
     @keyword("Set LAN DDNS Enabled")
     def set_lan_ddns_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan ddns enabled."""
         self._session(alias).set_lan_ddns_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN DDNS Enabled")
     def get_lan_ddns_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan ddns enabled."""
         return self._session(alias).get_lan_ddns_enabled()
 
     @keyword("Set LAN Keepalive")
     def set_lan_keepalive(self, seconds: float, alias: str | None = None) -> None:
+        """Set the lan keepalive."""
         self._session(alias).set_lan_keepalive(float(seconds))
 
     @keyword("Get LAN Keepalive")
     def get_lan_keepalive(self, alias: str | None = None) -> float:
+        """Return the lan keepalive."""
         return self._session(alias).get_lan_keepalive()
 
     @keyword("Get LAN Logical IP Address")
@@ -939,42 +1050,52 @@ class Agilent34411ALibrary:
 
     @keyword("Set LAN Media Sense Enabled")
     def set_lan_mdns_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan mdns enabled."""
         self._session(alias).set_lan_mdns_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN Media Sense Enabled")
     def get_lan_mdns_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan mdns enabled."""
         return self._session(alias).get_lan_mdns_enabled()
 
     @keyword("Set LAN NetBIOS Enabled")
     def set_lan_netbios_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan netbios enabled."""
         self._session(alias).set_lan_netbios_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN NetBIOS Enabled")
     def get_lan_netbios_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan netbios enabled."""
         return self._session(alias).get_lan_netbios_enabled()
 
     @keyword("Set LAN Telnet Prompt")
     def set_lan_telnet_prompt(self, text: str, alias: str | None = None) -> None:
+        """Set the lan telnet prompt."""
         self._session(alias).set_lan_telnet_prompt(text)
 
     @keyword("Get LAN Telnet Prompt")
     def get_lan_telnet_prompt(self, alias: str | None = None) -> str:
+        """Return the lan telnet prompt."""
         return self._session(alias).get_lan_telnet_prompt()
 
     @keyword("Set LAN Telnet Welcome Message")
     def set_lan_telnet_welcome_message(self, text: str, alias: str | None = None) -> None:
+        """Set the lan telnet welcome message."""
         self._session(alias).set_lan_telnet_welcome_message(text)
 
     @keyword("Get LAN Telnet Welcome Message")
     def get_lan_telnet_welcome_message(self, alias: str | None = None) -> str:
+        """Return the lan telnet welcome message."""
         return self._session(alias).get_lan_telnet_welcome_message()
 
     @keyword("Clear LAN History")
     def clear_lan_history(self, alias: str | None = None) -> None:
+        """Clear the lan history."""
         self._session(alias).clear_lan_history()
 
     @keyword("Get LAN History")
     def get_lan_history(self, alias: str | None = None) -> str:
+        """Return the lan history."""
         return self._session(alias).get_lan_history()
 
     # ------------------------------------------------------------------
@@ -982,6 +1103,7 @@ class Agilent34411ALibrary:
     # ------------------------------------------------------------------
     @keyword("Enable Raw SCPI")
     def enable_raw_scpi(self, confirmation: str, alias: str | None = None) -> None:
+        """Enable raw scpi."""
         self._session(alias).enable_raw_scpi(confirmation)
 
     @keyword("Raw SCPI Query")

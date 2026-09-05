@@ -358,12 +358,15 @@ class N83624CellSimulator:
         return parse_int(self.query("*STB?"), command="*STB?")
 
     def measure_voltage_channels(self, channels: Sequence[int]) -> dict[int, float]:
+        """Measure the voltage channels."""
         return self._measure_channels("VOLTage", channels)
 
     def measure_current_channels(self, channels: Sequence[int]) -> dict[int, float]:
+        """Measure the current channels."""
         return self._measure_channels("CURRent", channels)
 
     def measure_power_channels(self, channels: Sequence[int]) -> dict[int, float]:
+        """Measure the power channels."""
         return self._measure_channels("POWer", channels)
 
     def _measure_channels(self, quantity: str, channels: Sequence[int]) -> dict[int, float]:
@@ -377,18 +380,27 @@ class N83624CellSimulator:
         return dict(zip(channels, values, strict=True))
 
     def set_global_capture_rate(self, rate: CaptureRate | int, *, experimental_ok: bool = False) -> None:
+        """Set the global capture rate.
+
+        Sends ``MEASure0:CAPRate …``.
+        """
         if not experimental_ok:
             raise NotImplementedError("MEASure0:CAPRate global behavior requires hardware verification")
         rate = validate_capture_rate(rate)
         self.write(f"MEASure0:CAPRate {int(rate)}")
 
     def get_global_capture_rate(self, *, experimental_ok: bool = False) -> CaptureRate:
+        """Return the global capture rate.
+
+        Sends ``MEASure0:CAPRate?``.
+        """
         if not experimental_ok:
             raise NotImplementedError("MEASure0:CAPRate? global behavior requires hardware verification")
         value = parse_int(self.query("MEASure0:CAPRate?"), command="MEASure0:CAPRate?")
         return validate_capture_rate(value)
 
     def set_ip_address(self, ip: str, *, confirm: bool = False) -> None:
+        """Set the ip address."""
         ip = validate_ip_address(ip)
         self._require_dangerous_confirmation(confirm, "Changing IP address can break communication")
         with self.locked_operation():
@@ -396,9 +408,14 @@ class N83624CellSimulator:
             self.state = SessionState.CONNECTED_UNVERIFIED
 
     def get_ip_address(self) -> str:
+        """Return the ip address.
+
+        Sends ``SYSTem1:COMMand:LAN:IPADdr?``.
+        """
         return self.query("SYSTem1:COMMand:LAN:IPADdr?").strip().strip('"')
 
     def set_serial_baudrate(self, baudrate: int, *, confirm: bool = False) -> None:
+        """Set the serial baudrate."""
         baudrate = validate_serial_baudrate(baudrate)
         self._require_dangerous_confirmation(confirm, "Changing serial baudrate can break communication")
         with self.locked_operation():
@@ -406,23 +423,44 @@ class N83624CellSimulator:
             self.state = SessionState.CONNECTED_UNVERIFIED
 
     def get_serial_baudrate(self) -> int:
+        """Return the serial baudrate.
+
+        Sends ``SYSTem1:COMMand:SERial:BAUDrate?``.
+        """
         return parse_int(self.query("SYSTem1:COMMand:SERial:BAUDrate?"), command="SYSTem1:COMMand:SERial:BAUDrate?")
 
     def set_beeper(self, enabled: bool) -> None:
+        """Set the beeper.
+
+        Sends ``SYSTem1:SOUNd …``.
+        """
         self.write(f"SYSTem1:SOUNd {1 if enabled else 0}")
 
     def get_beeper(self) -> bool:
+        """Return the beeper.
+
+        Sends ``SYSTem1:SOUNd?``.
+        """
         return parse_bool(self.query("SYSTem1:SOUNd?"), command="SYSTem1:SOUNd?")
 
     def set_language(self, language: Language | int) -> None:
+        """Set the language.
+
+        Sends ``SYSTem1:LANGuage …``.
+        """
         language = validate_language(language)
         self.write(f"SYSTem1:LANGuage {int(language)}")
 
     def get_language(self) -> Language:
+        """Return the language.
+
+        Sends ``SYSTem1:LANGuage?``.
+        """
         value = parse_int(self.query("SYSTem1:LANGuage?"), command="SYSTem1:LANGuage?")
         return validate_language(value)
 
     def set_lan_connection_type(self, connection_type: LanConnectionType | int, *, confirm: bool = False) -> None:
+        """Set the lan connection type."""
         connection_type = validate_lan_connection_type(connection_type)
         self._require_dangerous_confirmation(confirm, "Changing LAN type can break communication")
         with self.locked_operation():
@@ -430,20 +468,40 @@ class N83624CellSimulator:
             self.state = SessionState.CONNECTED_UNVERIFIED
 
     def get_lan_connection_type(self) -> LanConnectionType:
+        """Return the lan connection type.
+
+        Sends ``SYSTem1:COMMand:LAN:TYPe?``.
+        """
         value = parse_int(self.query("SYSTem1:COMMand:LAN:TYPe?"), command="SYSTem1:COMMand:LAN:TYPe?")
         return validate_lan_connection_type(value)
 
     def set_powerdown_save(self, enabled: bool, *, confirm: bool = False) -> None:
+        """Set the powerdown save.
+
+        Sends ``SYSTem1:POWDown:SAVe …``.
+        """
         self._require_dangerous_confirmation(confirm, "Changing power-down save affects persistent behavior")
         self.write(f"SYSTem1:POWDown:SAVe {1 if enabled else 0}")
 
     def get_powerdown_save(self) -> bool:
+        """Return the powerdown save.
+
+        Sends ``SYSTem1:POWDown:SAVe?``.
+        """
         return parse_bool(self.query("SYSTem1:POWDown:SAVe?"), command="SYSTem1:POWDown:SAVe?")
 
     def set_hmi_disconnect_enabled(self, enabled: bool) -> None:
+        """Set the hmi disconnect enabled.
+
+        Sends ``HMI:DISConnect:ENABle …``.
+        """
         self.write(f"HMI:DISConnect:ENABle {1 if enabled else 0}")
 
     def get_hmi_disconnect_enabled(self) -> bool:
+        """Return the hmi disconnect enabled.
+
+        Sends ``HMI:DISConnect:ENABle?``.
+        """
         return parse_bool(self.query("HMI:DISConnect:ENABle?"), command="HMI:DISConnect:ENABle?")
 
     def _require_dangerous_confirmation(self, confirm: bool, reason: str) -> None:

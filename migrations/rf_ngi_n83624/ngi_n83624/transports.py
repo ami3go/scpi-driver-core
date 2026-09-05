@@ -85,6 +85,7 @@ class TcpTransport:
         self._client: ScpiClient | None = None
 
     def open(self) -> None:
+        """Open the connection."""
         if self._client is not None:
             return
         transport = CoreTcpTransport(host=self.host, port=self.port, timeout_s=self.timeout)
@@ -99,15 +100,18 @@ class TcpTransport:
         self._client = ScpiClient(transport, codec=_CODEC, timeout_s=self.timeout)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         client, self._client = self._client, None
         if client is not None:
             with suppress(Exception):
                 client.transport.close()
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._client is not None
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         client = self._require_open()
         payload = _encode_command(command)
         try:
@@ -197,6 +201,7 @@ class UdpTransport:
         self._client: ScpiClient | None = None
 
     def open(self) -> None:
+        """Open the connection."""
         if self._client is not None:
             return
         transport = CoreUdpTransport(host=self.host, port=self.port, timeout_s=self.timeout)
@@ -207,15 +212,18 @@ class UdpTransport:
         self._client = ScpiClient(transport, codec=_CODEC, timeout_s=self.timeout)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         client, self._client = self._client, None
         if client is not None:
             with suppress(Exception):
                 client.transport.close()
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._client is not None
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         client = self._require_open()
         try:
             client.write_bytes(_encode_command(command))
@@ -225,6 +233,7 @@ class UdpTransport:
             raise CommunicationError(f"UDP write failed for command {command!r}: {exc}") from exc
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         client = self._require_open()
         try:
             with client.operation_lock():
@@ -255,6 +264,7 @@ class SerialTransport:
         self._client: ScpiClient | None = None
 
     def open(self) -> None:
+        """Open the connection."""
         if self._client is not None:
             return
         transport = CoreSerialTransport(
@@ -272,6 +282,7 @@ class SerialTransport:
         self._client = ScpiClient(transport, codec=_CODEC, timeout_s=self.timeout)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         client, self._client = self._client, None
         if client is not None:
             try:
@@ -280,9 +291,11 @@ class SerialTransport:
                 raise CommunicationError(f"Serial close failed: {exc}") from exc
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._client is not None and self._client.is_open
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         client = self._require_open()
         try:
             client.write_bytes(_encode_command(command))
@@ -290,6 +303,7 @@ class SerialTransport:
             raise CommunicationError(f"Serial write failed for command {command!r}: {exc}") from exc
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         client = self._require_open()
         try:
             with client.operation_lock():

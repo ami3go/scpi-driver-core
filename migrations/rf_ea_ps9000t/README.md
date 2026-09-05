@@ -245,3 +245,33 @@ outside the private `192.168.0.0/16` range and is very plausibly a manual typo f
 explicit `resource` string), so it doesn't affect any keyword — but if you're connecting
 to a factory-default unit for the first time over Ethernet, verify the actual IP against
 the unit's setup menu or label rather than trusting either number blindly.
+
+## Built on scpi-driver-core
+
+This driver's transport and SCPI framing come from
+[`scpi-driver-core`](https://github.com/ami3go/scpi-driver-core) rather than
+being implemented here. EA PS 9000 T speaks VISA, and all of that is the core's
+byte-oriented transport layer with this package's device semantics on top.
+
+What changed in the migration: ea_ps9000t/transport.py, plus numeric and identity parsing in driver.py. Everything else — the command tree,
+the measurement semantics, the simulator, the safety policy, and the Robot
+Framework keywords — is unchanged, and the driver's own test suite passes
+exactly as it did before.
+
+What the core provides:
+
+- byte-oriented transports with an explicit state model and no unbounded reads
+- SCPI text framing that removes only the configured terminator, so binary
+  payloads survive intact
+- IEEE-488.2 identity, error-queue, and definite-length block parsing
+- protocol tracing and a JSONL audit sink, with redaction hooks
+
+What stays here, and should: everything that interprets this instrument's
+physical behaviour or command tree.
+
+### Installing
+
+```bash
+pip install -e .            # pulls in scpi-driver-core
+pytest tests
+```

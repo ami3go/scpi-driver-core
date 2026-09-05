@@ -114,6 +114,7 @@ class EaPs9000T:
     # ------------------------------------------------------------------
     @classmethod
     def connect_visa(cls, resource: str, timeout_s: float = 5.0) -> EaPs9000T:
+        """Open a VISA connection and return a connected driver."""
         transport = PyvisaTransport(resource, timeout_s=timeout_s)
         transport.open()
         driver = cls(transport)
@@ -122,6 +123,7 @@ class EaPs9000T:
 
     @classmethod
     def connect_simulated(cls, simulator: SimEaPs9000TInstrument | None = None) -> EaPs9000T:
+        """Return a driver backed by the in-process simulator."""
         transport = SimulatedTransport(simulator)
         transport.open()
         driver = cls(transport)
@@ -129,6 +131,7 @@ class EaPs9000T:
         return driver
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         try:
             self.release_remote_control()
         except Exception:  # noqa: BLE001, S110 - best-effort: the transport is closing
@@ -138,18 +141,22 @@ class EaPs9000T:
 
     @property
     def connected(self) -> bool:
+        """Whether the transport is currently open."""
         return self.transport.is_open()
 
     @property
     def resource(self) -> str:
+        """The resource string this driver is connected to."""
         return self.transport.resource
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self.transport.timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self.transport.timeout_s = value
 
     # ------------------------------------------------------------------
@@ -223,15 +230,27 @@ class EaPs9000T:
             )
 
     def release_remote_control(self) -> None:
+        """Issue the release remote control command.
+
+        Sends ``SYSTem:LOCK OFF``.
+        """
         self._write("SYSTem:LOCK OFF")
 
     def get_remote_control_owner(self) -> RemoteControlOwner:
+        """Return the remote control owner.
+
+        Sends ``SYSTem:LOCK:OWNer?``.
+        """
         return RemoteControlOwner(self._query("SYSTem:LOCK:OWNer?").strip())
 
     # ------------------------------------------------------------------
     # Identity / communication (RFDS-002)
     # ------------------------------------------------------------------
     def identify(self, *, refresh: bool = True) -> InstrumentIdentity:
+        """Return the instrument identity.
+
+        Sends ``*IDN?``.
+        """
         if not refresh and self._identity is not None:
             return self._identity
         raw = self._query("*IDN?")
@@ -250,6 +269,10 @@ class EaPs9000T:
         return identity
 
     def check_communication(self) -> bool:
+        """Check the communication.
+
+        Sends ``*IDN?``.
+        """
         self._query("*IDN?")
         return True
 
@@ -257,51 +280,100 @@ class EaPs9000T:
     # Set values (task §8)
     # ------------------------------------------------------------------
     def set_voltage(self, value: float) -> None:
+        """Set the voltage.
+
+        Sends ``VOLTage …``.
+        """
         self._write(f"VOLTage {float(value)}")
         self._check_events("Set Voltage")
 
     def get_voltage(self) -> float:
+        """Return the voltage.
+
+        Sends ``VOLTage?``.
+        """
         return (_parse_float(self._query("VOLTage?")))
 
     def set_current(self, value: float) -> None:
+        """Set the current.
+
+        Sends ``CURRent …``.
+        """
         self._write(f"CURRent {float(value)}")
         self._check_events("Set Current")
 
     def get_current(self) -> float:
+        """Return the current.
+
+        Sends ``CURRent?``.
+        """
         return (_parse_float(self._query("CURRent?")))
 
     def set_power(self, value: float) -> None:
+        """Set the power.
+
+        Sends ``POWer …``.
+        """
         self._write(f"POWer {float(value)}")
         self._check_events("Set Power")
 
     def get_power(self) -> float:
+        """Return the power.
+
+        Sends ``POWer?``.
+        """
         return (_parse_float(self._query("POWer?")))
 
     # ------------------------------------------------------------------
     # Protection thresholds (task §8)
     # ------------------------------------------------------------------
     def set_overvoltage_protection(self, value: float) -> None:
+        """Set the overvoltage protection.
+
+        Sends ``VOLTage:PROTection …``.
+        """
         self._write(f"VOLTage:PROTection {float(value)}")
         self._check_events("Set Overvoltage Protection")
 
     def get_overvoltage_protection(self) -> float:
+        """Return the overvoltage protection.
+
+        Sends ``VOLTage:PROTection?``.
+        """
         return (_parse_float(self._query("VOLTage:PROTection?")))
 
     def set_overcurrent_protection(self, value: float) -> None:
+        """Set the overcurrent protection.
+
+        Sends ``CURRent:PROTection …``.
+        """
         self._write(f"CURRent:PROTection {float(value)}")
         self._check_events("Set Overcurrent Protection")
 
     def get_overcurrent_protection(self) -> float:
+        """Return the overcurrent protection.
+
+        Sends ``CURRent:PROTection?``.
+        """
         return (_parse_float(self._query("CURRent:PROTection?")))
 
     def set_overpower_protection(self, value: float) -> None:
+        """Set the overpower protection.
+
+        Sends ``POWer:PROTection …``.
+        """
         self._write(f"POWer:PROTection {float(value)}")
         self._check_events("Set Overpower Protection")
 
     def get_overpower_protection(self) -> float:
+        """Return the overpower protection.
+
+        Sends ``POWer:PROTection?``.
+        """
         return (_parse_float(self._query("POWer:PROTection?")))
 
     def get_protection_thresholds(self) -> ProtectionThresholds:
+        """Return the protection thresholds."""
         return ProtectionThresholds(
             overvoltage=self.get_overvoltage_protection(),
             overcurrent=self.get_overcurrent_protection(),
@@ -312,29 +384,57 @@ class EaPs9000T:
     # Output control (task §8)
     # ------------------------------------------------------------------
     def enable_output(self) -> None:
+        """Enable output.
+
+        Sends ``OUTPut ON``.
+        """
         self._write("OUTPut ON")
         self._check_events("Enable Output")
 
     def disable_output(self) -> None:
+        """Disable output.
+
+        Sends ``OUTPut OFF``.
+        """
         self._write("OUTPut OFF")
         self._check_events("Disable Output")
 
     def is_output_enabled(self) -> bool:
+        """Whether the output enabled.
+
+        Sends ``OUTPut?``.
+        """
         return self._query("OUTPut?").strip() in ("1", "ON")
 
     # ------------------------------------------------------------------
     # Measuring (task §8)
     # ------------------------------------------------------------------
     def get_measured_voltage(self) -> float:
+        """Return the measured voltage.
+
+        Sends ``MEASure:VOLTage?``.
+        """
         return (_parse_float(self._query("MEASure:VOLTage?")))
 
     def get_measured_current(self) -> float:
+        """Return the measured current.
+
+        Sends ``MEASure:CURRent?``.
+        """
         return (_parse_float(self._query("MEASure:CURRent?")))
 
     def get_measured_power(self) -> float:
+        """Return the measured power.
+
+        Sends ``MEASure:POWer?``.
+        """
         return (_parse_float(self._query("MEASure:POWer?")))
 
     def get_measured_values(self) -> MeasuredValues:
+        """Return the measured values.
+
+        Sends ``MEASure:ARRay?``.
+        """
         raw = self._query("MEASure:ARRay?")
         parts = [p.strip() for p in raw.split(",")]
         values = [float(p.split()[0]) for p in parts]
@@ -344,6 +444,10 @@ class EaPs9000T:
     # General queries (task §8)
     # ------------------------------------------------------------------
     def get_nominal_ratings(self) -> NominalRatings:
+        """Return the nominal ratings.
+
+        Sends ``SYSTem:NOMinal:VOLTage?``, ``SYSTem:NOMinal:CURRent?``, ``SYSTem:NOMinal:POWer?``.
+        """
         return NominalRatings(
             voltage=(_parse_float(self._query("SYSTem:NOMinal:VOLTage?"))),
             current=(_parse_float(self._query("SYSTem:NOMinal:CURRent?"))),
@@ -351,9 +455,17 @@ class EaPs9000T:
         )
 
     def get_device_class(self) -> str:
+        """Return the device class.
+
+        Sends ``SYSTem:DEVice:CLASs?``.
+        """
         return self._query("SYSTem:DEVice:CLASs?").strip()
 
     def get_alarm_counters(self) -> AlarmCounters:
+        """Return the alarm counters.
+
+        Sends ``SYSTem:ALARm:COUNt:OVOLtage?``, ``SYSTem:ALARm:COUNt:OTEMperature?``, ``SYSTem:ALARm:COUNt:OPOWer?``, ``SYSTem:ALARm:COUNt:OCURrent?``, ``SYSTem:ALARm:COUNt:PFAil?``.
+        """
         return AlarmCounters(
             overvoltage=int(_parse_number(self._query("SYSTem:ALARm:COUNt:OVOLtage?"))),
             overtemperature=int(_parse_number(self._query("SYSTem:ALARm:COUNt:OTEMperature?"))),
@@ -366,28 +478,52 @@ class EaPs9000T:
     # Adjustment limits (task §9)
     # ------------------------------------------------------------------
     def set_voltage_limit_low(self, value: float) -> None:
+        """Set the voltage limit low.
+
+        Sends ``VOLTage:LIMit:LOW …``.
+        """
         self._write(f"VOLTage:LIMit:LOW {float(value)}")
         self._check_events("Set Voltage Limit Low")
 
     def set_voltage_limit_high(self, value: float) -> None:
+        """Set the voltage limit high.
+
+        Sends ``VOLTage:LIMit:HIGH …``.
+        """
         self._write(f"VOLTage:LIMit:HIGH {float(value)}")
         self._check_events("Set Voltage Limit High")
 
     def get_voltage_limits(self) -> tuple[float, float]:
+        """Return the voltage limits.
+
+        Sends ``VOLTage:LIMit:LOW?``, ``VOLTage:LIMit:HIGH?``.
+        """
         return (
             (_parse_float(self._query("VOLTage:LIMit:LOW?"))),
             (_parse_float(self._query("VOLTage:LIMit:HIGH?"))),
         )
 
     def set_current_limit_low(self, value: float) -> None:
+        """Set the current limit low.
+
+        Sends ``CURRent:LIMit:LOW …``.
+        """
         self._write(f"CURRent:LIMit:LOW {float(value)}")
         self._check_events("Set Current Limit Low")
 
     def set_current_limit_high(self, value: float) -> None:
+        """Set the current limit high.
+
+        Sends ``CURRent:LIMit:HIGH …``.
+        """
         self._write(f"CURRent:LIMit:HIGH {float(value)}")
         self._check_events("Set Current Limit High")
 
     def get_current_limits(self) -> tuple[float, float]:
+        """Return the current limits.
+
+        Sends ``CURRent:LIMit:LOW?``, ``CURRent:LIMit:HIGH?``.
+        """
         return (
             (_parse_float(self._query("CURRent:LIMit:LOW?"))),
             (_parse_float(self._query("CURRent:LIMit:HIGH?"))),
@@ -400,9 +536,14 @@ class EaPs9000T:
         self._check_events("Set Power Limit High")
 
     def get_power_limit_high(self) -> float:
+        """Return the power limit high.
+
+        Sends ``POWer:LIMit:HIGH?``.
+        """
         return (_parse_float(self._query("POWer:LIMit:HIGH?")))
 
     def get_adjustment_limits(self) -> AdjustmentLimits:
+        """Return the adjustment limits."""
         voltage_low, voltage_high = self.get_voltage_limits()
         current_low, current_high = self.get_current_limits()
         return AdjustmentLimits(
@@ -417,28 +558,49 @@ class EaPs9000T:
     # Device configuration (task §9, PST-applicable subset only)
     # ------------------------------------------------------------------
     def set_power_stage_after_remote(self, mode: PowerStageAfterRemote | str) -> None:
+        """Set the power stage after remote.
+
+        Sends ``POWer:STAGe:AFTer:REMote …``.
+        """
         mode = PowerStageAfterRemote(mode)
         self._write(f"POWer:STAGe:AFTer:REMote {mode.value}")
         self._check_events("Set Power Stage After Remote")
 
     def get_power_stage_after_remote(self) -> PowerStageAfterRemote:
+        """Return the power stage after remote.
+
+        Sends ``POWer:STAGe:AFTer:REMote?``.
+        """
         return PowerStageAfterRemote(self._query("POWer:STAGe:AFTer:REMote?").strip())
 
     def set_output_restore_mode(self, mode: OutputRestoreMode | str) -> None:
+        """Set the output restore mode.
+
+        Sends ``SYSTem:CONFig:OUTPut:RESTore …``.
+        """
         mode = OutputRestoreMode(mode)
         self._write(f"SYSTem:CONFig:OUTPut:RESTore {mode.value}")
         self._check_events("Set Output Restore Mode")
 
     def get_output_restore_mode(self) -> OutputRestoreMode:
+        """Return the output restore mode.
+
+        Sends ``SYSTem:CONFig:OUTPut:RESTore?``.
+        """
         return OutputRestoreMode(self._query("SYSTem:CONFig:OUTPut:RESTore?").strip())
 
     def set_user_text(self, text: str) -> None:
+        """Set the user text."""
         if len(text) > 40:
             raise EaPs9000TValidationError("user text must be 40 characters or fewer")
         self._write(f'SYSTem:CONFig:USER:TEXT "{text}"')
         self._check_events("Set User Text")
 
     def get_user_text(self) -> str:
+        """Return the user text.
+
+        Sends ``SYSTem:CONFig:USER:TEXT?``.
+        """
         return self._query("SYSTem:CONFig:USER:TEXT?").strip().strip('"')
 
     def set_communication_timeout(self, milliseconds: int) -> None:
@@ -452,22 +614,42 @@ class EaPs9000T:
         self._check_events("Set Communication Timeout")
 
     def get_communication_timeout(self) -> int:
+        """Return the communication timeout.
+
+        Sends ``SYSTem:COMMunicate:TIMeout?``.
+        """
         return int(_parse_number(self._query("SYSTem:COMMunicate:TIMeout?")))
 
     def set_power_fail_alarm_action(self, action: AlarmAction | str) -> None:
+        """Set the power fail alarm action.
+
+        Sends ``SYSTem:ALARm:ACTion:PFail …``.
+        """
         action = AlarmAction(action)
         self._write(f"SYSTem:ALARm:ACTion:PFail {action.value}")
         self._check_events("Set Power Fail Alarm Action")
 
     def get_power_fail_alarm_action(self) -> AlarmAction:
+        """Return the power fail alarm action.
+
+        Sends ``SYSTem:ALARm:ACTion:PFail?``.
+        """
         return AlarmAction(self._query("SYSTem:ALARm:ACTion:PFail?").strip())
 
     def set_overtemperature_alarm_action(self, action: AlarmAction | str) -> None:
+        """Set the overtemperature alarm action.
+
+        Sends ``SYSTem:ALARm:ACTion:OTEMperature …``.
+        """
         action = AlarmAction(action)
         self._write(f"SYSTem:ALARm:ACTion:OTEMperature {action.value}")
         self._check_events("Set Overtemperature Alarm Action")
 
     def get_overtemperature_alarm_action(self) -> AlarmAction:
+        """Return the overtemperature alarm action.
+
+        Sends ``SYSTem:ALARm:ACTion:OTEMperature?``.
+        """
         return AlarmAction(self._query("SYSTem:ALARm:ACTion:OTEMperature?").strip())
 
     # ------------------------------------------------------------------
@@ -488,56 +670,94 @@ class EaPs9000T:
     # hardware this driver's instrument family doesn't have (judgment call, see
     # README.md).
     def set_lan_dhcp_enabled(self, enabled: bool) -> None:
+        """Set the lan dhcp enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:DHCP …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:DHCP {'ON' if enabled else 'OFF'}")
         self._check_events("Set LAN DHCP Enabled")
 
     def get_lan_dhcp_enabled(self) -> bool:
+        """Return the lan dhcp enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:DHCP?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DHCP?").strip().upper() in ("1", "ON")
 
     def set_lan_ip_address(self, address: str) -> None:
+        """Set the lan ip address."""
         self._write(f'SYSTem:COMMunicate:LAN:ADDRess "{address}"')
         self._check_events("Set LAN IP Address")
 
     def get_lan_ip_address(self) -> str:
+        """Return the lan ip address.
+
+        Sends ``SYSTem:COMMunicate:LAN:ADDRess?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:ADDRess?").strip().strip('"')
 
     def set_lan_subnet_mask(self, mask: str) -> None:
+        """Set the lan subnet mask."""
         self._write(f'SYSTem:COMMunicate:LAN:SMASk "{mask}"')
         self._check_events("Set LAN Subnet Mask")
 
     def get_lan_subnet_mask(self) -> str:
+        """Return the lan subnet mask.
+
+        Sends ``SYSTem:COMMunicate:LAN:SMASk?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:SMASk?").strip().strip('"')
 
     def set_lan_gateway(self, gateway: str) -> None:
+        """Set the lan gateway."""
         self._write(f'SYSTem:COMMunicate:LAN:GATeway "{gateway}"')
         self._check_events("Set LAN Gateway")
 
     def get_lan_gateway(self) -> str:
+        """Return the lan gateway.
+
+        Sends ``SYSTem:COMMunicate:LAN:GATeway?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:GATeway?").strip().strip('"')
 
     def set_lan_hostname(self, hostname: str) -> None:
+        """Set the lan hostname."""
         if len(hostname) > 54:
             raise EaPs9000TValidationError("LAN hostname must be 54 characters or fewer")
         self._write(f'SYSTem:COMMunicate:LAN:HOSTname "{hostname}"')
         self._check_events("Set LAN Hostname")
 
     def get_lan_hostname(self) -> str:
+        """Return the lan hostname.
+
+        Sends ``SYSTem:COMMunicate:LAN:HOSTname?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:HOSTname?").strip().strip('"')
 
     def set_lan_domain(self, domain: str) -> None:
+        """Set the lan domain."""
         if len(domain) > 54:
             raise EaPs9000TValidationError("LAN domain must be 54 characters or fewer")
         self._write(f'SYSTem:COMMunicate:LAN:DOMain "{domain}"')
         self._check_events("Set LAN Domain")
 
     def get_lan_domain(self) -> str:
+        """Return the lan domain.
+
+        Sends ``SYSTem:COMMunicate:LAN:DOMain?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DOMain?").strip().strip('"')
 
     def set_lan_dns1(self, address: str) -> None:
+        """Set the lan dns1."""
         self._write(f'SYSTem:COMMunicate:LAN:DNS1 "{address}"')
         self._check_events("Set LAN DNS1")
 
     def get_lan_dns1(self) -> str:
+        """Return the lan dns1.
+
+        Sends ``SYSTem:COMMunicate:LAN:DNS1?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DNS1?").strip().strip('"')
 
     def set_lan_dns2(self, address: str) -> None:
@@ -550,9 +770,17 @@ class EaPs9000T:
         self._check_events("Set LAN DNS2")
 
     def get_lan_dns2(self) -> str:
+        """Return the lan dns2.
+
+        Sends ``SYSTem:COMMunicate:LAN:DNS2?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:DNS2?").strip().strip('"')
 
     def set_lan_control_port(self, port: int) -> None:
+        """Set the lan control port.
+
+        Sends ``SYSTem:COMMunicate:LAN:CONTrol …``.
+        """
         port = int(port)
         if not (0 <= port <= 65535):
             raise EaPs9000TValidationError("LAN control port must be between 0 and 65535")
@@ -564,16 +792,32 @@ class EaPs9000T:
         self._check_events("Set LAN Control Port")
 
     def get_lan_control_port(self) -> int:
+        """Return the lan control port.
+
+        Sends ``SYSTem:COMMunicate:LAN:CONTrol?``.
+        """
         return int(_parse_number(self._query("SYSTem:COMMunicate:LAN:CONTrol?")))
 
     def set_lan_keepalive_enabled(self, enabled: bool) -> None:
+        """Set the lan keepalive enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:KEEPalive …``.
+        """
         self._write(f"SYSTem:COMMunicate:LAN:KEEPalive {'ON' if enabled else 'OFF'}")
         self._check_events("Set LAN Keepalive Enabled")
 
     def get_lan_keepalive_enabled(self) -> bool:
+        """Return the lan keepalive enabled.
+
+        Sends ``SYSTem:COMMunicate:LAN:KEEPalive?``.
+        """
         return self._query("SYSTem:COMMunicate:LAN:KEEPalive?").strip().upper() in ("1", "ON")
 
     def set_lan_timeout(self, seconds: int) -> None:
+        """Set the lan timeout.
+
+        Sends ``SYSTem:COMMunicate:LAN:TIMeout …``.
+        """
         seconds = int(seconds)
         if seconds != 0 and not (5 <= seconds <= 65535):
             raise EaPs9000TValidationError(
@@ -583,6 +827,10 @@ class EaPs9000T:
         self._check_events("Set LAN Timeout")
 
     def get_lan_timeout(self) -> int:
+        """Return the lan timeout.
+
+        Sends ``SYSTem:COMMunicate:LAN:TIMeout?``.
+        """
         return int(_parse_number(self._query("SYSTem:COMMunicate:LAN:TIMeout?")))
 
     def get_lan_mac_address(self) -> str:
@@ -598,6 +846,10 @@ class EaPs9000T:
     # LAN configuration commands above: no special safety guard beyond the
     # instrument's universal remote-control gating.
     def set_analog_reference_range(self, range_v: int) -> None:
+        """Set the analog reference range.
+
+        Sends ``SYSTem:CONFig:ANAlog:REFerence …``.
+        """
         range_v = int(range_v)
         if range_v not in (5, 10):
             raise EaPs9000TValidationError("analog reference range must be 5 or 10 (volts)")
@@ -605,28 +857,49 @@ class EaPs9000T:
         self._check_events("Set Analog Reference Range")
 
     def get_analog_reference_range(self) -> int:
+        """Return the analog reference range.
+
+        Sends ``SYSTem:CONFig:ANAlog:REFerence?``.
+        """
         return int((_parse_float(self._query("SYSTem:CONFig:ANAlog:REFerence?"))))
 
     def set_analog_remsb_level(self, level: AnalogRemsbLevel | str) -> None:
+        """Set the analog remsb level.
+
+        Sends ``SYSTem:CONFig:ANAlog:REMSB:LEVel …``.
+        """
         level = AnalogRemsbLevel(level)
         self._write(f"SYSTem:CONFig:ANAlog:REMSB:LEVel {level.value}")
         self._check_events("Set Analog REM-SB Level")
 
     def get_analog_remsb_level(self) -> AnalogRemsbLevel:
+        """Return the analog remsb level.
+
+        Sends ``SYSTem:CONFig:ANAlog:REMSB:LEVel?``.
+        """
         return AnalogRemsbLevel(self._query("SYSTem:CONFig:ANAlog:REMSB:LEVel?").strip())
 
     def set_analog_remsb_action(self, action: AnalogRemsbAction | str) -> None:
+        """Set the analog remsb action.
+
+        Sends ``SYSTem:CONFig:ANAlog:REMSB:ACTion …``.
+        """
         action = AnalogRemsbAction(action)
         self._write(f"SYSTem:CONFig:ANAlog:REMSB:ACTion {action.value}")
         self._check_events("Set Analog REM-SB Action")
 
     def get_analog_remsb_action(self) -> AnalogRemsbAction:
+        """Return the analog remsb action.
+
+        Sends ``SYSTem:CONFig:ANAlog:REMSB:ACTion?``.
+        """
         return AnalogRemsbAction(self._query("SYSTem:CONFig:ANAlog:REMSB:ACTion?").strip())
 
     # ------------------------------------------------------------------
     # Raw SCPI escape hatch (task §10)
     # ------------------------------------------------------------------
     def enable_raw_scpi(self, confirmation: str) -> None:
+        """Enable raw scpi."""
         if confirmation != _RAW_SCPI_CONFIRMATION:
             raise EaPs9000TValidationError(
                 f'raw SCPI requires the exact confirmation text "{_RAW_SCPI_CONFIRMATION}"'
@@ -640,9 +913,11 @@ class EaPs9000T:
             )
 
     def raw_query(self, command: str) -> str:
+        """Send a raw SCPI query, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         return self._query(command)
 
     def raw_write(self, command: str) -> None:
+        """Send a raw SCPI command, bypassing the typed API."""
         self._require_raw_scpi_enabled()
         self._write(command)

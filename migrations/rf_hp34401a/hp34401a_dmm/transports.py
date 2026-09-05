@@ -81,17 +81,21 @@ class BaseTransport:
     # -- properties ---------------------------------------------------------
     @property
     def transport_type(self) -> TransportType:
+        """The transport type."""
         return self._transport_type
 
     @property
     def name(self) -> str:  # pragma: no cover - overridden
+        """A human-readable name for this connection."""
         return "base"
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._open
 
     # -- public API ---------------------------------------------------------
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         with self._lock:
             if self._has_unread_output:
                 raise ProtocolError(
@@ -102,6 +106,7 @@ class BaseTransport:
             self._send(command + self._write_termination)
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         with self._lock:
             if self._has_unread_output:
                 raise ProtocolError(
@@ -139,11 +144,13 @@ class BaseTransport:
             self._send(data)
 
     def clear(self) -> None:
+        """Clear the instrument's device state."""
         with self._lock:
             self._clear()
             self._has_unread_output = False
 
     def open(self) -> None:
+        """Open the connection."""
         with self._lock:
             try:
                 self._do_open()
@@ -158,6 +165,7 @@ class BaseTransport:
             self._open = True
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         with self._lock:
             try:
                 self._do_close()
@@ -166,11 +174,13 @@ class BaseTransport:
                 self._has_unread_output = False
 
     def set_timeout(self, timeout_s: float) -> None:
+        """Set the timeout."""
         with self._lock:
             self._set_timeout(timeout_s)
 
     @property
     def lock(self) -> threading.RLock:
+        """The lock."""
         return self._lock
 
     # -- hooks (override) ---------------------------------------------------
@@ -248,10 +258,12 @@ class FakeTransport(BaseTransport):
 
     @property
     def name(self) -> str:
+        """A human-readable name for this connection."""
         return "fake"
 
     # The fake overrides write/query directly (it is line-oriented, not byte).
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         with self._lock:
             if self._has_unread_output:
                 raise ProtocolError("Write while query response unread (fake).")
@@ -261,6 +273,7 @@ class FakeTransport(BaseTransport):
                 raise self._TimeoutError(f"Fake timeout on {command!r}")
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         with self._lock:
             if self._has_unread_output:
                 raise ProtocolError("Query while previous response unread (fake).")
@@ -284,25 +297,31 @@ class FakeTransport(BaseTransport):
         return self.default_response
 
     def read_raw(self) -> str:
+        """Read the raw."""
         with self._lock:
             self._has_unread_output = False
             return self.default_response
 
     def write_raw(self, data: str) -> None:
+        """Write the raw."""
         with self._lock:
             self.raw_writes.append(data)
 
     def clear(self) -> None:
+        """Clear the instrument's device state."""
         with self._lock:
             self.clear_count += 1
             self._has_unread_output = False
 
     def open(self) -> None:
+        """Open the connection."""
         self._open = True
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self._open = False
         self._has_unread_output = False
 
     def set_timeout(self, timeout_s: float) -> None:
+        """Set the timeout."""
         pass

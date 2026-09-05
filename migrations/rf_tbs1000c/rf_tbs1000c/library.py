@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover
     class _FallbackLogger:
         @staticmethod
         def info(message: str, *_args: Any, **_kwargs: Any) -> None:
+            """Log an informational message."""
             print(message)
 
         warn = error = debug = info
@@ -284,6 +285,7 @@ class Tbs1000cLibrary:
     @keyword("Is Connected")
     @_evidenced
     def is_connected(self, alias: str | None = None) -> bool:
+        """Whether the connected."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return False
@@ -292,6 +294,7 @@ class Tbs1000cLibrary:
     @keyword("Get Connection State")
     @_evidenced
     def get_connection_state(self, alias: str | None = None, refresh: bool = False) -> dict[str, Any]:
+        """Return the connection state."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return {
@@ -316,11 +319,13 @@ class Tbs1000cLibrary:
     @keyword("Check Communication")
     @_evidenced
     def check_communication(self, alias: str | None = None) -> bool:
+        """Check the communication."""
         return self._session(alias).check_communication()
 
     @keyword("Get Identity")
     @_evidenced
     def get_identity(self, alias: str | None = None, refresh: bool = True) -> str:
+        """Return the identity."""
         return self._session(alias).identify(refresh=_as_bool(refresh, "refresh")).raw
 
     @keyword("Switch Oscilloscope")
@@ -333,6 +338,7 @@ class Tbs1000cLibrary:
     @keyword("Get Active Oscilloscope")
     @_evidenced
     def get_active_oscilloscope(self) -> str | None:
+        """Return the active oscilloscope."""
         return self._active_alias
 
     @keyword("List Oscilloscope Connections")
@@ -346,41 +352,49 @@ class Tbs1000cLibrary:
     @keyword("Set Channel Scale")
     @_evidenced
     def set_channel_scale(self, channel: int, volts_per_div: float, alias: str | None = None) -> None:
+        """Set the channel scale."""
         self._session(alias).set_channel_scale(channel, float(volts_per_div))
 
     @keyword("Get Channel Scale")
     @_evidenced
     def get_channel_scale(self, channel: int, alias: str | None = None) -> float:
+        """Return the channel scale."""
         return self._session(alias).get_channel_scale(channel)
 
     @keyword("Set Channel Position")
     @_evidenced
     def set_channel_position(self, channel: int, divisions: float, alias: str | None = None) -> None:
+        """Set the channel position."""
         self._session(alias).set_channel_position(channel, float(divisions))
 
     @keyword("Get Channel Position")
     @_evidenced
     def get_channel_position(self, channel: int, alias: str | None = None) -> float:
+        """Return the channel position."""
         return self._session(alias).get_channel_position(channel)
 
     @keyword("Set Channel Offset")
     @_evidenced
     def set_channel_offset(self, channel: int, volts: float, alias: str | None = None) -> None:
+        """Set the channel offset."""
         self._session(alias).set_channel_offset(channel, float(volts))
 
     @keyword("Get Channel Offset")
     @_evidenced
     def get_channel_offset(self, channel: int, alias: str | None = None) -> float:
+        """Return the channel offset."""
         return self._session(alias).get_channel_offset(channel)
 
     @keyword("Set Channel Coupling")
     @_evidenced
     def set_channel_coupling(self, channel: int, coupling: str, alias: str | None = None) -> None:
+        """Set the channel coupling."""
         self._session(alias).set_channel_coupling(channel, coupling)
 
     @keyword("Get Channel Coupling")
     @_evidenced
     def get_channel_coupling(self, channel: int, alias: str | None = None) -> str:
+        """Return the channel coupling."""
         return self._session(alias).get_channel_coupling(channel).value
 
     @keyword("Set Channel Bandwidth Limit")
@@ -388,21 +402,25 @@ class Tbs1000cLibrary:
     def set_channel_bandwidth_limit(
         self, channel: int, value: str, alias: str | None = None
     ) -> None:
+        """Set the channel bandwidth limit."""
         self._session(alias).set_channel_bandwidth_limit(channel, value)
 
     @keyword("Get Channel Bandwidth Limit")
     @_evidenced
     def get_channel_bandwidth_limit(self, channel: int, alias: str | None = None) -> str:
+        """Return the channel bandwidth limit."""
         return self._session(alias).get_channel_bandwidth_limit(channel)
 
     @keyword("Set Channel Probe Gain")
     @_evidenced
     def set_channel_probe_gain(self, channel: int, gain: float, alias: str | None = None) -> None:
+        """Set the channel probe gain."""
         self._session(alias).set_channel_probe_gain(channel, float(gain))
 
     @keyword("Get Channel Probe Gain")
     @_evidenced
     def get_channel_probe_gain(self, channel: int, alias: str | None = None) -> float:
+        """Return the channel probe gain."""
         return self._session(alias).get_channel_probe_gain(channel)
 
     @keyword("Set Channel Name")
@@ -415,11 +433,13 @@ class Tbs1000cLibrary:
     @keyword("Get Channel Name")
     @_evidenced
     def get_channel_name(self, channel: int, alias: str | None = None) -> str:
+        """Return the channel name."""
         return self._session(alias).get_channel_name(channel)
 
     @keyword("Get Channel Settings")
     @_evidenced
     def get_channel_settings(self, channel: int, alias: str | None = None) -> dict[str, Any]:
+        """Return the channel settings."""
         return _robot_value(self._session(alias).get_channel_settings(channel))
 
     # ------------------------------------------------------------------
@@ -428,41 +448,49 @@ class Tbs1000cLibrary:
     @keyword("Set Trigger Source")
     @_evidenced
     def set_trigger_source(self, channel: int, alias: str | None = None) -> None:
+        """Set the trigger source."""
         self._session(alias).set_trigger_source(channel)
 
     @keyword("Get Trigger Source")
     @_evidenced
     def get_trigger_source(self, alias: str | None = None) -> str:
+        """Return the trigger source."""
         return self._session(alias).get_trigger_source()
 
     @keyword("Set Trigger Slope")
     @_evidenced
     def set_trigger_slope(self, slope: str, alias: str | None = None) -> None:
+        """Set the trigger slope."""
         self._session(alias).set_trigger_slope(slope)
 
     @keyword("Get Trigger Slope")
     @_evidenced
     def get_trigger_slope(self, alias: str | None = None) -> str:
+        """Return the trigger slope."""
         return self._session(alias).get_trigger_slope().value
 
     @keyword("Set Trigger Coupling")
     @_evidenced
     def set_trigger_coupling(self, coupling: str, alias: str | None = None) -> None:
+        """Set the trigger coupling."""
         self._session(alias).set_trigger_coupling(coupling)
 
     @keyword("Get Trigger Coupling")
     @_evidenced
     def get_trigger_coupling(self, alias: str | None = None) -> str:
+        """Return the trigger coupling."""
         return self._session(alias).get_trigger_coupling().value
 
     @keyword("Set Trigger Level")
     @_evidenced
     def set_trigger_level(self, level_v: float, alias: str | None = None) -> None:
+        """Set the trigger level."""
         self._session(alias).set_trigger_level(float(level_v))
 
     @keyword("Get Trigger Level")
     @_evidenced
     def get_trigger_level(self, alias: str | None = None) -> float:
+        """Return the trigger level."""
         return self._session(alias).get_trigger_level()
 
     @keyword("Auto Set Trigger Level")
@@ -473,11 +501,13 @@ class Tbs1000cLibrary:
     @keyword("Force Trigger")
     @_evidenced
     def force_trigger(self, alias: str | None = None) -> None:
+        """Force a trigger regardless of the configured source."""
         self._session(alias).force_trigger()
 
     @keyword("Get Trigger Settings")
     @_evidenced
     def get_trigger_settings(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the trigger settings."""
         return _robot_value(self._session(alias).get_trigger_settings())
 
     # ------------------------------------------------------------------
@@ -493,26 +523,31 @@ class Tbs1000cLibrary:
     @keyword("Start Acquisition")
     @_evidenced
     def start_acquisition(self, alias: str | None = None) -> None:
+        """Start acquisition."""
         self._session(alias).start_acquisition()
 
     @keyword("Stop Acquisition")
     @_evidenced
     def stop_acquisition(self, alias: str | None = None) -> None:
+        """Stop acquisition."""
         self._session(alias).stop_acquisition()
 
     @keyword("Set Acquisition Mode")
     @_evidenced
     def set_acquisition_mode(self, mode: str, alias: str | None = None) -> None:
+        """Set the acquisition mode."""
         self._session(alias).set_acquisition_mode(mode)
 
     @keyword("Get Acquisition Mode")
     @_evidenced
     def get_acquisition_mode(self, alias: str | None = None) -> str:
+        """Return the acquisition mode."""
         return self._session(alias).get_acquisition_mode().value
 
     @keyword("Get Acquisition Count")
     @_evidenced
     def get_acquisition_count(self, alias: str | None = None) -> int:
+        """Return the acquisition count."""
         return self._session(alias).get_acquisition_count()
 
     # ------------------------------------------------------------------
@@ -528,11 +563,13 @@ class Tbs1000cLibrary:
     @keyword("Get Calibration Status")
     @_evidenced
     def get_calibration_status(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the calibration status."""
         return _robot_value(self._session(alias).get_calibration_status())
 
     @keyword("Get Calibration Results")
     @_evidenced
     def get_calibration_results(self, alias: str | None = None) -> str:
+        """Return the calibration results."""
         return self._session(alias).get_calibration_results()
 
     # ------------------------------------------------------------------
@@ -644,6 +681,7 @@ class Tbs1000cLibrary:
     @keyword("Save Setup To Instrument Memory")
     @_evidenced
     def save_setup_to_instrument_memory(self, slot: int, alias: str | None = None) -> None:
+        """Save the setup to instrument memory."""
         self._session(alias).save_setup_to_instrument_memory(slot)
 
     @keyword("Restore Setup From Instrument Memory")
@@ -662,6 +700,7 @@ class Tbs1000cLibrary:
     @keyword("Enable Raw SCPI")
     @_evidenced
     def enable_raw_scpi(self, confirmation: str, alias: str | None = None) -> None:
+        """Enable raw scpi."""
         self._session(alias).enable_raw_scpi(confirmation)
 
     @keyword("Raw SCPI Query")

@@ -76,13 +76,16 @@ class _CoreTransportAdapter:
 
     @property
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._client.is_open
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         with self._lock, self._translating("write"):
             self._client.write(command)
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         with self._lock, self._translating("query"):
             # The core strips only the configured terminator, never arbitrary
             # whitespace. N6700 firmware pads some replies, and the driver has
@@ -91,6 +94,7 @@ class _CoreTransportAdapter:
             return self._client.query(command).strip()
 
     def read_raw(self) -> bytes:
+        """Read the raw."""
         with self._lock, self._translating("read"):
             request = ReadRequest(
                 mode=ReadMode.UNTIL_TERMINATOR, terminator=b"\n", include_terminator=True
@@ -98,13 +102,16 @@ class _CoreTransportAdapter:
             return self._client.read_bytes(request)
 
     def write_raw(self, data: bytes) -> None:
+        """Write the raw."""
         with self._lock, self._translating("write"):
             self._client.write_bytes(data)
 
     def clear(self) -> None:
+        """Clear the instrument's device state."""
         raise UnsupportedFeatureError(f"{self._description} does not support device clear")
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         with self._lock:
             self._client.transport.close()
 
@@ -177,6 +184,7 @@ class PyVisaTransport(_CoreTransportAdapter):
         )
 
     def clear(self) -> None:
+        """Clear the instrument's device state."""
         from scpi_driver_core.transport import FlushDirection
 
         with self._lock, self._translating("clear"):
@@ -221,13 +229,16 @@ class SimulatedTransport:
 
     @property
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._open
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         with self._lock:
             self.simulator.execute(command)  # type: ignore[attr-defined]
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         with self._lock:
             response = self.simulator.execute(command)  # type: ignore[attr-defined]
             if isinstance(response, bytes):
@@ -235,16 +246,20 @@ class SimulatedTransport:
             return str(response).strip()
 
     def read_raw(self) -> bytes:
+        """Read the raw."""
         with self._lock:
             return self._raw_response
 
     def write_raw(self, data: bytes) -> None:
+        """Write the raw."""
         with self._lock:
             self._raw_response = data
 
     def clear(self) -> None:
+        """Clear the instrument's device state."""
         with self._lock:
             self.simulator.clear()  # type: ignore[attr-defined]
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self._open = False

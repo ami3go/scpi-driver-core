@@ -71,6 +71,7 @@ class PyvisaTransport:
         return self._client
 
     def open(self) -> None:
+        """Open the connection."""
         try:
             transport = VisaTransport(self.resource, timeout_s=self._timeout_s)
             transport.open()
@@ -81,11 +82,13 @@ class PyvisaTransport:
         self._client = ScpiClient(transport, codec=_CODEC, timeout_s=self._timeout_s)
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         if self._client is not None:
             self._client.transport.close()
             self._client = None
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._client is not None
 
     def _require_open(self) -> ScpiClient:
@@ -94,6 +97,7 @@ class PyvisaTransport:
         return self._client
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         client = self._require_open()
         try:
             client.write(command)
@@ -101,6 +105,7 @@ class PyvisaTransport:
             raise EaPs9000TTimeoutError(f"write failed for {command!r}: {exc}") from exc
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         client = self._require_open()
         try:
             return client.query(command).strip()
@@ -109,10 +114,12 @@ class PyvisaTransport:
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self._timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self._timeout_s = float(value)
         if self._client is not None:
             self._client.set_timeout(self._timeout_s)
@@ -137,12 +144,15 @@ class SimulatedTransport:
         self._timeout_s = 5.0
 
     def open(self) -> None:
+        """Open the connection."""
         self._open = True
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self._open = False
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self._open
 
     def _require_open(self) -> None:
@@ -150,19 +160,23 @@ class SimulatedTransport:
             raise EaPs9000TConnectionError("transport is not open")
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         self._require_open()
         self._simulator.dispatch(command)
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         self._require_open()
         return self._simulator.dispatch(command).decode("ascii", errors="replace").strip()
 
     @property
     def timeout_s(self) -> float:
+        """The timeout in seconds."""
         return self._timeout_s
 
     @timeout_s.setter
     def timeout_s(self, value: float) -> None:
+        """The timeout in seconds."""
         self._timeout_s = float(value)
 
     @property

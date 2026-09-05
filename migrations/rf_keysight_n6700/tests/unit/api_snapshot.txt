@@ -1,48 +1,48 @@
-method audit(self, record: 'AuditRecord') -> 'None'  [undocumented]
-method channel(self, channel: 'int') -> 'BaseChannel'  [undocumented]
-method channel_count(self) -> 'int'  [undocumented]
-method channel_model(self, channel: 'int') -> 'str'  [undocumented]
-method channel_options(self, channel: 'int') -> 'list[str]'  [undocumented]
-method channel_serial(self, channel: 'int') -> 'str'  [undocumented]
-method check_errors(self) -> 'None'  [undocumented]
-method clear_protection(self, channel: 'int', *, restore_output: 'bool' = False, force_output_off_first: 'bool' = True, verify_cleared: 'bool' = True) -> 'ProtectionClearResult'  [undocumented]
-method clear_status(self) -> 'None'  [undocumented]
-method close(self) -> 'None'  [undocumented]
-method configure_load_cc(self, channel: 'int', current: 'float', *, input_on: 'bool' = False, verify: 'bool' = True, **_: 'object') -> 'None'  [undocumented]
-method configure_smu_current_priority(self, channel: 'int', current: 'float', voltage_limit: 'float', **kw: 'Any') -> 'None'  [undocumented]
-method configure_smu_voltage_priority(self, channel: 'int', voltage: 'float', current_limit: 'float', **kw: 'Any') -> 'None'  [undocumented]
-method connect_ethernet(host: 'str', port: 'int' = 5025, **options: 'Any') -> 'N6700'  [undocumented]
-method connect_simulated(simulator: 'object | None' = None, **options: 'Any') -> 'N6700'  [undocumented]
-method connect_usb(resource: 'str', **options: 'Any') -> 'N6700'  [undocumented]
-method connect_visa(resource: 'str', **options: 'Any') -> 'N6700'  [undocumented]
-method discover_modules(self) -> 'dict[int, ChannelCapabilities]'  [undocumented]
-method drain_errors(self) -> 'list[ScpiErrorRecord]'  [undocumented]
-method get_channel(self, channel: 'int') -> 'BaseChannel'  [undocumented]
-method get_error(self) -> 'ScpiErrorRecord'  [undocumented]
-method get_load_mode(self, channel: 'int') -> "Literal['cc', 'cv', 'cr', 'cp']"  [undocumented]
-method get_operation_status(self, channel: 'int | None' = None) -> 'OperationStatus'  [undocumented]
-method get_questionable_status(self, channel: 'int | None' = None) -> 'QuestionableStatus'  [undocumented]
-method get_remote_state(self) -> 'RemoteState'  [undocumented]
-method get_smu_mode(self, channel: 'int') -> "Literal['voltage', 'current']"  [undocumented]
-method idn(self) -> 'InstrumentIdentity'  [undocumented]
-method load(self, channel: 'int') -> 'ElectronicLoadChannel'  [undocumented]
-method measure_all(self) -> 'dict[int, Measurement]'  [undocumented]
-method operation_complete(self, timeout: 'float | None' = None) -> 'bool'  [undocumented]
-method power_supply(self, channel: 'int') -> 'PowerSupplyChannel'  [undocumented]
-method query_scpi(self, command: 'str') -> 'str'  [undocumented]
-method remote_lockout(self, enabled: 'bool') -> 'None'  [undocumented]
-method reset(self) -> 'None'  [undocumented]
-method self_test(self) -> 'SelfTestResult'  [undocumented]
-method set_channel_enabled(self, channels: 'Sequence[int]', enabled: 'bool') -> 'None'  [undocumented]
-method set_load_inputs(self, channels: 'Sequence[int]', enabled: 'bool') -> 'None'  [undocumented]
-method set_load_mode(self, channel: 'int', mode: "Literal['cc', 'cv', 'cr', 'cp']") -> 'None'  [undocumented]
-method set_power_outputs(self, channels: 'Sequence[int]', enabled: 'bool') -> 'None'  [undocumented]
-method set_remote_state(self, state: 'RemoteState') -> 'None'  [undocumented]
-method set_smu_mode(self, channel: 'int', mode: "Literal['voltage', 'current']") -> 'None'  [undocumented]
-method shutdown_all(self) -> 'ShutdownResult'  [undocumented]
-method smu(self, channel: 'int') -> 'SMUChannel'  [undocumented]
-method standard_event_status(self) -> 'int'  [undocumented]
-method status_byte(self) -> 'int'  [undocumented]
-method wait(self) -> 'None'  [undocumented]
-method write_scpi(self, command: 'str') -> 'None'  [undocumented]
-property channels  [undocumented]
+method audit(self, record: 'AuditRecord') -> 'None'
+method channel(self, channel: 'int') -> 'BaseChannel'
+method channel_count(self) -> 'int'
+method channel_model(self, channel: 'int') -> 'str'
+method channel_options(self, channel: 'int') -> 'list[str]'
+method channel_serial(self, channel: 'int') -> 'str'
+method check_errors(self) -> 'None'
+method clear_protection(self, channel: 'int', *, restore_output: 'bool' = False, force_output_off_first: 'bool' = True, verify_cleared: 'bool' = True) -> 'ProtectionClearResult'
+method clear_status(self) -> 'None'
+method close(self) -> 'None'
+method configure_load_cc(self, channel: 'int', current: 'float', *, input_on: 'bool' = False, verify: 'bool' = True, **_: 'object') -> 'None'
+method configure_smu_current_priority(self, channel: 'int', current: 'float', voltage_limit: 'float', **kw: 'Any') -> 'None'
+method configure_smu_voltage_priority(self, channel: 'int', voltage: 'float', current_limit: 'float', **kw: 'Any') -> 'None'
+method connect_ethernet(host: 'str', port: 'int' = 5025, **options: 'Any') -> 'N6700'
+method connect_simulated(simulator: 'object | None' = None, **options: 'Any') -> 'N6700'
+method connect_usb(resource: 'str', **options: 'Any') -> 'N6700'
+method connect_visa(resource: 'str', **options: 'Any') -> 'N6700'
+method discover_modules(self) -> 'dict[int, ChannelCapabilities]'
+method drain_errors(self) -> 'list[ScpiErrorRecord]'
+method get_channel(self, channel: 'int') -> 'BaseChannel'
+method get_error(self) -> 'ScpiErrorRecord'
+method get_load_mode(self, channel: 'int') -> "Literal['cc', 'cv', 'cr', 'cp']"
+method get_operation_status(self, channel: 'int | None' = None) -> 'OperationStatus'
+method get_questionable_status(self, channel: 'int | None' = None) -> 'QuestionableStatus'
+method get_remote_state(self) -> 'RemoteState'
+method get_smu_mode(self, channel: 'int') -> "Literal['voltage', 'current']"
+method idn(self) -> 'InstrumentIdentity'
+method load(self, channel: 'int') -> 'ElectronicLoadChannel'
+method measure_all(self) -> 'dict[int, Measurement]'
+method operation_complete(self, timeout: 'float | None' = None) -> 'bool'
+method power_supply(self, channel: 'int') -> 'PowerSupplyChannel'
+method query_scpi(self, command: 'str') -> 'str'
+method remote_lockout(self, enabled: 'bool') -> 'None'
+method reset(self) -> 'None'
+method self_test(self) -> 'SelfTestResult'
+method set_channel_enabled(self, channels: 'Sequence[int]', enabled: 'bool') -> 'None'
+method set_load_inputs(self, channels: 'Sequence[int]', enabled: 'bool') -> 'None'
+method set_load_mode(self, channel: 'int', mode: "Literal['cc', 'cv', 'cr', 'cp']") -> 'None'
+method set_power_outputs(self, channels: 'Sequence[int]', enabled: 'bool') -> 'None'
+method set_remote_state(self, state: 'RemoteState') -> 'None'
+method set_smu_mode(self, channel: 'int', mode: "Literal['voltage', 'current']") -> 'None'
+method shutdown_all(self) -> 'ShutdownResult'
+method smu(self, channel: 'int') -> 'SMUChannel'
+method standard_event_status(self) -> 'int'
+method status_byte(self) -> 'int'
+method wait(self) -> 'None'
+method write_scpi(self, command: 'str') -> 'None'
+property channels

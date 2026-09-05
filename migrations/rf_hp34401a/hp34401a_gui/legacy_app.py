@@ -367,6 +367,7 @@ def main() -> int:
             threading.Thread(target=run, daemon=True).start()
 
         def connect(self) -> None:
+            """Open the connection."""
             def do() -> str:
                 if self.state.driver is not None:
                     self.state.driver.close()
@@ -450,6 +451,7 @@ def main() -> int:
             self._worker("BUS Trigger Read", do)
 
         def start_continuous(self) -> None:
+            """Start continuous."""
             self.state.continuous_stop.clear()
             interval = float(self.interval_var.get())
 
@@ -465,10 +467,12 @@ def main() -> int:
             self._worker("Continuous", loop)
 
         def stop_continuous(self) -> None:
+            """Stop continuous."""
             self.state.continuous_stop.set()
             self._log("Stop requested")
 
         def read_stable(self) -> None:
+            """Read the stable."""
             def do():
                 d = self._require_driver()
                 expected = float(self.expected_ohm_var.get()) if self.expected_ohm_var.get().strip() else None
@@ -486,25 +490,32 @@ def main() -> int:
             self._worker("Stable Resistance", do)
 
         def identify(self) -> None:
+            """Return the instrument identity."""
             self._worker("Identify", lambda: self._require_driver().identify())
 
         def self_test(self) -> None:
+            """Run the instrument self-test."""
             self._worker("Self Test", lambda: self._require_driver().self_test())
 
         def clear_status(self) -> None:
+            """Clear the status."""
             self._worker("Clear Status", lambda: self._require_driver().clear_status() or "*CLS sent")
 
         def drain_errors(self) -> None:
+            """Drain the errors."""
             self._worker("Drain Error Queue", lambda: self._require_driver().drain_error_queue())
 
         def query_terminals(self) -> None:
+            """Query the terminals."""
             self._worker("Query Terminals", lambda: self._require_driver().query_terminal())
 
         def raw_query(self) -> None:
+            """Send a raw SCPI query, bypassing the typed API."""
             cmd = self.raw_command_var.get().strip()
             self._worker(f"Query {cmd}", lambda: self._require_driver().query(cmd))
 
         def raw_write(self) -> None:
+            """Send a raw SCPI command, bypassing the typed API."""
             cmd = self.raw_command_var.get().strip()
             self._worker(f"Write {cmd}", lambda: self._require_driver().write(cmd) or "OK")
 

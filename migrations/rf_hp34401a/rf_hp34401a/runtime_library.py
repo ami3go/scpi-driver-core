@@ -141,6 +141,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
         profile_name: str,
         validate_only: object = False,
     ) -> dict[str, Any]:
+        """Load the driver configuration."""
         validate = as_bool(validate_only, name="validate_only")
         result = self._configuration.load_profile(profile_name, validate_only=validate)
         if not validate:
@@ -150,6 +151,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
     @keyword("Reset Driver Configuration", tags=["rfds:configuration", "rfds:low_risk"])
     @_evidenced
     def reset_driver_configuration(self) -> dict[str, Any]:
+        """Reset the driver configuration."""
         result = self._configuration.reset()
         self._apply_effective_policy()
         return result
@@ -264,6 +266,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
     @keyword("Check Communication", tags=["rfds:diagnostic", "rfds:low_risk"])
     @_evidenced
     def check_communication(self, alias: object | None = None) -> bool:
+        """Check the communication."""
         session = self._session(alias)
         key = self._alias_key(session.alias)
         legacy = _LegacyHp34401ALibrary.check_communication.__wrapped__
@@ -282,6 +285,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
         alias: object | None = None,
         refresh: object = False,
     ) -> dict[str, Any]:
+        """Return the connection state."""
         legacy = _LegacyHp34401ALibrary.get_connection_state.__wrapped__
         do_refresh = as_bool(refresh, name="refresh")
         result = legacy(self, alias=alias, refresh=do_refresh)
@@ -314,6 +318,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
         timeout_s: object,
         alias: object | None = None,
     ) -> float:
+        """Set the communication timeout."""
         value = as_seconds(timeout_s, name="timeout_s")
         session = self._sessions.find(alias)
         if session is None:
@@ -340,6 +345,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
         alias: object | None = None,
         timeout_s: object | None = None,
     ) -> str:
+        """Read the raw response."""
         self._require_raw_io("Read Raw Response")
         session = self._session(alias)
         if timeout_s is not None:
@@ -351,6 +357,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
     @keyword("Get Driver Information", tags=["rfds:query", "rfds:low_risk"])
     @_evidenced
     def get_driver_information(self) -> dict[str, Any]:
+        """Return the driver information."""
         legacy = _LegacyHp34401ALibrary.get_driver_information.__wrapped__
         result = legacy(self)
         result["rfds_core_runtime_version"] = _rfds_core_runtime_version()
@@ -359,6 +366,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
     @keyword("Get Driver Metadata", tags=["rfds:query", "rfds:low_risk"])
     @_evidenced
     def get_driver_metadata(self, alias: object | None = None) -> dict[str, Any]:
+        """Return the driver metadata."""
         metadata: dict[str, Any] = {
             "driver_name": "rf_hp34401a.Hp34401ALibrary",
             "driver_version": __version__,
@@ -438,6 +446,7 @@ class Hp34401ALibrary(_LegacyHp34401ALibrary):
     # Robot listener callback. Cleanup must be best-effort and evidence must be
     # finalized exactly once even when users omit an explicit Disconnect keyword.
     def close(self) -> None:
+        """Close the connection and release the transport."""
         errors = self._sessions.close_all()
         self._communication_health.clear()
         run = self._evidence

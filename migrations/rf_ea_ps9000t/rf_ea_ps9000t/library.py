@@ -36,6 +36,7 @@ except ImportError:  # pragma: no cover
     class _FallbackLogger:
         @staticmethod
         def info(message: str, *_args: Any, **_kwargs: Any) -> None:
+            """Log an informational message."""
             print(message)
 
         warn = error = debug = info
@@ -361,6 +362,7 @@ class EaPs9000TLibrary:
     @keyword("Is Connected")
     @_evidenced
     def is_connected(self, alias: str | None = None) -> bool:
+        """Whether the connected."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return False
@@ -369,6 +371,7 @@ class EaPs9000TLibrary:
     @keyword("Get Connection State")
     @_evidenced
     def get_connection_state(self, alias: str | None = None, refresh: bool = False) -> dict[str, Any]:
+        """Return the connection state."""
         selected = self._resolve_alias(alias)
         if selected is None or selected not in self._sessions:
             return {
@@ -393,11 +396,13 @@ class EaPs9000TLibrary:
     @keyword("Check Communication")
     @_evidenced
     def check_communication(self, alias: str | None = None) -> bool:
+        """Check the communication."""
         return self._session(alias).check_communication()
 
     @keyword("Get Identity")
     @_evidenced
     def get_identity(self, alias: str | None = None, refresh: bool = True) -> str:
+        """Return the identity."""
         return self._session(alias).identify(refresh=_as_bool(refresh, "refresh")).raw
 
     @keyword("Get Remote Control Owner")
@@ -417,6 +422,7 @@ class EaPs9000TLibrary:
     @keyword("Get Active Power Supply")
     @_evidenced
     def get_active_power_supply(self) -> str | None:
+        """Return the active power supply."""
         return self._active_alias
 
     @keyword("List Power Supply Connections")
@@ -430,31 +436,37 @@ class EaPs9000TLibrary:
     @keyword("Set Voltage")
     @_evidenced
     def set_voltage(self, value: float, alias: str | None = None) -> None:
+        """Set the voltage."""
         self._session(alias).set_voltage(float(value))
 
     @keyword("Get Voltage")
     @_evidenced
     def get_voltage(self, alias: str | None = None) -> float:
+        """Return the voltage."""
         return self._session(alias).get_voltage()
 
     @keyword("Set Current")
     @_evidenced
     def set_current(self, value: float, alias: str | None = None) -> None:
+        """Set the current."""
         self._session(alias).set_current(float(value))
 
     @keyword("Get Current")
     @_evidenced
     def get_current(self, alias: str | None = None) -> float:
+        """Return the current."""
         return self._session(alias).get_current()
 
     @keyword("Set Power")
     @_evidenced
     def set_power(self, value: float, alias: str | None = None) -> None:
+        """Set the power."""
         self._session(alias).set_power(float(value))
 
     @keyword("Get Power")
     @_evidenced
     def get_power(self, alias: str | None = None) -> float:
+        """Return the power."""
         return self._session(alias).get_power()
 
     # ------------------------------------------------------------------
@@ -463,36 +475,43 @@ class EaPs9000TLibrary:
     @keyword("Set Overvoltage Protection")
     @_evidenced
     def set_overvoltage_protection(self, value: float, alias: str | None = None) -> None:
+        """Set the overvoltage protection."""
         self._session(alias).set_overvoltage_protection(float(value))
 
     @keyword("Get Overvoltage Protection")
     @_evidenced
     def get_overvoltage_protection(self, alias: str | None = None) -> float:
+        """Return the overvoltage protection."""
         return self._session(alias).get_overvoltage_protection()
 
     @keyword("Set Overcurrent Protection")
     @_evidenced
     def set_overcurrent_protection(self, value: float, alias: str | None = None) -> None:
+        """Set the overcurrent protection."""
         self._session(alias).set_overcurrent_protection(float(value))
 
     @keyword("Get Overcurrent Protection")
     @_evidenced
     def get_overcurrent_protection(self, alias: str | None = None) -> float:
+        """Return the overcurrent protection."""
         return self._session(alias).get_overcurrent_protection()
 
     @keyword("Set Overpower Protection")
     @_evidenced
     def set_overpower_protection(self, value: float, alias: str | None = None) -> None:
+        """Set the overpower protection."""
         self._session(alias).set_overpower_protection(float(value))
 
     @keyword("Get Overpower Protection")
     @_evidenced
     def get_overpower_protection(self, alias: str | None = None) -> float:
+        """Return the overpower protection."""
         return self._session(alias).get_overpower_protection()
 
     @keyword("Get Protection Thresholds")
     @_evidenced
     def get_protection_thresholds(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the protection thresholds."""
         return _robot_value(self._session(alias).get_protection_thresholds())
 
     # ------------------------------------------------------------------
@@ -501,16 +520,19 @@ class EaPs9000TLibrary:
     @keyword("Enable Output")
     @_evidenced
     def enable_output(self, alias: str | None = None) -> None:
+        """Enable output."""
         self._session(alias).enable_output()
 
     @keyword("Disable Output")
     @_evidenced
     def disable_output(self, alias: str | None = None) -> None:
+        """Disable output."""
         self._session(alias).disable_output()
 
     @keyword("Is Output Enabled")
     @_evidenced
     def is_output_enabled(self, alias: str | None = None) -> bool:
+        """Whether the output enabled."""
         return self._session(alias).is_output_enabled()
 
     # ------------------------------------------------------------------
@@ -519,21 +541,25 @@ class EaPs9000TLibrary:
     @keyword("Get Measured Voltage")
     @_evidenced
     def get_measured_voltage(self, alias: str | None = None) -> float:
+        """Return the measured voltage."""
         return self._session(alias).get_measured_voltage()
 
     @keyword("Get Measured Current")
     @_evidenced
     def get_measured_current(self, alias: str | None = None) -> float:
+        """Return the measured current."""
         return self._session(alias).get_measured_current()
 
     @keyword("Get Measured Power")
     @_evidenced
     def get_measured_power(self, alias: str | None = None) -> float:
+        """Return the measured power."""
         return self._session(alias).get_measured_power()
 
     @keyword("Get Measured Values")
     @_evidenced
     def get_measured_values(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the measured values."""
         return _robot_value(self._session(alias).get_measured_values())
 
     # ------------------------------------------------------------------
@@ -542,16 +568,19 @@ class EaPs9000TLibrary:
     @keyword("Get Nominal Ratings")
     @_evidenced
     def get_nominal_ratings(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the nominal ratings."""
         return _robot_value(self._session(alias).get_nominal_ratings())
 
     @keyword("Get Device Class")
     @_evidenced
     def get_device_class(self, alias: str | None = None) -> str:
+        """Return the device class."""
         return self._session(alias).get_device_class()
 
     @keyword("Get Alarm Counters")
     @_evidenced
     def get_alarm_counters(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the alarm counters."""
         return _robot_value(self._session(alias).get_alarm_counters())
 
     # ------------------------------------------------------------------
@@ -560,31 +589,37 @@ class EaPs9000TLibrary:
     @keyword("Set Voltage Limit Low")
     @_evidenced
     def set_voltage_limit_low(self, value: float, alias: str | None = None) -> None:
+        """Set the voltage limit low."""
         self._session(alias).set_voltage_limit_low(float(value))
 
     @keyword("Set Voltage Limit High")
     @_evidenced
     def set_voltage_limit_high(self, value: float, alias: str | None = None) -> None:
+        """Set the voltage limit high."""
         self._session(alias).set_voltage_limit_high(float(value))
 
     @keyword("Get Voltage Limits")
     @_evidenced
     def get_voltage_limits(self, alias: str | None = None) -> list[float]:
+        """Return the voltage limits."""
         return list(self._session(alias).get_voltage_limits())
 
     @keyword("Set Current Limit Low")
     @_evidenced
     def set_current_limit_low(self, value: float, alias: str | None = None) -> None:
+        """Set the current limit low."""
         self._session(alias).set_current_limit_low(float(value))
 
     @keyword("Set Current Limit High")
     @_evidenced
     def set_current_limit_high(self, value: float, alias: str | None = None) -> None:
+        """Set the current limit high."""
         self._session(alias).set_current_limit_high(float(value))
 
     @keyword("Get Current Limits")
     @_evidenced
     def get_current_limits(self, alias: str | None = None) -> list[float]:
+        """Return the current limits."""
         return list(self._session(alias).get_current_limits())
 
     @keyword("Set Power Limit High")
@@ -597,11 +632,13 @@ class EaPs9000TLibrary:
     @keyword("Get Power Limit High")
     @_evidenced
     def get_power_limit_high(self, alias: str | None = None) -> float:
+        """Return the power limit high."""
         return self._session(alias).get_power_limit_high()
 
     @keyword("Get Adjustment Limits")
     @_evidenced
     def get_adjustment_limits(self, alias: str | None = None) -> dict[str, Any]:
+        """Return the adjustment limits."""
         return _robot_value(self._session(alias).get_adjustment_limits())
 
     # ------------------------------------------------------------------
@@ -610,31 +647,37 @@ class EaPs9000TLibrary:
     @keyword("Set Power Stage After Remote")
     @_evidenced
     def set_power_stage_after_remote(self, mode: str, alias: str | None = None) -> None:
+        """Set the power stage after remote."""
         self._session(alias).set_power_stage_after_remote(mode)
 
     @keyword("Get Power Stage After Remote")
     @_evidenced
     def get_power_stage_after_remote(self, alias: str | None = None) -> str:
+        """Return the power stage after remote."""
         return self._session(alias).get_power_stage_after_remote().value
 
     @keyword("Set Output Restore Mode")
     @_evidenced
     def set_output_restore_mode(self, mode: str, alias: str | None = None) -> None:
+        """Set the output restore mode."""
         self._session(alias).set_output_restore_mode(mode)
 
     @keyword("Get Output Restore Mode")
     @_evidenced
     def get_output_restore_mode(self, alias: str | None = None) -> str:
+        """Return the output restore mode."""
         return self._session(alias).get_output_restore_mode().value
 
     @keyword("Set User Text")
     @_evidenced
     def set_user_text(self, text: str, alias: str | None = None) -> None:
+        """Set the user text."""
         self._session(alias).set_user_text(text)
 
     @keyword("Get User Text")
     @_evidenced
     def get_user_text(self, alias: str | None = None) -> str:
+        """Return the user text."""
         return self._session(alias).get_user_text()
 
     @keyword("Set Communication Timeout")
@@ -647,26 +690,31 @@ class EaPs9000TLibrary:
     @keyword("Get Communication Timeout")
     @_evidenced
     def get_communication_timeout(self, alias: str | None = None) -> int:
+        """Return the communication timeout."""
         return self._session(alias).get_communication_timeout()
 
     @keyword("Set Power Fail Alarm Action")
     @_evidenced
     def set_power_fail_alarm_action(self, action: str, alias: str | None = None) -> None:
+        """Set the power fail alarm action."""
         self._session(alias).set_power_fail_alarm_action(action)
 
     @keyword("Get Power Fail Alarm Action")
     @_evidenced
     def get_power_fail_alarm_action(self, alias: str | None = None) -> str:
+        """Return the power fail alarm action."""
         return self._session(alias).get_power_fail_alarm_action().value
 
     @keyword("Set Overtemperature Alarm Action")
     @_evidenced
     def set_overtemperature_alarm_action(self, action: str, alias: str | None = None) -> None:
+        """Set the overtemperature alarm action."""
         self._session(alias).set_overtemperature_alarm_action(action)
 
     @keyword("Get Overtemperature Alarm Action")
     @_evidenced
     def get_overtemperature_alarm_action(self, alias: str | None = None) -> str:
+        """Return the overtemperature alarm action."""
         return self._session(alias).get_overtemperature_alarm_action().value
 
     # ------------------------------------------------------------------
@@ -675,71 +723,85 @@ class EaPs9000TLibrary:
     @keyword("Set LAN DHCP Enabled")
     @_evidenced
     def set_lan_dhcp_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan dhcp enabled."""
         self._session(alias).set_lan_dhcp_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN DHCP Enabled")
     @_evidenced
     def get_lan_dhcp_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan dhcp enabled."""
         return self._session(alias).get_lan_dhcp_enabled()
 
     @keyword("Set LAN IP Address")
     @_evidenced
     def set_lan_ip_address(self, address: str, alias: str | None = None) -> None:
+        """Set the lan ip address."""
         self._session(alias).set_lan_ip_address(address)
 
     @keyword("Get LAN IP Address")
     @_evidenced
     def get_lan_ip_address(self, alias: str | None = None) -> str:
+        """Return the lan ip address."""
         return self._session(alias).get_lan_ip_address()
 
     @keyword("Set LAN Subnet Mask")
     @_evidenced
     def set_lan_subnet_mask(self, mask: str, alias: str | None = None) -> None:
+        """Set the lan subnet mask."""
         self._session(alias).set_lan_subnet_mask(mask)
 
     @keyword("Get LAN Subnet Mask")
     @_evidenced
     def get_lan_subnet_mask(self, alias: str | None = None) -> str:
+        """Return the lan subnet mask."""
         return self._session(alias).get_lan_subnet_mask()
 
     @keyword("Set LAN Gateway")
     @_evidenced
     def set_lan_gateway(self, gateway: str, alias: str | None = None) -> None:
+        """Set the lan gateway."""
         self._session(alias).set_lan_gateway(gateway)
 
     @keyword("Get LAN Gateway")
     @_evidenced
     def get_lan_gateway(self, alias: str | None = None) -> str:
+        """Return the lan gateway."""
         return self._session(alias).get_lan_gateway()
 
     @keyword("Set LAN Hostname")
     @_evidenced
     def set_lan_hostname(self, hostname: str, alias: str | None = None) -> None:
+        """Set the lan hostname."""
         self._session(alias).set_lan_hostname(hostname)
 
     @keyword("Get LAN Hostname")
     @_evidenced
     def get_lan_hostname(self, alias: str | None = None) -> str:
+        """Return the lan hostname."""
         return self._session(alias).get_lan_hostname()
 
     @keyword("Set LAN Domain")
     @_evidenced
     def set_lan_domain(self, domain: str, alias: str | None = None) -> None:
+        """Set the lan domain."""
         self._session(alias).set_lan_domain(domain)
 
     @keyword("Get LAN Domain")
     @_evidenced
     def get_lan_domain(self, alias: str | None = None) -> str:
+        """Return the lan domain."""
         return self._session(alias).get_lan_domain()
 
     @keyword("Set LAN DNS1")
     @_evidenced
     def set_lan_dns1(self, address: str, alias: str | None = None) -> None:
+        """Set the lan dns1."""
         self._session(alias).set_lan_dns1(address)
 
     @keyword("Get LAN DNS1")
     @_evidenced
     def get_lan_dns1(self, alias: str | None = None) -> str:
+        """Return the lan dns1."""
         return self._session(alias).get_lan_dns1()
 
     @keyword("Set LAN DNS2")
@@ -752,6 +814,7 @@ class EaPs9000TLibrary:
     @keyword("Get LAN DNS2")
     @_evidenced
     def get_lan_dns2(self, alias: str | None = None) -> str:
+        """Return the lan dns2."""
         return self._session(alias).get_lan_dns2()
 
     @keyword("Set LAN Control Port")
@@ -764,31 +827,37 @@ class EaPs9000TLibrary:
     @keyword("Get LAN Control Port")
     @_evidenced
     def get_lan_control_port(self, alias: str | None = None) -> int:
+        """Return the lan control port."""
         return self._session(alias).get_lan_control_port()
 
     @keyword("Set LAN Keepalive Enabled")
     @_evidenced
     def set_lan_keepalive_enabled(self, enabled: bool, alias: str | None = None) -> None:
+        """Set the lan keepalive enabled."""
         self._session(alias).set_lan_keepalive_enabled(_as_bool(enabled, "enabled"))
 
     @keyword("Get LAN Keepalive Enabled")
     @_evidenced
     def get_lan_keepalive_enabled(self, alias: str | None = None) -> bool:
+        """Return the lan keepalive enabled."""
         return self._session(alias).get_lan_keepalive_enabled()
 
     @keyword("Set LAN Timeout")
     @_evidenced
     def set_lan_timeout(self, seconds: int, alias: str | None = None) -> None:
+        """Set the lan timeout."""
         self._session(alias).set_lan_timeout(int(seconds))
 
     @keyword("Get LAN Timeout")
     @_evidenced
     def get_lan_timeout(self, alias: str | None = None) -> int:
+        """Return the lan timeout."""
         return self._session(alias).get_lan_timeout()
 
     @keyword("Get LAN MAC Address")
     @_evidenced
     def get_lan_mac_address(self, alias: str | None = None) -> str:
+        """Return the lan mac address."""
         return self._session(alias).get_lan_mac_address()
 
     # ------------------------------------------------------------------
@@ -797,31 +866,37 @@ class EaPs9000TLibrary:
     @keyword("Set Analog Reference Range")
     @_evidenced
     def set_analog_reference_range(self, range_v: int, alias: str | None = None) -> None:
+        """Set the analog reference range."""
         self._session(alias).set_analog_reference_range(int(range_v))
 
     @keyword("Get Analog Reference Range")
     @_evidenced
     def get_analog_reference_range(self, alias: str | None = None) -> int:
+        """Return the analog reference range."""
         return self._session(alias).get_analog_reference_range()
 
     @keyword("Set Analog REMSB Level")
     @_evidenced
     def set_analog_remsb_level(self, level: str, alias: str | None = None) -> None:
+        """Set the analog remsb level."""
         self._session(alias).set_analog_remsb_level(level)
 
     @keyword("Get Analog REMSB Level")
     @_evidenced
     def get_analog_remsb_level(self, alias: str | None = None) -> str:
+        """Return the analog remsb level."""
         return self._session(alias).get_analog_remsb_level().value
 
     @keyword("Set Analog REMSB Action")
     @_evidenced
     def set_analog_remsb_action(self, action: str, alias: str | None = None) -> None:
+        """Set the analog remsb action."""
         self._session(alias).set_analog_remsb_action(action)
 
     @keyword("Get Analog REMSB Action")
     @_evidenced
     def get_analog_remsb_action(self, alias: str | None = None) -> str:
+        """Return the analog remsb action."""
         return self._session(alias).get_analog_remsb_action().value
 
     # ------------------------------------------------------------------
@@ -830,6 +905,7 @@ class EaPs9000TLibrary:
     @keyword("Enable Raw SCPI")
     @_evidenced
     def enable_raw_scpi(self, confirmation: str, alias: str | None = None) -> None:
+        """Enable raw scpi."""
         self._session(alias).enable_raw_scpi(confirmation)
 
     @keyword("Raw SCPI Query")

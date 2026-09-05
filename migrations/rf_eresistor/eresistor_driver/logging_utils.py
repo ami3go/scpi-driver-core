@@ -63,6 +63,7 @@ class AuditLogger:
         )
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         if self._handler:
             self._logger.removeHandler(self._handler)
             self._handler.close()

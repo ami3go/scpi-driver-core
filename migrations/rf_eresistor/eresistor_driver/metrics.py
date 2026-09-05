@@ -40,6 +40,7 @@ class MetricsRegistry:
             )
 
     def reset(self) -> None:
+        """Reset the instrument to its power-on defaults."""
         with self._lock:
             self._counters.clear()
             self._timings.clear()

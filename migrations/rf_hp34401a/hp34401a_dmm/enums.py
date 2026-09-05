@@ -21,6 +21,7 @@ class MeasurementFunction(str, enum.Enum):
 
     @property
     def unit(self) -> str:
+        """The unit."""
         return _FUNCTION_UNITS[self]
 
 

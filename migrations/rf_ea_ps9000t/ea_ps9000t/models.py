@@ -91,6 +91,7 @@ class ConnectionState:
     state: str
 
     def as_dict(self) -> dict[str, object]:
+        """Return this record as a plain dictionary."""
         return {
             "alias": self.alias,
             "resource": self.resource,

@@ -55,6 +55,7 @@ class SimN6700Instrument:
         self.idn = "KEYSIGHT TECHNOLOGIES,N6700B,SIM000001,B.00.00"
 
     def clear(self) -> None:
+        """Clear the instrument's device state."""
         self.errors.clear()
 
     def _push_error(self, code: int, message: str) -> None:

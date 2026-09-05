@@ -27,21 +27,26 @@ class FakeTransport:
     all_commands: list[str] = field(default_factory=list)
 
     def open(self) -> None:
+        """Open the connection."""
         self.opened = True
 
     def close(self) -> None:
+        """Close the connection and release the transport."""
         self.opened = False
 
     def is_open(self) -> bool:
+        """Whether the open."""
         return self.opened
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         self._ensure_open()
         command = command.strip()
         self.writes.append(command)
         self.all_commands.append(command)
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         self._ensure_open()
         command = command.strip()
         self.queries.append(command)
@@ -89,6 +94,7 @@ class SimpleN83624Emulator(FakeTransport):
             self.state[f"FAULt{ch}:SIMUlate"] = 0
 
     def write(self, command: str) -> None:
+        """Send a command, expecting no reply."""
         super().write(command)
         if command == "*RST":
             return
@@ -110,6 +116,7 @@ class SimpleN83624Emulator(FakeTransport):
             self.state[f"OUTPut{ch}:STATe"] = raw
 
     def query(self, command: str) -> str:
+        """Send a query and return its reply."""
         super().query(command)
         if command == "*IDN?":
             return str(self.state["*IDN?"])
