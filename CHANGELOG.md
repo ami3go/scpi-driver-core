@@ -74,6 +74,9 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   disconnects and delays, a simulated SCPI error queue, and command history.
 - `MockTransport.operation_lock`, so a composed transport can keep a write and
   its matching read indivisible.
+- `ScpiClient.set_timeout`, so a driver can change its bound without rebuilding
+  the client and losing error-queue policy, the retry observer, and operation-id
+  continuity.
 
 ### Changed
 

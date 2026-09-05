@@ -115,9 +115,7 @@ class PyvisaTransport:
     def timeout_s(self, value: float) -> None:
         self._timeout_s = float(value)
         if self._client is not None:
-            self._client = ScpiClient(
-                self._client.transport, codec=_CODEC, timeout_s=self._timeout_s
-            )
+            self._client.set_timeout(self._timeout_s)
 
 
 class SimulatedTransport:

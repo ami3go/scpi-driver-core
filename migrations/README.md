@@ -297,6 +297,43 @@ So this is recorded as a reasoned exclusion rather than an omission. Migrating
 it would require first splitting the transports in the source project, as a
 deliberate change with its own review.
 
+## Phase 16 — what the migrations revealed about the core
+
+Section 16 asks for a review of duplication remaining across migrated drivers,
+extracting only what several implementations prove reusable. With eight drivers
+there is finally evidence to review.
+
+### A missing primitive, found by four drivers
+
+`ScpiClient` had no way to change its timeout, so four drivers independently
+rebuilt the whole client in their timeout setter. That is not merely verbose:
+rebuilding silently discarded the error-queue policy, the retry observer, and
+the operation-id sequence, so a driver that had enabled strict error checking
+lost it, and traces stopped correlating at `op-1` again. Demonstrated by
+measurement, not assumption:
+
+```
+before rebuild: error checking on = True  | observer wired = True  | next op id = op-3
+after  rebuild: error checking on = False | observer wired = False | next op id = op-1
+```
+
+`ScpiClient.set_timeout()` was added to the core and all four drivers now use
+it. Section 32 already named `set_communication_timeout` as an expected
+service, so this closed a real gap rather than inventing one.
+
+### What was deliberately not extracted
+
+The text adapter presenting `write(str)`/`query(str)` over `ScpiClient` recurs
+in every driver, but each translates into its own exception hierarchy and its
+own tolerance for padding. A shared base class would have to be parameterised
+by all of that, which is the deep-inheritance shape section 31 warns against.
+Left alone.
+
+The fake VISA backend is duplicated across six migration test files, about 280
+lines. That is real duplication, but it is test scaffolding for drivers rather
+than core behaviour, and publishing it would make it API the core has to keep
+stable. Recorded here as a candidate, not acted on.
+
 ### Running it
 
 ```bash

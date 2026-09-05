@@ -134,9 +134,7 @@ class VisaGpibTransport(BaseTransport):
 
     def _set_timeout(self, timeout_s: float) -> None:
         if self._client is not None:
-            self._client = ScpiClient(
-                self._client.transport, codec=self._client.codec, timeout_s=timeout_s
-            )
+            self._client.set_timeout(timeout_s)
 
     def _require_client(self) -> ScpiClient:
         if self._client is None:

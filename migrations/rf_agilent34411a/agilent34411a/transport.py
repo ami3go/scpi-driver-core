@@ -18,7 +18,7 @@ makes that a choice rather than a limitation.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from scpi_driver_core import ScpiClient
 from scpi_driver_core.exceptions import ConfigurationError, ScpiDriverError
@@ -129,10 +129,7 @@ class PyvisaTransport:
     def timeout_s(self, value: float) -> None:
         self._timeout_s = float(value)
         if self._client is not None:
-            # Rebuild the client so later operations carry the new bound; the
-            # underlying VISA session is untouched.
-            transport: Any = self._client.transport
-            self._client = ScpiClient(transport, codec=_CODEC, timeout_s=self._timeout_s)
+            self._client.set_timeout(self._timeout_s)
 
 
 class SimulatedTransport:

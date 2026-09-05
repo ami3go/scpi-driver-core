@@ -13,6 +13,7 @@ responsibility is protocol.
 
 from __future__ import annotations
 
+import math
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -91,7 +92,7 @@ class ScpiClient:
         operation_id_factory: Callable[[], str] | None = None,
         retry_observer: Callable[[RetryAttempt], None] | None = None,
     ) -> None:
-        if timeout_s is not None and not (timeout_s > 0 and timeout_s != float("inf")):
+        if timeout_s is not None and not (timeout_s > 0 and math.isfinite(timeout_s)):
             raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
 
         self._transport = transport
@@ -136,6 +137,25 @@ class ScpiClient:
     @property
     def timeout_s(self) -> float | None:
         return self._timeout_s
+
+    def set_timeout(self, timeout_s: float | None) -> None:
+        """Change the default bound for this client's operations.
+
+        Added because four migrated drivers had each rebuilt their whole client
+        to change a timeout, which silently discarded the error-queue policy,
+        the retry observer, and the operation-id sequence, so traces stopped
+        correlating. Mutating the one field avoids all of that.
+
+        Args:
+            timeout_s: the new bound, or ``None`` to defer to the transport.
+
+        Raises:
+            ConfigurationError: if the timeout is not finite and positive.
+        """
+        if timeout_s is not None and not (timeout_s > 0 and math.isfinite(timeout_s)):
+            raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
+        with self._lock:
+            self._timeout_s = timeout_s
 
     @property
     def response_request(self) -> ReadRequest:
@@ -213,7 +233,7 @@ class ScpiClient:
 
     def _execute(self, action: Callable[[str, float | None], _T], *, timeout_s: float | None) -> _T:
         """The single choke point every SCPI operation passes through."""
-        if timeout_s is not None and not (timeout_s > 0 and timeout_s != float("inf")):
+        if timeout_s is not None and not (timeout_s > 0 and math.isfinite(timeout_s)):
             raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
         effective = self._timeout_s if timeout_s is None else timeout_s
         with self._lock:

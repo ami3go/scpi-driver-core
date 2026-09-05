@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import socket
 import threading
+import time
 from types import SimpleNamespace
 from typing import Any
 
@@ -31,6 +32,22 @@ from scpi_driver_core import ScpiClient
 from scpi_driver_core.transport import SerialTransport as CoreSerialTransport
 from scpi_driver_core.transport import TcpTransport as CoreTcpTransport
 from scpi_driver_core.transport import UdpTransport as CoreUdpTransport
+
+
+def wait_for(received: list[str], command: str, *, timeout_s: float = 2.0) -> None:
+    """Wait for the server thread to record ``command``.
+
+    A UDP write is fire-and-forget and a TCP write returns before the peer has
+    processed anything, so asserting on the server's log immediately is a race.
+    This waits instead of sleeping a fixed amount, so it is neither flaky nor
+    slow.
+    """
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if command in received:
+            return
+        time.sleep(0.01)
+    raise AssertionError(f"{command!r} never reached the instrument; got {received}")
 
 
 def _answer(command: str) -> bytes:
@@ -207,9 +224,9 @@ def test_tcp_query_round_trip(tcp_instrument: LoopbackTcp) -> None:
         assert transport.query("*IDN?") == "NGI,N83624,SN12345,1.00"
         assert transport.query("MEAS:VOLT?") == "12.345"
         transport.write("OUTP ON")
+        wait_for(tcp_instrument.received, "OUTP ON")
     finally:
         transport.close()
-    assert "OUTP ON" in tcp_instrument.received
 
 
 def test_tcp_open_close_is_idempotent(tcp_instrument: LoopbackTcp) -> None:
@@ -288,9 +305,9 @@ def test_udp_query_round_trip(udp_instrument: LoopbackUdp) -> None:
     try:
         assert transport.query("*IDN?") == "NGI,N83624,SN12345,1.00"
         transport.write("OUTP ON")
+        wait_for(udp_instrument.received, "OUTP ON")
     finally:
         transport.close()
-    assert "OUTP ON" in udp_instrument.received
 
 
 def test_udp_query_timeout() -> None:

@@ -350,3 +350,55 @@ def test_write_binary_block_is_one_transport_write() -> None:
     transport.open()
     ScpiClient(transport).write_binary_block("CURVE ", b"ABCD")
     assert [op.kind for op in transport.operations if op.kind == "write"] == ["write"]
+
+
+# -- changing the timeout without losing anything -------------------------
+
+
+def test_set_timeout_changes_later_operations() -> None:
+    transport = MockTransport()
+    transport.open()
+    client = ScpiClient(transport, timeout_s=5.0)
+    client.set_timeout(1.5)
+    assert client.timeout_s == 1.5
+    client.write("*CLS")
+    assert transport.operations[-1].timeout_s == 1.5
+
+
+def test_set_timeout_can_defer_to_the_transport() -> None:
+    transport = MockTransport(timeout_s=3.0)
+    transport.open()
+    client = ScpiClient(transport, timeout_s=1.0)
+    client.set_timeout(None)
+    client.write("*CLS")
+    assert transport.operations[-1].timeout_s == 3.0
+
+
+@pytest.mark.parametrize("timeout_s", [0, -1.0, float("inf"), float("nan")])
+def test_set_timeout_rejects_unbounded_values(timeout_s: float) -> None:
+    client = ScpiClient(MockTransport())
+    with pytest.raises(ConfigurationError):
+        client.set_timeout(timeout_s)
+
+
+def test_set_timeout_keeps_error_checking_the_observer_and_operation_ids() -> None:
+    """Rebuilding the client to change a timeout used to discard all three."""
+    from scpi_driver_core.scpi import ScpiErrorQueue, ScpiExecutionPolicy
+
+    transport = MockTransport()
+    transport.open()
+    seen: list[object] = []
+    client = ScpiClient(transport, retry_observer=seen.append)
+    client.enable_error_checking(
+        ScpiErrorQueue(client), ScpiExecutionPolicy(check_error_queue_after_write=True)
+    )
+    transport.feed(b'0,"No error"\n')
+    client.write("VOLT 1")
+    before = client._next_operation_id()
+
+    client.set_timeout(2.0)
+
+    assert client.error_queue is not None
+    assert client._retry_observer is not None
+    assert client._next_operation_id() != before
+    assert int(client._next_operation_id().split("-")[1]) > 1
