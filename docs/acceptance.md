@@ -101,11 +101,14 @@ so the same driver is callable from a plain pytest fixture.
 
 **`v0.1.0` is still not tagged**, for one remaining reason rather than seven.
 
-Section 42's secondary validation also lists the E-Resistor SCPI path and the
-BK8500B SCPI-facing path. Those are not migrated yet. Everything section 48
-enumerates is now met, so this is a judgement call rather than a hard gate: the
-architecture has been demonstrated by seven drivers across VISA, USBTMC, raw
-TCP, UDP and RS232, which is more than section 42 requires.
+Section 42's secondary validation is now also covered. The E-Resistor SCPI path
+is migrated. The BK8500B is deliberately not: its VISA transport is a stub that
+only raises, and its SCPI and legacy binary protocols share one transport, so
+migrating it would put the binary path on the core, which section 3 rules out.
+`migrations/README.md` records that reasoning.
+
+Everything sections 42 and 48 enumerate is therefore met, by eight drivers
+across VISA, USBTMC, raw TCP, UDP and RS232.
 
 What a migration cannot show is behaviour against real hardware. Every result
 here is against fakes and loopback sockets. The five instrument-specific

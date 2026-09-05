@@ -35,6 +35,7 @@ command at the end of this file does.
 | `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
 | `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
 | `rf_eresistor` | SCPI/TCP path only (secondary validation) | 37 pass | 51 pass |
+| `rf_bk8500b` | not migrated — see below | — | — |
 
 ## rf_keysight_n6700
 
@@ -267,6 +268,34 @@ case, so a timeout there must not break the connection — but the core faults a
 TCP transport on read timeout. The greeting is therefore read with a short bound
 and a faulted transport is reopened, which keeps a silent instrument connecting
 cleanly.
+
+## rf_bk8500b — deliberately not migrated
+
+Section 42 lists this driver's SCPI-facing path as secondary validation, and
+section 3 admits it as a "secondary/hybrid reference" with one condition: any
+legacy or binary protocol path must remain outside the core, and the SCPI
+abstraction must not be distorted to accommodate non-SCPI protocols.
+
+Two findings make migration the wrong call here.
+
+**Its VISA transport does not exist.** `bk8500b/transport/visa.py` is a
+fifteen-line stub whose constructor raises `ConfigurationError`. It is exported
+but never constructed. There is no VISA path to migrate, so this driver is not
+one of the VISA drivers in any case.
+
+**Its SCPI and legacy protocols share one transport.** `CommandExecutor` holds a
+single `transport`, and both `protocol/scpi.py` and `protocol/legacy.py` read
+from it directly — the former with `read_until`, the latter byte-by-byte for the
+binary codec. Migrating that transport would put the legacy binary path on the
+core, which is precisely what section 3 rules out.
+
+Separating the two would mean giving each protocol its own transport, which is a
+feature rewrite rather than an architecture extraction, and section 43 forbids
+exactly that during a migration.
+
+So this is recorded as a reasoned exclusion rather than an omission. Migrating
+it would require first splitting the transports in the source project, as a
+deliberate change with its own review.
 
 ### Running it
 
