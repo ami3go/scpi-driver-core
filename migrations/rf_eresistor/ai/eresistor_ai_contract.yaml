@@ -1,0 +1,1377 @@
+{
+  "contract": {
+    "id": "RFDS-017",
+    "specification_version": "3.0",
+    "driver_contract_version": "26.03",
+    "status": "conformant-with-declared-unknowns",
+    "generated_by": "tools/generate_ai_contract.py"
+  },
+  "identity": {
+    "library": "rf_eresistor",
+    "class": "rf_eresistor.library.EResistorLibrary",
+    "robot_scope": "SUITE",
+    "library_version": "26.03",
+    "instrument": "OpenBench E-Resistor",
+    "channels": 8,
+    "branches_per_channel": 16,
+    "transport": {
+      "primary": "SCPI/TCP",
+      "default_host": "192.168.0.55",
+      "default_port": 5025,
+      "secondary": "HTTP/TCP port 80"
+    }
+  },
+  "mental_model": [
+    "Each channel is an independent 16-branch programmable resistance network.",
+    "Mask 0000 opens a channel; a set bit activates a branch.",
+    "Bit 0 maps to Q16 (lowest branch) and bit 15 maps to Q1 (highest branch).",
+    "Resistance and temperature operations require calibrated branch data; computed values are not DMM measurements."
+  ],
+  "state_machine": {
+    "initial": "DISCONNECTED",
+    "states": [
+      "DISCONNECTED",
+      "CONNECTED",
+      "RECONNECTING",
+      "LOST",
+      "CLOSED"
+    ],
+    "transitions": [
+      {
+        "from": "DISCONNECTED",
+        "via": "Connect To EResistor",
+        "to": "CONNECTED"
+      },
+      {
+        "from": "CONNECTED",
+        "via": "transport failure",
+        "to": "LOST or RECONNECTING"
+      },
+      {
+        "from": "CONNECTED|LOST|RECONNECTING",
+        "via": "Disconnect From EResistor",
+        "to": "CLOSED"
+      }
+    ],
+    "operation_rule": "All device I/O keywords except discovery require CONNECTED; local metrics/file-table actions declare their own preconditions."
+  },
+  "resources": {
+    "consumed": [
+      "one IPv4 address",
+      "SCPI TCP port 5025",
+      "optional HTTP port 80",
+      "optional calibration JSON",
+      "optional temperature CSV"
+    ],
+    "provided": [
+      "eresistor.scpi_session",
+      "eight logical resistance outputs",
+      "calibration/solver cache",
+      "optional watchdog"
+    ]
+  },
+  "dependencies": {
+    "python": ">=3.10",
+    "robotframework": ">=6.1",
+    "optional": {
+      "PyYAML": ">=6.0 for YAML profiles"
+    },
+    "firmware_protocol": "Compatibility must be confirmed by *IDN? and staged HIL tests; minimum version is UNKNOWN unless a profile configures it."
+  },
+  "capabilities": [
+    {
+      "keyword": "Connect To EResistor",
+      "signature": "host=None, all_off_on_connect=False",
+      "purpose": "Open SCPI session and verify identity.",
+      "inputs": {
+        "host": "IPv4/hostname or None",
+        "all_off_on_connect": "strict Boolean"
+      },
+      "output": "*IDN? string",
+      "preconditions": [
+        "state != CONNECTED",
+        "network route to device exists"
+      ],
+      "postconditions": [
+        "state == CONNECTED",
+        "identity was read",
+        "all channels open if all_off_on_connect is true"
+      ],
+      "side_effects": [
+        "Opens TCP session",
+        "Optionally sends ALL:OFF"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "CONNECTION_ERROR",
+        "IDENTITY_ERROR",
+        "FIRMWARE_INCOMPATIBLE"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "network"
+      ]
+    },
+    {
+      "keyword": "Disconnect From EResistor",
+      "signature": "all_off=True",
+      "purpose": "Stop watchdog, optionally open outputs, and close session.",
+      "inputs": {
+        "all_off": "strict Boolean"
+      },
+      "output": "None",
+      "preconditions": [],
+      "postconditions": [
+        "state is disconnected/closed",
+        "all channels commanded open when all_off is true"
+      ],
+      "side_effects": [
+        "Default sends ALL:OFF",
+        "Closes TCP session"
+      ],
+      "risk_level": "high",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "idempotent; call once in suite teardown; ALL:OFF failure is logged and transport still closes",
+      "errors": [
+        "SAFE_SHUTDOWN_UNCONFIRMED"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "E-Resistor Should Be Connected",
+      "signature": "",
+      "purpose": "Assert connection state.",
+      "inputs": {},
+      "output": "None or assertion failure",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Get EResistor Identity",
+      "signature": "",
+      "purpose": "Read IEEE-488.2 identity.",
+      "inputs": {},
+      "output": "manufacturer,model,serial,firmware string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Ping EResistor",
+      "signature": "",
+      "purpose": "Check HTTP, then SCPI reachability.",
+      "inputs": {},
+      "output": "Boolean",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Identify EResistor",
+      "signature": "duration_s=5.0",
+      "purpose": "Request physical identify LED action.",
+      "inputs": {
+        "duration_s": "seconds; compatibility argument, firmware may ignore"
+      },
+      "output": "HTTP response string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [
+        "Blinks device LED"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.http_session"
+      ]
+    },
+    {
+      "keyword": "Get EResistor Information",
+      "signature": "",
+      "purpose": "Return identity, serial, firmware and endpoint information.",
+      "inputs": {},
+      "output": "dictionary",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Send EResistor SCPI Query",
+      "signature": "command, multiline_until=None",
+      "purpose": "Advanced escape hatch for a known SCPI command.",
+      "inputs": {
+        "command": "SCPI text",
+        "multiline_until": "optional terminator"
+      },
+      "output": "raw response string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "UNKNOWN: depends on supplied command"
+      ],
+      "side_effects": [
+        "UNKNOWN: command may change any device state"
+      ],
+      "risk_level": "high",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "RAW_COMMAND_REJECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Get EResistor Status",
+      "signature": "",
+      "purpose": "Read and parse system status.",
+      "inputs": {},
+      "output": "dictionary[str,str]",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Get EResistor Error",
+      "signature": "",
+      "purpose": "Read one device error queue entry.",
+      "inputs": {},
+      "output": "error string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [
+        "May consume one error queue entry"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Clear EResistor Errors",
+      "signature": "",
+      "purpose": "Clear device error queue.",
+      "inputs": {},
+      "output": "device response string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [
+        "Destroys queued diagnostic errors"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Set EResistor Mask",
+      "signature": "channel, mask, force=False",
+      "purpose": "Set one channel's 16-bit branch mask.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "mask": "0000..FFFF integer/hex",
+        "force": "strict Boolean; simulation lock override only"
+      },
+      "output": "normalized 4-digit uppercase hex mask",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "readback/response accepted by device"
+      ],
+      "side_effects": [
+        "May change physical resistance/output state"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Get EResistor Mask",
+      "signature": "channel",
+      "purpose": "Read one channel mask.",
+      "inputs": {
+        "channel": "integer 1..8"
+      },
+      "output": "4-digit uppercase hex string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Get All EResistor Masks",
+      "signature": "",
+      "purpose": "Read all eight masks.",
+      "inputs": {},
+      "output": "dictionary channel-string -> mask",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Set All EResistor Masks",
+      "signature": "*masks, force=False",
+      "purpose": "Atomically request masks for all channels.",
+      "inputs": {
+        "masks": "eight scalars or one 8-item list",
+        "force": "strict Boolean"
+      },
+      "output": "dictionary channel-string -> mask",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "all eight values accepted"
+      ],
+      "side_effects": [
+        "May change physical resistance/output state"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Set Selected EResistor Masks",
+      "signature": "masks, force=False",
+      "purpose": "Set a channel-to-mask mapping.",
+      "inputs": {
+        "masks": "dictionary with channel keys 1..8",
+        "force": "strict Boolean"
+      },
+      "output": "dictionary channel-string -> mask",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "selected values accepted"
+      ],
+      "side_effects": [
+        "May change physical resistance/output state"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Open All EResistor Channels",
+      "signature": "",
+      "purpose": "Command ALL:OFF safe output state.",
+      "inputs": {},
+      "output": "device response string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "all channels commanded to mask 0000"
+      ],
+      "side_effects": [
+        "Opens every resistance path"
+      ],
+      "risk_level": "high",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "EResistor Mask Should Be",
+      "signature": "channel, expected",
+      "purpose": "Assert normalized mask readback.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "expected": "mask"
+      },
+      "output": "None or assertion failure",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Download EResistor Calibration",
+      "signature": "",
+      "purpose": "Download and validate all channel calibration.",
+      "inputs": {},
+      "output": "device calibration dictionary",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "calibration and resistance solver cached"
+      ],
+      "side_effects": [
+        "Updates in-memory calibration cache"
+      ],
+      "risk_level": "low",
+      "timing": "May exceed normal command time; bounded by calibration transfer timeout",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Download EResistor Channel Calibration",
+      "signature": "channel",
+      "purpose": "Download and merge one channel calibration.",
+      "inputs": {
+        "channel": "integer 1..8"
+      },
+      "output": "channel calibration dictionary",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "channel merged into in-memory calibration"
+      ],
+      "side_effects": [
+        "Updates cache"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Load EResistor Calibration",
+      "signature": "path",
+      "purpose": "Load and validate local JSON calibration.",
+      "inputs": {
+        "path": "readable calibration JSON path"
+      },
+      "output": "device calibration dictionary",
+      "preconditions": [
+        "file exists and matches schema"
+      ],
+      "postconditions": [
+        "calibration and solver cached"
+      ],
+      "side_effects": [
+        "Reads local file"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "FILE_NOT_FOUND",
+        "CALIBRATION_INVALID"
+      ],
+      "exclusive_resources": [
+        "calibration.file"
+      ]
+    },
+    {
+      "keyword": "Save EResistor Calibration",
+      "signature": "path",
+      "purpose": "Persist current calibration to JSON.",
+      "inputs": {
+        "path": "writable path"
+      },
+      "output": "None",
+      "preconditions": [
+        "calibration is loaded"
+      ],
+      "postconditions": [
+        "file contains calibration"
+      ],
+      "side_effects": [
+        "Creates/overwrites local file"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "CALIBRATION_MISSING",
+        "FILE_IO_ERROR"
+      ],
+      "exclusive_resources": [
+        "calibration.file"
+      ]
+    },
+    {
+      "keyword": "Build EResistor Resistance Cache",
+      "signature": "",
+      "purpose": "Precompute mask resistance lookup.",
+      "inputs": {},
+      "output": "None",
+      "preconditions": [
+        "state == CONNECTED",
+        "valid calibration is loaded or downloadable"
+      ],
+      "postconditions": [
+        "solver cache built for calibrated channels"
+      ],
+      "side_effects": [
+        "Uses CPU and memory"
+      ],
+      "risk_level": "low",
+      "timing": "Potentially several seconds per channel; 65,535 combinations",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.solver_cache"
+      ]
+    },
+    {
+      "keyword": "Calculate EResistor Resistance",
+      "signature": "channel, mask",
+      "purpose": "Calculate resistance without changing output.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "mask": "16-bit mask"
+      },
+      "output": "float ohms",
+      "preconditions": [
+        "state == CONNECTED",
+        "valid calibration is loaded or downloadable"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.solver_cache"
+      ]
+    },
+    {
+      "keyword": "Find Closest EResistor Resistance",
+      "signature": "channel, resistance_ohm, allow_closest_out_of_range=False",
+      "purpose": "Solve closest calibrated mask without applying it.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "resistance_ohm": "finite positive ohms",
+        "allow_closest_out_of_range": "strict Boolean"
+      },
+      "output": "SetResistanceResult dictionary",
+      "preconditions": [
+        "state == CONNECTED",
+        "valid calibration is loaded or downloadable"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "CALIBRATION_MISSING",
+        "RESISTANCE_OUT_OF_RANGE",
+        "SAFETY_LIMIT"
+      ],
+      "exclusive_resources": [
+        "eresistor.solver_cache"
+      ]
+    },
+    {
+      "keyword": "Set EResistor Resistance",
+      "signature": "channel, resistance_ohm, allow_closest_out_of_range=False, force=False",
+      "purpose": "Solve and apply closest calibrated resistance.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "resistance_ohm": "finite positive ohms",
+        "allow_closest_out_of_range": "strict Boolean",
+        "force": "strict Boolean"
+      },
+      "output": "SetResistanceResult dictionary",
+      "preconditions": [
+        "state == CONNECTED",
+        "valid calibration is loaded or downloadable"
+      ],
+      "postconditions": [
+        "returned mask accepted by device"
+      ],
+      "side_effects": [
+        "May change physical resistance/output state"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Set Multiple EResistor Resistances",
+      "signature": "values, atomic=True, force=False",
+      "purpose": "Solve and apply multiple resistance targets.",
+      "inputs": {
+        "values": "channel mapping or 8-item sequence; None skips sequence entry",
+        "atomic": "strict Boolean",
+        "force": "strict Boolean"
+      },
+      "output": "list of SetResistanceResult dictionaries",
+      "preconditions": [
+        "state == CONNECTED",
+        "valid calibration is loaded or downloadable"
+      ],
+      "postconditions": [
+        "requested channel masks accepted; atomic path validates all before write"
+      ],
+      "side_effects": [
+        "May change physical resistance/output state"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Load EResistor Temperature Table",
+      "signature": "channel, path",
+      "purpose": "Load CSV temperature/resistance mapping for one channel.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "path": "CSV path"
+      },
+      "output": "table range dictionary",
+      "preconditions": [
+        "valid CSV exists"
+      ],
+      "postconditions": [
+        "table cached for channel"
+      ],
+      "side_effects": [
+        "Reads local file"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "FILE_NOT_FOUND",
+        "TABLE_INVALID"
+      ],
+      "exclusive_resources": [
+        "temperature.file"
+      ]
+    },
+    {
+      "keyword": "Load EResistor Temperature Table For All Channels",
+      "signature": "path",
+      "purpose": "Load one mapping shared by all channels.",
+      "inputs": {
+        "path": "CSV path"
+      },
+      "output": "table range dictionary",
+      "preconditions": [
+        "valid CSV exists"
+      ],
+      "postconditions": [
+        "global table cached"
+      ],
+      "side_effects": [
+        "Reads local file"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "FILE_NOT_FOUND",
+        "TABLE_INVALID"
+      ],
+      "exclusive_resources": [
+        "temperature.file"
+      ]
+    },
+    {
+      "keyword": "Set EResistor Temperature",
+      "signature": "channel, temperature_c, interpolation=linear, allow_extrapolation=False, force=False",
+      "purpose": "Convert temperature to resistance and apply it.",
+      "inputs": {
+        "channel": "integer 1..8",
+        "temperature_c": "finite Celsius",
+        "interpolation": "linear or supported table mode",
+        "allow_extrapolation": "strict Boolean",
+        "force": "strict Boolean"
+      },
+      "output": "SetTemperatureResult dictionary",
+      "preconditions": [
+        "state == CONNECTED",
+        "calibration loaded",
+        "temperature table loaded"
+      ],
+      "postconditions": [
+        "derived mask accepted"
+      ],
+      "side_effects": [
+        "May change physical resistance/output state"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "dut.resistance_outputs"
+      ]
+    },
+    {
+      "keyword": "Start EResistor Watchdog",
+      "signature": "",
+      "purpose": "Start background keepalive worker.",
+      "inputs": {},
+      "output": "None",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [
+        "watchdog thread running"
+      ],
+      "side_effects": [
+        "Periodic SCPI traffic",
+        "May reconnect on failure"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "eresistor.watchdog"
+      ]
+    },
+    {
+      "keyword": "Stop EResistor Watchdog",
+      "signature": "",
+      "purpose": "Stop background keepalive worker.",
+      "inputs": {},
+      "output": "None",
+      "preconditions": [],
+      "postconditions": [
+        "watchdog thread stopped or absent"
+      ],
+      "side_effects": [
+        "May wait up to 2 s for thread"
+      ],
+      "risk_level": "low",
+      "timing": "<=2 s join target",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.watchdog"
+      ]
+    },
+    {
+      "keyword": "Get EResistor Metrics",
+      "signature": "",
+      "purpose": "Return local driver counters and durations.",
+      "inputs": {},
+      "output": "dictionary",
+      "preconditions": [],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Discover EResistor Boards",
+      "signature": "subnet, timeout=0.25, max_workers=64",
+      "purpose": "Scan one IPv4 subnet for boards.",
+      "inputs": {
+        "subnet": "IPv4 CIDR",
+        "timeout": "seconds per probe",
+        "max_workers": "positive integer"
+      },
+      "output": "list of BoardInfo dictionaries",
+      "preconditions": [
+        "network scan is authorized"
+      ],
+      "postconditions": [],
+      "side_effects": [
+        "Concurrent HTTP/SCPI network probes"
+      ],
+      "risk_level": "medium",
+      "timing": "Depends on subnet size and concurrency",
+      "stabilization_delay": "none",
+      "retry_policy": "no automatic full-scan retry",
+      "errors": [
+        "INVALID_SUBNET",
+        "NETWORK_ERROR"
+      ],
+      "exclusive_resources": [
+        "network.discovery"
+      ]
+    },
+    {
+      "keyword": "Auto Discover EResistor Boards",
+      "signature": "timeout=0.25, max_workers=64",
+      "purpose": "Discover boards on detected local IPv4 networks.",
+      "inputs": {
+        "timeout": "seconds per probe",
+        "max_workers": "positive integer"
+      },
+      "output": "list of BoardInfo dictionaries",
+      "preconditions": [
+        "network scan is authorized"
+      ],
+      "postconditions": [],
+      "side_effects": [
+        "Concurrent network probes"
+      ],
+      "risk_level": "medium",
+      "timing": "Depends on local networks",
+      "stabilization_delay": "none",
+      "retry_policy": "no automatic full-scan retry",
+      "errors": [
+        "NETWORK_ENUMERATION_ERROR",
+        "NETWORK_ERROR"
+      ],
+      "exclusive_resources": [
+        "network.discovery"
+      ]
+    },
+    {
+      "keyword": "Connect",
+      "signature": "resource=None, alias=default, timeout_s=None",
+      "purpose": "RFDS-002 generic connect. Idempotent wrapper over Connect To EResistor; resource is the host/IP.",
+      "inputs": {
+        "resource": "IPv4/hostname or None",
+        "alias": "accepted for interface compatibility; this driver supports a single connection",
+        "timeout_s": "optional transport timeout override, seconds"
+      },
+      "output": "RFDS-002 Section 12.1 connection-state dictionary",
+      "preconditions": [],
+      "postconditions": [
+        "state == CONNECTED, or state unchanged when already connected to the requested resource"
+      ],
+      "side_effects": [
+        "As Connect To EResistor, unless already connected to the requested resource"
+      ],
+      "risk_level": "medium",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "CONNECTION_ERROR",
+        "IDENTITY_ERROR",
+        "FIRMWARE_INCOMPATIBLE"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session",
+        "network"
+      ]
+    },
+    {
+      "keyword": "Disconnect",
+      "signature": "alias=None",
+      "purpose": "RFDS-002 generic disconnect. Idempotent wrapper over Disconnect From EResistor; succeeds even if already disconnected.",
+      "inputs": {
+        "alias": "accepted for interface compatibility; unused"
+      },
+      "output": "None",
+      "preconditions": [],
+      "postconditions": [
+        "state is disconnected/closed, if it was open"
+      ],
+      "side_effects": [
+        "As Disconnect From EResistor when connected; no effect otherwise"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "SAFE_SHUTDOWN_UNCONFIRMED"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Is Connected",
+      "signature": "alias=None",
+      "purpose": "RFDS-002 generic connection query. Returns a boolean rather than raising when not connected.",
+      "inputs": {
+        "alias": "accepted for interface compatibility; unused"
+      },
+      "output": "Boolean",
+      "preconditions": [],
+      "postconditions": [
+        "No state change."
+      ],
+      "side_effects": [],
+      "risk_level": "none",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "safe to retry",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Get Connection State",
+      "signature": "alias=None, refresh=False",
+      "purpose": "Return the RFDS-002 Section 12.1 normalized connection-state dictionary.",
+      "inputs": {
+        "alias": "accepted for interface compatibility; unused",
+        "refresh": "strict Boolean; probes reachability first when true and connected"
+      },
+      "output": "RFDS-002 Section 12.1 connection-state dictionary",
+      "preconditions": [],
+      "postconditions": [
+        "No state change."
+      ],
+      "side_effects": [
+        "Optional reachability probe when refresh is true"
+      ],
+      "risk_level": "none",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "safe to retry",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Check Communication",
+      "signature": "alias=None",
+      "purpose": "Perform a bounded, non-destructive communication check (reads identity). Raises on failure rather than returning False.",
+      "inputs": {
+        "alias": "accepted for interface compatibility; unused"
+      },
+      "output": "Boolean",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Get Identity",
+      "signature": "alias=None, refresh=True",
+      "purpose": "RFDS-002 generic stable identity string. Equivalent to Get EResistor Identity.",
+      "inputs": {
+        "alias": "accepted for interface compatibility; unused",
+        "refresh": "accepted for interface compatibility; this driver always queries the device"
+      },
+      "output": "manufacturer,model,serial,firmware string",
+      "preconditions": [
+        "state == CONNECTED"
+      ],
+      "postconditions": [],
+      "side_effects": [],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    },
+    {
+      "keyword": "Export Diagnostic Bundle",
+      "signature": "destination=None",
+      "purpose": "Zip the current session's RFDS-008 evidence run (events, protocol trace, device identity, manifest) for offline troubleshooting.",
+      "inputs": {
+        "destination": "optional file path; defaults next to the run's own result directory"
+      },
+      "output": "path string, or null when evidence_enabled=False",
+      "preconditions": [],
+      "postconditions": [
+        "evidence_manifest.json inside the run directory is refreshed"
+      ],
+      "side_effects": [
+        "Writes a .zip file to disk"
+      ],
+      "risk_level": "low",
+      "timing": "<3 s typical; bounded by configured transport timeout and retries",
+      "stabilization_delay": "none",
+      "retry_policy": "transport retries only; do not retry state changes at test level unless state is read back",
+      "errors": [
+        "NOT_CONNECTED",
+        "TRANSPORT_ERROR",
+        "DEVICE_ERROR"
+      ],
+      "exclusive_resources": [
+        "eresistor.scpi_session"
+      ]
+    }
+  ],
+  "error_catalogue": {
+    "NOT_CONNECTED": "Device I/O requested before connect.",
+    "CONNECTION_ERROR": "TCP session could not open or was lost.",
+    "TRANSPORT_ERROR": "Timeout, socket, framing, or retry exhaustion.",
+    "DEVICE_ERROR": "Firmware returned an error/unexpected response.",
+    "CALIBRATION_MISSING": "Resistance operation lacks calibration/solver.",
+    "CALIBRATION_INVALID": "Calibration schema/content/checksum failed.",
+    "RESISTANCE_OUT_OF_RANGE": "Target outside permitted/calibrated range.",
+    "SAFETY_LIMIT": "Resistance or active-bit safety rule rejected request.",
+    "SAFE_SHUTDOWN_UNCONFIRMED": "ALL:OFF could not be confirmed before close.",
+    "UNKNOWN": "Preserve raw exception text and stop unsafe planning."
+  },
+  "safety_rules": [
+    "Use Connect To EResistor with all_off_on_connect=True before any state-changing test unless preserving state is an explicit objective.",
+    "Always register Disconnect From EResistor as Suite Teardown; its default all_off=True is mandatory for normal tests.",
+    "Never assume PC/network loss makes outputs safe; firmware-side watchdog or external isolation is required.",
+    "Verify mask readback after state-changing operations and physically qualify channel mapping before DUT connection.",
+    "Do not use force=True unless overriding a known simulation lock; it does not authorize bypass of electrical safety limits.",
+    "Raw SCPI is high risk and forbidden to an AI planner unless the command semantics are supplied by an approved bench contract."
+  ],
+  "verification_objectives": [
+    {
+      "id": "VO-IDENTITY",
+      "action": "Connect and read identity",
+      "oracle": "Four comma-separated identity fields; expected manufacturer/model/serial/firmware match bench contract"
+    },
+    {
+      "id": "VO-SAFE-START",
+      "action": "Connect with all_off_on_connect=True then Get All EResistor Masks",
+      "oracle": "Every channel equals 0000"
+    },
+    {
+      "id": "VO-MASK",
+      "action": "Set a qualified nonzero mask then read it back",
+      "oracle": "Normalized written and read masks are identical"
+    },
+    {
+      "id": "VO-RESISTANCE",
+      "action": "Set calibrated target and independently measure with routed DMM",
+      "oracle": "DMM result is within bench-contract tolerance; driver calculated_ohm alone is not a physical oracle"
+    },
+    {
+      "id": "VO-TEARDOWN",
+      "action": "Disconnect with all_off=True and independently observe outputs",
+      "oracle": "All channels open; if communication is unavailable result is UNKNOWN, not PASS"
+    }
+  ],
+  "setup_teardown_contract": {
+    "suite_setup": [
+      "Connect To EResistor    all_off_on_connect=${True}",
+      "Get EResistor Identity",
+      "Open All EResistor Channels"
+    ],
+    "test_setup": [
+      "Open All EResistor Channels",
+      "Clear EResistor Errors when error history is not under test"
+    ],
+    "test_teardown": [
+      "Open All EResistor Channels"
+    ],
+    "suite_teardown": [
+      "Disconnect From EResistor    all_off=${True}"
+    ],
+    "failure_rule": "Attempt safe teardown even after assertion/keyword failure; record safe-state confirmation separately."
+  },
+  "limitations": [
+    "No real-hardware qualification is encoded as complete in this package.",
+    "Driver resistance is calculated from calibration, not independently measured.",
+    "Identify duration may be ignored by current firmware.",
+    "Solver cache generation can be slow.",
+    "Network loss prevents guaranteed ALL:OFF.",
+    "RFDS-018 v1.0 source supplied during release was empty, so bench topology and inter-driver orchestration remain UNKNOWN."
+  ],
+  "planning_hints": [
+    "Plan read-only identity and safe-state checks before writes.",
+    "Load/download calibration before resistance operations and temperature table before temperature operations.",
+    "Serialize all keywords sharing eresistor.scpi_session.",
+    "Treat outputs as exclusive with any DMM multiplexer switching sequence: open all relays, select one route, settle, measure, open route.",
+    "Use returned dictionaries for requested/calculated/error/mask evidence and use an independent instrument for physical pass/fail."
+  ],
+  "unknown_handling": {
+    "token": "UNKNOWN",
+    "rules": [
+      "Never invent an argument, firmware command, resource owner, tolerance, stabilization time, or safe state.",
+      "Ask for the bench contract or preserve UNKNOWN when a missing value affects safety or pass/fail.",
+      "UNKNOWN cannot satisfy a PASS oracle.",
+      "On unclassified exceptions, stop state-changing steps and execute safe teardown."
+    ]
+  },
+  "conformance": {
+    "required_files": [
+      "ai/eresistor_ai_contract.yaml",
+      "ai/eresistor_ai_contract.lock"
+    ],
+    "keyword_coverage": "Every @keyword in rf_eresistor/library.py appears exactly once.",
+    "machine_readable": "JSON text, which is valid YAML 1.2.",
+    "lock_rule": "SHA-256 and capability count must match generated contract.",
+    "source_of_truth": "Keyword implementation governs execution; contract mismatch is a release-blocking defect."
+  }
+}

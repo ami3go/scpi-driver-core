@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rfds.local/schemas/rf_eresistor/device_identity.schema.json",
+  "title": "rfds.device_identity",
+  "description": "device_identity.json — recorded once Connect To EResistor succeeds.",
+  "type": "object",
+  "required": ["schema", "schema_version", "run_id", "timestamp_utc"],
+  "properties": {
+    "schema": {"const": "rfds.device_identity"},
+    "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "run_id": {"type": "string"},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "manufacturer": {"type": "string"},
+    "device_family": {"type": "string"},
+    "identity": {"type": "string"},
+    "host": {"type": "string"},
+    "scpi_port": {"type": "integer"},
+    "serial": {"type": ["string", "null"]},
+    "firmware_version": {"type": ["string", "null"]}
+  },
+  "additionalProperties": true
+}

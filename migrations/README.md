@@ -34,6 +34,7 @@ command at the end of this file does.
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
 | `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
 | `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
+| `rf_eresistor` | SCPI/TCP path only (secondary validation) | 37 pass | 51 pass |
 
 ## rf_keysight_n6700
 
@@ -248,6 +249,24 @@ driver rather than by the core's own tests.
 22 new tests cover all three transports against a loopback TCP server, a real
 UDP socket, and a faked pyserial backend. Mutation-checked against the core's
 UDP datagram read.
+
+## rf_eresistor
+
+`eresistor_driver/scpi.py` only, and only the SCPI/TCP path. Section 3 of the
+task document is explicit that the HTTP fallback stays device-specific, so
+`http_api.py` is untouched.
+
+The byte-at-a-time `recv(1)` loop is gone, replaced by one bounded read that
+also enforces `max_response_bytes` rather than checking it per byte. The
+driver keeps everything above that: its connection-state machine, its reconnect
+backoff, its multi-line framing, and its `ERR,<code>,"<message>"` error format,
+which is this instrument's own and not the conventional SCPI shape.
+
+The greeting read needed care. An instrument that sends no banner is the normal
+case, so a timeout there must not break the connection — but the core faults a
+TCP transport on read timeout. The greeting is therefore read with a short bound
+and a faulted transport is reopened, which keeps a silent instrument connecting
+cleanly.
 
 ### Running it
 

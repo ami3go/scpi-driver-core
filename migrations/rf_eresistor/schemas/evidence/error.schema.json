@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rfds.local/schemas/rf_eresistor/error.schema.json",
+  "title": "rfds.error",
+  "description": "One line of events/errors.jsonl, written by EvidenceRun.record_error().",
+  "type": "object",
+  "required": [
+    "schema", "schema_version", "run_id", "error_id", "timestamp_utc",
+    "category", "exception_type", "message", "traceback", "sequence"
+  ],
+  "properties": {
+    "schema": {"const": "rfds.error"},
+    "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "run_id": {"type": "string"},
+    "error_id": {"type": "string", "pattern": "^err-"},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "correlation_id": {"type": ["string", "null"]},
+    "operation_id": {"type": ["string", "null"]},
+    "capability": {"type": ["string", "null"]},
+    "session_alias": {"type": ["string", "null"]},
+    "category": {"enum": ["ENVIRONMENT", "VALIDATION", "STATE", "HARDWARE", "ASSERTION", "UNKNOWN"]},
+    "exception_type": {"type": "string"},
+    "message": {"type": "string"},
+    "traceback": {"type": "string"},
+    "recoverable": {"type": ["boolean", "null"]},
+    "sequence": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}
