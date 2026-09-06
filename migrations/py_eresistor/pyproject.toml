@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rf-eresistor"
+version = "26.3"
+description = "Robot Framework library for the OpenBench E-Resistor programmable resistor matrix"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+  "robotframework>=6.1",
+  # SCPI transport and framing come from the core.
+  "scpi-driver-core>=0.1.0.dev0",
+]
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0"]
+test = ["pytest>=7.0", "robotframework>=6.1"]
+
+[tool.setuptools.packages.find]
+include = ["rf_eresistor*", "py_eresistor_driver*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,16 @@
+{
+  "driver_name": "py_keysight_n6700",
+  "release": "26.09",
+  "python_version": "26.9.0",
+  "archive": "py_keysight_n6700_v26.09.zip",
+  "internal_root": "py_keysight_n6700",
+  "release_date": "2026-07-24",
+  "robot_library": "KeysightN6700Library",
+  "ai_driver_contract": "ai/keysight_n6700_ai_contract.yaml",
+  "ai_test_bench_contract": "system_ai_contract.yaml",
+  "rfds_017": "3.0",
+  "rfds_018": "1.0",
+  "rfds_019": "1.1",
+  "rfds_019_suite": "tests/conformance/driver_call_protocol_conformance.robot",
+  "hardware_profile": "N6775A"
+}

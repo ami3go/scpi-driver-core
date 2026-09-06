@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rf-ngi-n83624"
+version = "26.2"
+description = "Safety-oriented Robot Framework library for the NGI N83624 cell simulator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Alexandr Chasnyk" }]
+keywords = ["Robot Framework", "NGI", "N83624", "SCPI", "battery simulator", "hardware test"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: Robot Framework",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Manufacturing",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = [
+  "robotframework>=7.4,<8",
+  "pyserial>=3.5,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2,<2",
+  "pytest>=8,<9",
+  "pytest-cov>=5,<7",
+  "ruff>=0.12,<1",
+  "mypy>=1.16,<2",
+  "hatchling>=1.27,<2",
+]
+docs = [
+  "mkdocs>=1.6,<2",
+  "mkdocs-material>=9.6,<10",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/rf-ngi-n83624"
+Documentation = "https://your-org.github.io/rf-ngi-n83624/"
+Repository = "https://github.com/your-org/rf-ngi-n83624"
+Issues = "https://github.com/your-org/rf-ngi-n83624/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rf_ngi_n83624", "py_ngi_n83624"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "hardware: requires a real NGI N83624 bench",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+"py_ngi_n83624/*" = ["UP035", "UP037", "UP041", "SIM102", "SIM105", "RUF022", "RUF100"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["rf_ngi_n83624", "py_ngi_n83624"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+
+[tool.coverage.run]
+branch = true
+source = ["rf_ngi_n83624", "py_ngi_n83624"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 75

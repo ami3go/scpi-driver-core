@@ -23,25 +23,46 @@ Two of the driver's packaging tests resolve paths relative to the working
 directory, so its suite must be run from inside its own directory, as the
 command at the end of this file does.
 
+## Naming
+
+Upstream prefixes everything `rf_`, because that project is Robot Framework
+first. Here the prefix says what a package *is*:
+
+| Prefix | Example | What it is |
+| --- | --- | --- |
+| `py_` | `py_ngi_n83624/py_ngi_n83624/` | The pure-Python driver. Imports nothing from Robot Framework and is usable from plain Python, pytest, or any other runner. |
+| `rf_` | `py_ngi_n83624/rf_ngi_n83624/` | The Robot Framework adapter: keyword library, listeners, evidence hooks. It `import robot` and is loaded by `.robot` files under exactly this name. |
+
+Project directories take `py_` too, since what is vendored here is the Python
+driver built on this core. `KeysightN6700Library` keeps its name for the same
+reason `rf_*` does — it is a Robot Framework library, whatever its spelling.
+
+This is the one place these snapshots deliberately diverge from upstream. It
+touches the N6700's release governance, which derives its archive name from
+the folder name, so `RELEASE_INFO.json` and the AI-contract lock were
+regenerated to match. Upstream's own distribution names on PyPI
+(`robotframework-agilent33220a`, `rf-ngi-n83624`) are left alone: they are
+published identifiers, not paths.
+
 ## Status
 
 | Driver | Validates | Baseline tests | After migration |
 | --- | --- | --- | --- |
-| `rf_keysight_n6700` | VISA, raw TCP, multi-channel, strict error checking, protocol audit | 33 pass | 33 pass + 11 new |
-| `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
-| `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
-| `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | 30 pass | 30 pass + 33 new |
-| `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
-| `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
-| `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
-| `rf_eresistor` | SCPI/TCP path only (secondary validation) | 37 pass | 51 pass |
+| `py_keysight_n6700` | VISA, raw TCP, multi-channel, strict error checking, protocol audit | 33 pass | 33 pass + 11 new |
+| `py_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
+| `py_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
+| `py_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | 30 pass | 30 pass + 33 new |
+| `py_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
+| `py_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
+| `py_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
+| `py_eresistor` | SCPI/TCP path only (secondary validation) | 37 pass | 51 pass |
 | `rf_bk8500b` | not migrated — see below | — | — |
 
-## rf_keysight_n6700
+## py_keysight_n6700
 
 ### What changed
 
-`keysight_n6700/transport.py` and the generic half of `keysight_n6700/scpi.py`.
+`py_keysight_n6700/transport.py` and the generic half of `py_keysight_n6700/scpi.py`.
 Nothing else. `driver.py`, `channel.py`, `modules.py`, `capabilities.py`,
 `datalog.py`, `simulator.py`, `types.py` and `cli.py` are byte-for-byte
 unchanged, verified by `diff`.
@@ -110,9 +131,9 @@ second driver, not the first.
 - No vendor identifier appears anywhere under `src/scpi_driver_core/`, checked
   by grep. The core learned nothing about Keysight to make this work.
 
-## rf_agilent34411a
+## py_agilent34411a
 
-`agilent34411a/transport.py` replaced, plus the identity and reading-burst
+`py_agilent34411a/transport.py` replaced, plus the identity and reading-burst
 parsing in `driver.py`. `simulator.py`, `models.py`, `enums.py`, `exceptions.py`
 and `__init__.py` are byte-for-byte unchanged.
 
@@ -130,9 +151,9 @@ callers depend on that. The core parses; the fallback is the driver's.
 backend. Mutation-checked: removing the core's second-to-millisecond timeout
 conversion makes one fail.
 
-## rf_tbs1000c
+## py_tbs1000c
 
-`tbs1000c/transport.py` and the block/identity halves of `tbs1000c/codec.py`.
+`py_tbs1000c/transport.py` and the block/identity halves of `py_tbs1000c/codec.py`.
 `driver.py`, `simulator.py`, `models.py` and `exceptions.py` are byte-for-byte
 unchanged.
 
@@ -152,9 +173,9 @@ single `.strip()` to the core's block decoder makes the all-newlines waveform
 test fail, which is exactly the silent corruption the design is meant to
 prevent.
 
-## rf_ea_ps9000t
+## py_ea_ps9000t
 
-`ea_ps9000t/transport.py`, plus the numeric and identity parsing in
+`py_ea_ps9000t/transport.py`, plus the numeric and identity parsing in
 `driver.py`. `simulator.py`, `models.py`, `enums.py` and `exceptions.py` are
 byte-for-byte unchanged.
 
@@ -183,9 +204,9 @@ The fix was a test that disables the fallback and asserts the core alone parses
 the documented replies. With it, the same mutation fails as it should. Worth
 stating because a migration can look proven while proving nothing.
 
-## rf_agilent33220a
+## py_agilent33220a
 
-Secondary validation. `agilent33220a/transport.py` and the identity parsing in
+Secondary validation. `py_agilent33220a/transport.py` and the identity parsing in
 `driver.py`; `simulator.py`, `models.py`, `enums.py` and `exceptions.py` are
 byte-for-byte unchanged.
 
@@ -193,9 +214,9 @@ The same shape as the 34411A, which is the point: by this driver the migration
 was mechanical, because the seam and the core API were already settled. That is
 the compounding the first migration could not demonstrate.
 
-## rf_hp34401a
+## py_hp34401a
 
-`hp34401a_dmm/visa_transport.py` only. This driver already had a
+`py_hp34401a_dmm/visa_transport.py` only. This driver already had a
 template-method `BaseTransport`, so the migration replaced the `_do_open`,
 `_do_close`, `_send`, `_recv`, `_clear` and `_set_timeout` hooks and touched
 nothing else.
@@ -220,9 +241,9 @@ the test kept failing until `src/**/__pycache__` was cleared. Python was reusing
 the mutated bytecode. A mutation check that does not clear it can report either
 a false pass or a false failure.
 
-## rf_ngi_n83624
+## py_ngi_n83624
 
-The only non-VISA migration, and section 42D's case. `ngi_n83624/transports.py`
+The only non-VISA migration, and section 42D's case. `py_ngi_n83624/transports.py`
 is the sole changed file: three hand-rolled backends — TCP, UDP and RS232 —
 replaced by the core's. Every direct use of `socket` and `serial` is gone.
 
@@ -276,9 +297,9 @@ the one to use on any instrument that documents `*ESR?`. This one does not —
 
 11 further tests cover the wait on an injected clock.
 
-## rf_eresistor
+## py_eresistor
 
-`eresistor_driver/scpi.py` only, and only the SCPI/TCP path. Section 3 of the
+`py_eresistor_driver/scpi.py` only, and only the SCPI/TCP path. Section 3 of the
 task document is explicit that the HTTP fallback stays device-specific, so
 `http_api.py` is untouched.
 
@@ -377,12 +398,12 @@ Per driver it checks four things:
 
 | Driver | Public members | Methods swept |
 | --- | --- | --- |
-| `rf_agilent34411a` | 147 | 72 |
-| `rf_agilent33220a` | 116 | 62 |
-| `rf_ea_ps9000t` | 87 | 47 |
-| `rf_tbs1000c` | 58 | 18 |
-| `rf_keysight_n6700` | 48 | 17 |
-| `rf_hp34401a` | 50 | 26 |
+| `py_agilent34411a` | 147 | 72 |
+| `py_agilent33220a` | 116 | 62 |
+| `py_ea_ps9000t` | 87 | 47 |
+| `py_tbs1000c` | 58 | 18 |
+| `py_keysight_n6700` | 48 | 17 |
+| `py_hp34401a` | 50 | 26 |
 
 The sweep is the check that earns its keep, and it is deliberately bounded.
 Only the driver's own simulator or fake transport is ever driven, and lifecycle
@@ -399,7 +420,7 @@ undocumented public members across the six with snapshots. That debt has since
 been paid — see below — so every snapshot now records zero. The ratchets stay,
 because their job now is to keep it that way.
 
-Not covered: `rf_ngi_n83624` and `rf_eresistor`. Neither has a simulated
+Not covered: `py_ngi_n83624` and `py_eresistor`. Neither has a simulated
 constructor the harness can call without bespoke setup — the N83624 driver
 builds around an emulator transport and the E-Resistor client opens a socket in
 its constructor. Both are reachable with more work; neither is done.
@@ -445,6 +466,6 @@ have not been verified here.
 
 ```bash
 pip install -e .                      # the core, from the repository root
-pip install -e "migrations/rf_keysight_n6700[dev]"
-cd migrations/rf_keysight_n6700 && pytest tests/unit
+pip install -e "migrations/py_keysight_n6700[dev]"
+cd migrations/py_keysight_n6700 && pytest tests/unit
 ```
