@@ -23,6 +23,13 @@ from scpi_driver_core.scpi.ieee488 import (
     CompletionResult,
     Ieee4882,
 )
+from scpi_driver_core.scpi.mnemonics import (
+    HeaderPattern,
+    Mnemonic,
+    expand_header_aliases,
+    header_matches,
+    parse_header_pattern,
+)
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
     parse_csv,
@@ -41,12 +48,17 @@ __all__ = [
     "SUPPORTED_UNITS",
     "CompletionResult",
     "EngineeringValue",
+    "HeaderPattern",
+    "Mnemonic",
     "Ieee4882",
     "ScpiClient",
     "ScpiErrorQueue",
     "ScpiExecutionPolicy",
     "ScpiTextCodec",
     "decode_definite_length_block",
+    "expand_header_aliases",
+    "header_matches",
+    "parse_header_pattern",
     "encode_definite_length_block",
     "read_definite_length_block",
     "parse_bool",

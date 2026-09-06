@@ -86,6 +86,13 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   register as it reads it.
 - `poll_until` accepts `backoff` and `maximum_interval_s`, so a wait can start
   polling fast and slow down. Sleeps are still trimmed to the deadline.
+- `scpi_driver_core.scpi.mnemonics`: the SCPI short/long form rule. The capitals
+  in `FREQuency` mark the required part, so an instrument accepts `FREQ` and
+  `FREQUENCY` and nothing in between. `header_matches` decides one header,
+  `expand_header_aliases` returns every legal spelling so a lookup table can be
+  widened once at import instead of pattern-matching on every dispatch.
+  Mnemonics may contain an underscore, because instruments use them:
+  Tektronix's `BIT_Nr` abbreviates to `BIT_N`.
 
 ### Changed
 

@@ -481,13 +481,81 @@ SYSTem:ALARm:ACTion:PFAil?    -> b'AUTO'      # the wrong split, accepted
 SYST:ALAR:ACT:PF?             -> b''          # the legal short form, rejected
 ```
 
-So the driver's own suite cannot detect a wrong short/long split — both
-spellings pass — and cannot exercise abbreviation handling at all, because the
-simulator only answers the long form. A real instrument does the opposite: it
-accepts both forms and rejects a wrong split. That blind spot is exactly the
-class of bug this static audit covers, which is why the two are worth having
-together. It also means these simulators would not catch a driver that sent
-short forms an instrument would accept but the simulator does not.
+The second line needs care, and an earlier draft of this section got it wrong.
+`PFAil` is accepted, but a real instrument accepts it too: SCPI headers are
+case-insensitive, so `PFail` and `PFAil` both spell the word `PFAIL`. Nothing
+can tell them apart, and the `short-form-conflict` finding above is therefore
+cosmetic on the wire — it matters only if a driver ever abbreviates.
+
+The third line is the real defect. `SYST:ALAR:ACT:PF?` is a legal spelling that
+every conforming instrument answers, and the simulator rejected it. So the
+suite was pinned to a *spelling* rather than to a *command*: a driver could
+switch to short forms, remain correct, and fail its entire simulated suite.
+
+That is now fixed — see below.
+
+## Simulators that accept the short form
+
+The fix for what the audit found. `scpi_driver_core.scpi.mnemonics` implements
+the SCPI spelling rule — the capitals in `FREQuency` mark the required part, so
+an instrument accepts `FREQ` and `FREQUENCY` and nothing in between — and four
+simulators now use it to widen their route tables at import.
+
+The split between required and optional letters had been thrown away: the route
+keys are upper case. The drivers still have it, because they send
+`SYSTem:ALARm:ACTion:PFail` exactly as the manual prints it.
+`scripts/generate_simulator_aliases.py` extracts those spellings into a
+generated `scpi_aliases.py` per driver, and each simulator expands them:
+
+```python
+for canonical in CANONICAL_HEADERS:
+    handler = _ROUTES.get(canonical.upper().lstrip(":"))
+    if handler is None:
+        continue
+    for alias in expand_header_aliases(canonical):
+        _ROUTES.setdefault(alias, handler)
+```
+
+`setdefault`, never assignment, so an explicitly registered key always wins and
+nothing that routed before routes differently. The result on the EA:
+
+```
+SYSTem:ALARm:ACTion:PFail?    -> b'AUTO'      # as before
+SYSTEM:ALARM:ACTION:PFAIL?    -> b'AUTO'      # as before
+SYST:ALAR:ACT:PF?             -> b'AUTO'      # now answered, as hardware would
+SYST:ALAR:ACT:PFA?            -> b''          # still refused: neither form
+```
+
+Four drivers, not eight. `py_agilent33220a`, `py_agilent34411a`,
+`py_ea_ps9000t` and `py_tbs1000c` dispatch through a route table, so widening
+it is additive. The N6700 and N83624 match with if/elif chains on the whole
+command; widening those means rewriting their dispatch, which is a bigger and
+riskier change than this one, and is not done.
+
+556 new tests, parametrised over every modelled header: each asserts that every
+legal spelling routes, that the original spelling still routes, and that an
+intermediate abbreviation does not. Driver totals go from 1073 to 1629 passing.
+Mutation-checked: skipping the registration, and computing the aliases without
+storing them, both fail the suite.
+
+### What this does and does not buy
+
+It is fidelity, not a bug hunt, and worth saying plainly. Across all eight
+drivers 972 header nodes are written in mixed case — the full long form — and
+441 in capitals, most of which are short words like `ALL`, `AM`, `DATA` and
+`LAN` with no separate short form. These drivers essentially never abbreviate,
+so no existing command changed behaviour and none was going to.
+
+What changes is that the simulators now model the command rather than one
+spelling of it. A driver that starts abbreviating, or a new driver written
+against a manual that prints short forms, will now be tested rather than
+spuriously failed.
+
+One thing it did catch, in the core rather than a driver: `WFMOutpre:BIT_Nr` on
+the TBS1000C. Tektronix uses an underscore inside a mnemonic, whose short form
+is `BIT_N`, and the first version of the parser rejected the whole header as
+malformed. Nine collection errors, found the moment the matcher met real
+vendor vocabulary rather than the SCPI standard's examples.
 
 ## Docstrings
 

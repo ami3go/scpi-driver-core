@@ -14,6 +14,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import ClassVar
+from scpi_driver_core.scpi.mnemonics import expand_header_aliases
+
+from .scpi_aliases import CANONICAL_HEADERS
 
 _IDN_FIXED = "EA-Elektro-Automatik,PS 9080-60 T,SIM00001,3.06"
 
@@ -606,3 +609,29 @@ _ROUTES: dict[str, Callable] = {
 }
 
 SimEaPs9000TInstrument._ROUTES = _ROUTES
+
+# --- SCPI short-form aliases -------------------------------------------------
+# Added during the scpi-driver-core migration.
+#
+# The route table above is keyed by the fully spelled-out header, because that
+# is what this driver sends. A real instrument also answers the short form:
+# SYST:ERR? and SYSTEM:ERROR? are one command. Registering both keeps this
+# simulator honest about which commands exist, rather than about which spelling
+# happens to be in use, so a driver that abbreviates is still tested.
+#
+# setdefault, never assignment: an explicitly registered key always wins, so
+# nothing that routed before routes differently now.
+
+def _register_short_form_aliases() -> None:
+    """Widen the route table with every legal spelling of each known header."""
+    for canonical in CANONICAL_HEADERS:
+        handler = _ROUTES.get(canonical.upper().lstrip(":"))
+        if handler is None:
+            # A header this driver sends that the simulator does not model.
+            # Not this function's problem to invent.
+            continue
+        for alias in expand_header_aliases(canonical):
+            _ROUTES.setdefault(alias, handler)
+
+
+_register_short_form_aliases()
