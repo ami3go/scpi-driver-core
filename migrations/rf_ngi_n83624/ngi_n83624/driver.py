@@ -313,15 +313,88 @@ class N83624CellSimulator:
         """Query operation complete using ``*OPC?``."""
         return parse_int(self.query("*OPC?"), command="*OPC?")
 
-    def wait_operation_complete(self, timeout: float | None = None) -> bool:
-        """Poll ``*OPC?`` until it returns 1 or timeout expires."""
+    def wait_operation_complete(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float = 0.05,
+        backoff: float = 1.5,
+        maximum_poll_interval: float = 2.0,
+        reconnect_on_timeout: bool = True,
+    ) -> bool:
+        """Poll ``*OPC?`` until it returns 1 or ``timeout`` expires.
+
+        This instrument can take a long time over a command, and a poll issued
+        while it is busy may get no answer at all. That is survivable but not
+        free: a query whose reply never arrived leaves the link unusable,
+        because the reply may still turn up and would be read as the answer to
+        whatever is asked next. The transport therefore treats a timed-out read
+        as fatal to the connection.
+
+        So a poll that times out is reported as "not finished yet" and the
+        transport is reopened before the next one. Reopening is what makes the
+        stale reply harmless: TCP and serial get a fresh stream, and a new UDP
+        socket has a new local port, so a late datagram is dropped rather than
+        mistaken for the next reading.
+
+        The interval grows by ``backoff`` after each poll, so a command that
+        finishes quickly is noticed at once and a slow one is not polled
+        hundreds of times.
+
+        Args:
+            timeout: total bound in seconds, or ``None`` to wait indefinitely.
+            poll_interval: pause before the second poll.
+            backoff: multiplier applied to the interval after each poll. Pass
+                ``1.0`` to poll at a fixed rate.
+            maximum_poll_interval: ceiling for the growing interval.
+            reconnect_on_timeout: reopen the transport after a poll that got no
+                answer. Turning this off leaves the session unusable after the
+                first such poll; it exists for callers that would rather handle
+                the reconnect themselves.
+
+        Returns:
+            True if the instrument reported completion, False if ``timeout``
+            passed first. Timing out is reported, not raised: the caller
+            decides whether an unfinished operation is an error.
+
+        Raises:
+            SessionStateError: if the session is not connected when the wait
+                starts. A link that goes down *during* the wait is not raised
+                on — that is what the reconnect is for, and the wait still ends
+                at its deadline.
+        """
+        self._ensure_connected()
         deadline = None if timeout is None else time.monotonic() + timeout
+        interval = poll_interval
         while True:
-            if self.opc() == 1:
-                return True
-            if deadline is not None and time.monotonic() > deadline:
+            try:
+                if self.opc() == 1:
+                    return True
+            except (TimeoutError, CommunicationError, SessionStateError) as exc:
+                # No answer yet, or none that arrived in time. Either way the
+                # operation is still pending; the link is what needs attention.
+                logger.debug("N83624 *OPC? poll did not answer: %s", exc)
+                if reconnect_on_timeout:
+                    self._reopen_quietly()
+            now = time.monotonic()
+            if deadline is not None and now >= deadline:
                 return False
-            time.sleep(0.05)
+            pause = interval if deadline is None else min(interval, deadline - now)
+            time.sleep(pause)
+            interval = min(interval * backoff, maximum_poll_interval)
+
+    def _reopen_quietly(self) -> None:
+        """Close and reopen the transport, swallowing failures.
+
+        Used between polls of a slow operation. A failure here is not raised:
+        the next poll will fail in its own right and the wait ends at its
+        deadline, which is more useful to a caller than an exception from a
+        recovery attempt.
+        """
+        with contextlib.suppress(Exception):
+            self.transport.close()
+        with contextlib.suppress(Exception):
+            self.transport.open()
 
     def factory_reset(self, confirm: bool = False) -> None:
         """Restore factory settings using ``*RST``.

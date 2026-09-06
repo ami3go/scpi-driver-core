@@ -30,7 +30,7 @@ command at the end of this file does.
 | `rf_keysight_n6700` | VISA, raw TCP, multi-channel, strict error checking, protocol audit | 33 pass | 33 pass + 11 new |
 | `rf_agilent34411a` | VISA, large SCPI surface, measurement parsing, guards | 109 pass | 109 pass + 15 new |
 | `rf_tbs1000c` | USBTMC, binary blocks, waveform and setup transfer | 61 pass | 61 pass + 19 new |
-| `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | 30 pass | 30 pass + 22 new |
+| `rf_ngi_n83624` | TCP, UDP, RS232, emulator, multiple aliases | 30 pass | 30 pass + 33 new |
 | `rf_ea_ps9000t` | VISA, tolerant unit-suffixed parsing, device error queue | 105 pass | 105 pass + 21 new |
 | `rf_agilent33220a` | VISA, function generator (secondary validation) | 101 pass | 101 pass + 15 new |
 | `rf_hp34401a` | VISA GPIB (secondary validation) | 169 pass, 2 skip | 190 pass, 2 skip |
@@ -250,6 +250,31 @@ driver rather than by the core's own tests.
 22 new tests cover all three transports against a loopback TCP server, a real
 UDP socket, and a faked pyserial backend. Mutation-checked against the core's
 UDP datagram read.
+
+### The same rule bites the completion wait
+
+The fault-on-timeout rule has a second consequence here, found later. This
+instrument can spend minutes on a command, and `wait_operation_complete`
+polled `*OPC?` in a tight loop. The first poll a busy instrument declined to
+answer timed out, faulted the transport, and every later poll then failed
+against a dead link — the loop spun until its deadline and left the session
+unusable.
+
+Waiting with one long read instead is not the fix; it is the same bug with a
+bigger constant. The wait now treats an unanswered poll as "not finished yet"
+and reopens the transport before the next one, which is what makes the stale
+reply harmless: a new stream or a new UDP local port drops it rather than
+returning it as the answer to the next query. The interval backs off, and the
+method still reports a timeout by returning `False`.
+
+The core got the general version of this: `Ieee4882.wait_for_completion` arms
+`*OPC` and polls `*ESR?`, which a busy instrument answers immediately, so no
+read is ever left open long enough to fault. That is the better pattern, and
+the one to use on any instrument that documents `*ESR?`. This one does not —
+`*CLS` and `*ESR?` are absent from its programming guide and stay gated behind
+`experimental_ok` — so it polls `*OPC?` and handles the fallout.
+
+11 further tests cover the wait on an injected clock.
 
 ## rf_eresistor
 

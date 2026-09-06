@@ -30,6 +30,8 @@ def poll_until(
     *,
     timeout_s: float,
     interval_s: float = 0.1,
+    backoff: float = 1.0,
+    maximum_interval_s: float | None = None,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
     description: str = "condition",
@@ -45,7 +47,13 @@ def poll_until(
         predicate: the condition, re-evaluated each round.
         timeout_s: total bound, measured on a monotonic clock so a system clock
             adjustment cannot extend or collapse it.
-        interval_s: pause between evaluations.
+        interval_s: pause before the second evaluation.
+        backoff: multiplier applied to the interval after each round. ``1.0``
+            polls at a constant rate. Above 1.0 the interval grows, so a fast
+            operation is noticed almost immediately while a slow one is not
+            polled thousands of times.
+        maximum_interval_s: ceiling for the growing interval, so backoff cannot
+            make the loop stop checking often enough to be useful.
         clock: monotonic time source; injectable for deterministic tests.
         sleep: how to pause; injectable for the same reason.
         description: named in the timeout message.
@@ -62,10 +70,19 @@ def poll_until(
         raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
     if not math.isfinite(interval_s) or interval_s <= 0:
         raise ConfigurationError(f"interval_s must be finite and positive, got {interval_s!r}")
+    if not math.isfinite(backoff) or backoff <= 0:
+        raise ConfigurationError(f"backoff must be finite and positive, got {backoff!r}")
+    if maximum_interval_s is not None and (
+        not math.isfinite(maximum_interval_s) or maximum_interval_s <= 0
+    ):
+        raise ConfigurationError(
+            f"maximum_interval_s must be finite and positive, got {maximum_interval_s!r}"
+        )
 
     started = clock()
     deadline = started + timeout_s
     attempts = 0
+    interval = interval_s
 
     while True:
         attempts += 1
@@ -79,4 +96,7 @@ def poll_until(
                 f"{description} not met within {timeout_s}s "
                 f"(elapsed {now - started:.3f}s, {attempts} attempts)"
             )
-        sleep(min(interval_s, remaining))
+        sleep(min(interval, remaining))
+        interval *= backoff
+        if maximum_interval_s is not None:
+            interval = min(interval, maximum_interval_s)

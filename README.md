@@ -62,6 +62,34 @@ client = ScpiClient(transport)
 value = client.query_float("MEAS?")
 ```
 
+### Slow commands
+
+Some instruments take minutes over a single command — a sweep, a long
+integration, a calibration, ranging on a supply or a load. Waiting for one by
+simply reading with a long timeout is the trap: if the estimate is short by a
+second the read times out, and a timed-out read cannot be retried, because the
+reply is still in flight and would be returned as the answer to whatever is
+asked next. A correct transport therefore faults, and the session is over.
+
+Poll instead. `*OPC` returns immediately and sets a bit when the pending work
+finishes; `*ESR?` answers immediately even while the instrument is busy. Every
+read stays short, and a wait that runs over its deadline raises without having
+damaged anything:
+
+```python
+from scpi_driver_core.scpi import Ieee4882
+
+ieee = Ieee4882(client)
+result = ieee.run_until_complete("CALibration:ALL", timeout_s=900.0)
+print(result.polls, result.elapsed_s, hex(result.event_status))
+```
+
+The poll interval starts short and backs off, so a command that finishes
+quickly is noticed at once and a long one is not polled thousands of times.
+`OperationTimeoutError` on the deadline leaves the connection open and usable,
+so the caller can read the error queue or abort. `wait_for_completion()` is the
+same wait without sending a command, for work already in progress.
+
 ## Installation
 
 ```bash

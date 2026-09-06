@@ -18,7 +18,11 @@ from scpi_driver_core.scpi.errors import (
     ScpiErrorQueue,
     ScpiExecutionPolicy,
 )
-from scpi_driver_core.scpi.ieee488 import Ieee4882
+from scpi_driver_core.scpi.ieee488 import (
+    OPERATION_COMPLETE_BIT,
+    CompletionResult,
+    Ieee4882,
+)
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
     parse_csv,
@@ -32,8 +36,10 @@ from scpi_driver_core.scpi.parsers import (
 
 __all__ = [
     "DEFAULT_MAXIMUM_BLOCK_SIZE",
+    "OPERATION_COMPLETE_BIT",
     "SI_PREFIXES",
     "SUPPORTED_UNITS",
+    "CompletionResult",
     "EngineeringValue",
     "Ieee4882",
     "ScpiClient",

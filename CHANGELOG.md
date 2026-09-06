@@ -77,6 +77,15 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `ScpiClient.set_timeout`, so a driver can change its bound without rebuilding
   the client and losing error-queue policy, the retry observer, and operation-id
   continuity.
+- `Ieee4882.wait_for_completion` and `Ieee4882.run_until_complete`, for
+  instruments that take minutes over a command. They arm `*OPC` and poll
+  `*ESR?` rather than holding a long read open, so the link is never left
+  silent and a wait that runs over its deadline raises `OperationTimeoutError`
+  with the connection still open and usable. Reported as `CompletionResult`,
+  which carries every status bit seen while polling, since `*ESR?` clears the
+  register as it reads it.
+- `poll_until` accepts `backoff` and `maximum_interval_s`, so a wait can start
+  polling fast and slow down. Sleeps are still trimmed to the deadline.
 
 ### Changed
 

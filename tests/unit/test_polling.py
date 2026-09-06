@@ -106,6 +106,40 @@ def test_rejects_an_invalid_interval(interval_s: float) -> None:
         poll_until(lambda: True, timeout_s=1.0, interval_s=interval_s)
 
 
+@pytest.mark.parametrize("backoff", [0, -1, float("inf"), float("nan")])
+def test_rejects_an_invalid_backoff(backoff: float) -> None:
+    with pytest.raises(ConfigurationError, match="backoff"):
+        poll_until(lambda: True, timeout_s=1.0, backoff=backoff)
+
+
+@pytest.mark.parametrize("maximum_interval_s", [0, -1, float("inf"), float("nan")])
+def test_rejects_an_invalid_interval_ceiling(maximum_interval_s: float) -> None:
+    with pytest.raises(ConfigurationError, match="maximum_interval_s"):
+        poll_until(lambda: True, timeout_s=1.0, maximum_interval_s=maximum_interval_s)
+
+
+def test_a_backing_off_interval_still_respects_the_deadline() -> None:
+    """Growth must never let a sleep overshoot the bound."""
+    slept: list[float] = []
+    now = [0.0]
+
+    def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        now[0] += seconds
+
+    with pytest.raises(OperationTimeoutError):
+        poll_until(
+            lambda: False,
+            timeout_s=1.0,
+            interval_s=0.5,
+            backoff=10.0,
+            clock=lambda: now[0],
+            sleep=sleep,
+        )
+    assert slept == [0.5, 0.5]  # the second sleep is trimmed from 5.0
+    assert now[0] == 1.0
+
+
 def test_works_against_the_real_clock() -> None:
     result = poll_until(lambda: True, timeout_s=1.0, interval_s=0.01)
     assert result.attempts == 1

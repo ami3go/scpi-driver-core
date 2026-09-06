@@ -9,8 +9,8 @@ from scpi_driver_core.exceptions import (
     TransportTimeoutError,
 )
 from scpi_driver_core.scpi import ScpiClient
-from scpi_driver_core.scpi.ieee488 import Ieee4882
-from scpi_driver_core.transport import MockTransport
+from scpi_driver_core.scpi.ieee488 import OPERATION_COMPLETE_BIT, Ieee4882
+from scpi_driver_core.transport import MockTransport, TransportState
 
 
 def make(*replies: bytes) -> tuple[Ieee4882, MockTransport]:
@@ -185,3 +185,139 @@ def test_nothing_is_sent_on_construction() -> None:
     transport.open()
     Ieee4882(ScpiClient(transport))
     assert transport.written == b""
+
+
+# -- slow operations: *OPC armed, *ESR? polled ----------------------------
+
+
+class FakeClock:
+    """A monotonic clock that only advances when something sleeps on it.
+
+    Real sleeps would make these tests slow and flaky, and the point being
+    tested is the sequence of polls, not wall-clock behaviour.
+    """
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.slept: list[float] = []
+
+    def __call__(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.now += seconds
+
+
+def test_wait_for_completion_arms_opc_then_polls_esr() -> None:
+    """The sequence that lets a slow operation be waited on without a long read."""
+    ieee, transport = make(b"0\n", b"0\n", b"1\n")
+    clock = FakeClock()
+    result = ieee.wait_for_completion(timeout_s=60.0, clock=clock, sleep=clock.sleep)
+    assert transport.written == b"*OPC\n*ESR?\n*ESR?\n*ESR?\n"
+    assert result.polls == 3
+    assert result.event_status == OPERATION_COMPLETE_BIT
+
+
+def test_wait_for_completion_returns_at_once_when_already_complete() -> None:
+    ieee, transport = make(b"1\n")
+    clock = FakeClock()
+    ieee.wait_for_completion(timeout_s=60.0, clock=clock, sleep=clock.sleep)
+    assert transport.written == b"*OPC\n*ESR?\n"
+    assert clock.slept == []
+
+
+def test_wait_for_completion_can_skip_arming() -> None:
+    """For a command that arms the completion bit itself."""
+    ieee, transport = make(b"1\n")
+    ieee.wait_for_completion(timeout_s=60.0, arm=False)
+    assert transport.written == b"*ESR?\n"
+
+
+def test_the_poll_interval_backs_off() -> None:
+    """A fast operation is noticed at once; a slow one is not polled forever."""
+    ieee, _ = make(*([b"0\n"] * 5), b"1\n")
+    clock = FakeClock()
+    ieee.wait_for_completion(
+        timeout_s=600.0, interval_s=0.1, backoff=2.0, clock=clock, sleep=clock.sleep
+    )
+    assert clock.slept == [0.1, 0.2, 0.4, 0.8, 1.0]  # capped by the default maximum
+
+
+def test_the_interval_can_be_held_constant() -> None:
+    ieee, _ = make(b"0\n", b"0\n", b"1\n")
+    clock = FakeClock()
+    ieee.wait_for_completion(
+        timeout_s=60.0, interval_s=0.25, backoff=1.0, clock=clock, sleep=clock.sleep
+    )
+    assert clock.slept == [0.25, 0.25]
+
+
+def test_a_wait_that_runs_over_its_deadline_raises_but_leaves_the_link_usable() -> None:
+    """The whole point: a timeout here must not cost the connection.
+
+    A long blocking read cannot offer this. Timing one out strands the reply in
+    the instrument's output buffer, so the transport has to fault rather than
+    risk returning it as the answer to the next query.
+    """
+    # A 1s bound polled every 0.25s gets exactly five polls: at 0, .25, .5,
+    # .75 and 1.0, the last of which finds the deadline spent.
+    ieee, transport = make(*([b"0\n"] * 5))
+    clock = FakeClock()
+    with pytest.raises(OperationTimeoutError, match="not met within 1.0s"):
+        ieee.wait_for_completion(
+            timeout_s=1.0, interval_s=0.25, backoff=1.0, clock=clock, sleep=clock.sleep
+        )
+    assert transport.state is TransportState.OPEN
+    assert transport.is_open
+    # And the client can still be used, which is what "did not crash" means.
+    transport.feed(b"1\n")
+    assert ieee.operation_complete()
+
+
+def test_a_status_poll_that_times_out_is_reported_as_a_failed_wait() -> None:
+    """*ESR? is answered even by a busy instrument, so this is a real fault."""
+    ieee, transport = make()
+    transport.fail_next_read(TransportTimeoutError("read timed out"), fault=True)
+    with pytest.raises(OperationTimeoutError, match="stopped responding to status polls") as info:
+        ieee.wait_for_completion(timeout_s=60.0)
+    assert isinstance(info.value.__cause__, TransportTimeoutError)
+    assert transport.state is TransportState.FAULTED
+
+
+def test_error_bits_seen_while_polling_are_not_lost() -> None:
+    """*ESR? clears the register, so a bit raised mid-wait is reported once."""
+    ieee, _ = make(b"32\n", b"0\n", b"1\n")  # command error, then completion
+    clock = FakeClock()
+    result = ieee.wait_for_completion(timeout_s=60.0, clock=clock, sleep=clock.sleep)
+    assert result.event_status == 0x20 | OPERATION_COMPLETE_BIT
+
+
+def test_completion_is_detected_alongside_other_bits() -> None:
+    ieee, _ = make(b"17\n")  # bit 4 (execution error) and bit 0 together
+    result = ieee.wait_for_completion(timeout_s=60.0)
+    assert result.polls == 1
+    assert result.event_status == 0x11
+
+
+def test_run_until_complete_sends_the_full_sequence() -> None:
+    ieee, transport = make(b"0\n", b"1\n")
+    clock = FakeClock()
+    ieee.run_until_complete("CALibration:ALL", timeout_s=600.0, clock=clock, sleep=clock.sleep)
+    assert transport.written == b"*CLS\nCALibration:ALL\n*OPC\n*ESR?\n*ESR?\n"
+
+
+def test_run_until_complete_can_leave_the_error_queue_alone() -> None:
+    ieee, transport = make(b"1\n")
+    ieee.run_until_complete("INITiate", timeout_s=60.0, clear_first=False)
+    assert transport.written == b"INITiate\n*OPC\n*ESR?\n"
+
+
+def test_run_until_complete_reports_a_timeout_with_the_link_intact() -> None:
+    ieee, transport = make(*([b"0\n"] * 40))
+    clock = FakeClock()
+    with pytest.raises(OperationTimeoutError):
+        ieee.run_until_complete(
+            "SWEep", timeout_s=1.0, interval_s=0.25, backoff=1.0, clock=clock, sleep=clock.sleep
+        )
+    assert transport.is_open
