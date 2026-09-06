@@ -425,6 +425,70 @@ constructor the harness can call without bespoke setup — the N83624 driver
 builds around an emulator transport and the E-Resistor client opens a socket in
 its constructor. Both are reachable with more work; neither is done.
 
+## SCPI literal audit
+
+`scripts/audit_scpi_literals.py` parses all eight drivers and checks every
+string literal handed to a write- or query-style call — 694 literals, 494
+distinct — against rules decidable from the text alone. No instrument is
+involved.
+
+```bash
+python migrations/scripts/audit_scpi_literals.py
+```
+
+The checks, and why each one is worth making:
+
+| Check | The bug it finds |
+| --- | --- |
+| `query-sent-as-write` | A `?` command sent through `write()`. The instrument answers, nothing reads it, and the reply sits in the output buffer until the next query collects it as *its* answer. Every reading after that is off by one. The most damaging item on this list, and the same failure mode as a timed-out read. |
+| `command-sent-as-query` | The mirror: a query call on a command that produces no reply, so the read blocks until it times out. |
+| `getter-sends-no-query` | A `get_*`/`read_*`/`measure_*` method whose body sends only non-query commands. Usually a missing `?`. |
+| `short-form-conflict` | One word capitalised two ways. `VOLTage` abbreviates to `VOLT`, `VOLtage` to `VOL` — same word, different commands, one of them a typo. |
+| `unknown-common-command` | A `*XYZ` outside IEEE-488.2: a vendor extension, or a mistyped common command. |
+| `suspicious-whitespace`, `unbalanced-delimiters` | A space before the `?`, a doubled space, an unclosed quote or paren. |
+
+### Results
+
+Six findings, all six reviewed against the code and the vendor documentation,
+none a defect. They are recorded in the script's `ACCEPTED` table with the
+reason, so the run exits zero and anything new fails:
+
+- Three E-Resistor commands sent through `query()`. That instrument
+  acknowledges every command with `OK`, and the driver reads and checks the
+  acknowledgement. Correct as written.
+- `read_once_bus()` in the HP34401A appears to return a value without
+  querying. It reads through `self.fetch()`, which sends `FETCh?`; the check
+  does not follow calls into helper methods.
+- `PFAil` versus `PFail` in the EA PS9000T. The manufacturer spells it both
+  ways — `:PFAil?` under `SYSTem:ALARm:COUNt`, `:PFail` under
+  `SYSTem:ALARm:ACTion` — and the driver reproduces the vendor documentation
+  faithfully.
+- A trailing space in the TBS1000C's `FILESystem:WRITEFile "…", `. It precedes
+  the IEEE-488.2 block that `write_binary` appends; removing it would corrupt
+  the command.
+
+Verified non-vacuous the same way as the core: five bugs were planted, one per
+check, and each was caught.
+
+### What it found about the tests, which is the more useful result
+
+The EA PS9000T simulator routes on `handler_name.upper()`, so it matches the
+uppercased full spelling and nothing else. Demonstrated:
+
+```
+SYSTem:ALARm:ACTion:PFail?    -> b'AUTO'
+SYSTem:ALARm:ACTion:PFAil?    -> b'AUTO'      # the wrong split, accepted
+SYST:ALAR:ACT:PF?             -> b''          # the legal short form, rejected
+```
+
+So the driver's own suite cannot detect a wrong short/long split — both
+spellings pass — and cannot exercise abbreviation handling at all, because the
+simulator only answers the long form. A real instrument does the opposite: it
+accepts both forms and rejects a wrong split. That blind spot is exactly the
+class of bug this static audit covers, which is why the two are worth having
+together. It also means these simulators would not catch a driver that sent
+short forms an instrument would accept but the simulator does not.
+
 ## Docstrings
 
 All eight drivers are now fully documented: 1385 docstrings added,
