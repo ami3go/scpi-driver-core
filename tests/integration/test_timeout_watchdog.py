@@ -12,9 +12,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.watchdog]
 
 @pytest.mark.timeout(5)
 def test_concurrent_session_queries_finish_without_deadlock() -> None:
-    transport = ScriptedScpiTransport().on(
-        "*IDN?", "SCPI Core,Concurrency Simulator,SIM-LOCK,1.0"
-    )
+    transport = ScriptedScpiTransport().on("*IDN?", "SCPI Core,Concurrency Simulator,SIM-LOCK,1.0")
     session = ScpiSession("concurrency", ScpiClient(transport))
     session.open()
 
