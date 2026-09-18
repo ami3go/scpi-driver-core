@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import math
 import threading
-from collections.abc import Callable
-from contextlib import suppress
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
 
 from scpi_driver_core.exceptions import ConfigurationError, ScpiDriverError
 from scpi_driver_core.models import Identity
@@ -130,6 +130,20 @@ class ScpiSession:
         """The client's lock, for making a sequence of operations indivisible."""
         return self._client.operation_lock()
 
+    @contextmanager
+    def _session_operation(self) -> Iterator[None]:
+        """Acquire cross-layer locks in the single safe order: client, then session.
+
+        Retry recovery is invoked while :meth:`ScpiClient.query` already holds
+        the client operation lock. Session methods that acquired ``self._lock``
+        first and then entered the client inverted that order and could deadlock
+        against recovery on another thread. Keeping one lock order preserves
+        operation serialization without an AB/BA cycle.
+        """
+        with self._client.operation_lock():
+            with self._lock:
+                yield
+
     # -- connection state, without touching the instrument ----------------
 
     @property
@@ -169,7 +183,7 @@ class ScpiSession:
                 raised. Every resource acquired here is released first, so a
                 partial failure leaves nothing open.
         """
-        with self._lock:
+        with self._session_operation():
             self._reopen_transport()
 
             if not (probe or validate_identity is not None):
@@ -212,13 +226,13 @@ class ScpiSession:
         Raises:
             ScpiDriverError: whatever the transport raised trying to reopen.
         """
-        with self._lock:
+        with self._session_operation():
             if self.transport.state is not TransportState.OPEN:
                 self._reopen_transport()
 
     def close(self) -> None:
         """Close the transport and forget everything tied to this connection."""
-        with self._lock:
+        with self._session_operation():
             try:
                 self.transport.close()
             finally:
@@ -237,7 +251,7 @@ class ScpiSession:
             raised, since a health check is usually asked as a question; the
             reason is kept on :attr:`health`.
         """
-        with self._lock:
+        with self._session_operation():
             try:
                 self._probe(timeout_s=timeout_s)
             except ScpiDriverError:
@@ -270,7 +284,7 @@ class ScpiSession:
         Args:
             refresh: query again even if a value is cached.
         """
-        with self._lock:
+        with self._session_operation():
             if self._identity is None or refresh:
                 self._identity = self._ieee488.identify()
                 self._health.record_success()
