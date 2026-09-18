@@ -54,6 +54,30 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   clock.
 - `RetryPolicy` and `run_with_retry`; `ScpiClient.query` accepts a retry policy
   only when the query is classified `ReplayPolicy.SAFE`.
+- `RetryPolicy.constant`, a factory for a fixed-delay retry schedule (e.g. an
+  instrument whose replies need a flat multi-second wait before a retry is
+  worth attempting).
+- `RetryPolicy.fast_attempts` and `RetryPolicy.max_delay_s`, extending a
+  flat-delay plateau before `backoff` compounding starts, and capping how
+  large any single wait can grow.
+- `RetryPolicy.max_elapsed_s` and matching `run_with_retry(..., now=...)`
+  support: a wall-clock retry budget that stops further attempts once
+  crossed, independently of `attempts`.
+- `RetryPolicy.progressive`, a factory for the "retry fast a few times, then
+  back off, then give up after a deadline" shape.
+- `run_with_retry(..., before_retry=...)`, called before each retried attempt.
+- `ScpiClient.query(..., before_retry=...)`, forwarding to the above.
+- `ScpiSession.recover_if_faulted`, reopening a transport a prior failure
+  faulted (releasing its resource, per `Transport`'s contract) so a retried
+  operation can actually reach the instrument again; meant to be passed as
+  `ScpiClient.query(..., before_retry=session.recover_if_faulted)`. Without
+  it, every retry after the first transport-level failure previously failed
+  immediately with `NotConnectedError` instead of ever retrying anything.
+- `ScpiClient(..., minimum_interval_s=..., sleep=..., now=...)`: an
+  unconditional floor on the gap between successive operations, for a device
+  documented to need quiet time between commands regardless of success.
+- `parse_csv_floats`, splitting and parsing a comma-separated numeric reply,
+  and `ScpiClient.query_csv_floats`, the typed query built on it.
 - `ConfirmationGuard`, per-instance phrase confirmation with no global state.
 - `ScpiSession`: transport ownership, connection generations, identity cache,
   health, an opt-in connection probe, and driver-supplied identity validation.

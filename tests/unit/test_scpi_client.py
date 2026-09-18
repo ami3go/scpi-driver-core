@@ -9,10 +9,13 @@ import pytest
 
 from scpi_driver_core import (
     ConfigurationError,
+    NotConnectedError,
     ProtocolError,
     ResponseParseError,
     ScpiClient,
+    TransportTimeoutError,
 )
+from scpi_driver_core.execution.retry import RetryPolicy
 from scpi_driver_core.scpi import ScpiTextCodec
 from scpi_driver_core.scpi.binary_block import decode_definite_length_block
 from scpi_driver_core.transport import (
@@ -139,6 +142,7 @@ def test_query_forwards_safe_replay() -> None:
         ("query_int", b"2.000E+00\n", 2),
         ("query_bool", b"ON\n", True),
         ("query_csv", b'a,"b,c"\n', ["a", "b,c"]),
+        ("query_csv_floats", b"3.301,3.298,3.305\n", [3.301, 3.298, 3.305]),
         ("query_optional_unit_float", b"3.5 V\n", 3.5),
     ],
 )
@@ -154,6 +158,13 @@ def test_query_float_forwards_allow_non_finite() -> None:
     transport = opened()
     transport.feed(b"INF\n")
     assert ScpiClient(transport).query_float("MEAS?", allow_non_finite=True) == math.inf
+
+
+def test_query_csv_floats_forwards_allow_non_finite() -> None:
+    transport = opened()
+    transport.feed(b"1.0,INF,3.0\n")
+    result = ScpiClient(transport).query_csv_floats("MEAS?", allow_non_finite=True)
+    assert result == [1.0, math.inf, 3.0]
 
 
 def test_query_optional_unit_float_forwards_options() -> None:
@@ -350,3 +361,123 @@ def test_write_binary_block_is_one_transport_write() -> None:
     transport.open()
     ScpiClient(transport).write_binary_block("CURVE ", b"ABCD")
     assert [op.kind for op in transport.operations if op.kind == "write"] == ["write"]
+
+
+# -- before_retry ---------------------------------------------------------
+
+
+def test_query_before_retry_requires_a_retry_policy() -> None:
+    transport = opened()
+    with pytest.raises(ConfigurationError):
+        ScpiClient(transport).query("MEAS?", before_retry=lambda: None)
+
+
+def test_query_before_retry_recovers_a_faulted_transport() -> None:
+    """The exact scenario before_retry exists for: a timeout faults the transport."""
+    transport = opened()
+    transport.fail_next_read(TransportTimeoutError("TMO"), fault=True)
+    transport.feed(b"3.301\n")
+    client = ScpiClient(transport)
+    calls: list[str] = []
+
+    def before_retry() -> None:
+        calls.append("reopen")
+        transport.open()
+
+    result = client.query(
+        "MEAS:VOLT? (@1)",
+        replay_policy=ReplayPolicy.SAFE,
+        retry_policy=RetryPolicy(attempts=3, initial_delay_s=0.0),
+        before_retry=before_retry,
+    )
+    assert result == "3.301"
+    assert calls == ["reopen"]
+
+
+def test_query_retry_without_before_retry_fails_on_the_faulted_transport() -> None:
+    """Documents the bug before_retry exists to fix: nothing here reopens on its own."""
+    transport = opened()
+    transport.fail_next_read(TransportTimeoutError("TMO"), fault=True)
+    transport.feed(b"3.301\n")
+    client = ScpiClient(transport)
+
+    with pytest.raises(NotConnectedError):
+        client.query(
+            "MEAS:VOLT? (@1)",
+            replay_policy=ReplayPolicy.SAFE,
+            retry_policy=RetryPolicy(attempts=3, initial_delay_s=0.0),
+        )
+
+
+# -- pacing (minimum_interval_s) -------------------------------------------
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.elapsed = 0.0
+        self.slept: list[float] = []
+
+    def now(self) -> float:
+        return self.elapsed
+
+    def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.elapsed += seconds
+
+
+def test_pacing_does_not_delay_the_first_operation() -> None:
+    clock = FakeClock()
+    transport = MockTransport()
+    transport.open()
+    client = ScpiClient(transport, minimum_interval_s=0.25, sleep=clock.sleep, now=clock.now)
+    client.write("OUTP ON")
+    assert clock.slept == []
+
+
+def test_pacing_delays_a_second_operation_started_too_soon() -> None:
+    clock = FakeClock()
+    transport = MockTransport()
+    transport.open()
+    client = ScpiClient(transport, minimum_interval_s=0.25, sleep=clock.sleep, now=clock.now)
+    client.write("OUTP ON")
+    client.write("VOLT 4.2")
+    assert clock.slept == [pytest.approx(0.25)]
+
+
+def test_pacing_does_not_delay_once_enough_real_time_has_passed() -> None:
+    clock = FakeClock()
+    transport = MockTransport()
+    transport.open()
+    client = ScpiClient(transport, minimum_interval_s=0.25, sleep=clock.sleep, now=clock.now)
+    client.write("OUTP ON")
+    clock.elapsed += 1.0  # time passes outside the client's control
+    client.write("VOLT 4.2")
+    assert clock.slept == []
+
+
+def test_pacing_applies_between_writes_with_no_read_in_between() -> None:
+    """Unlike RetryPolicy, pacing is unconditional: it doesn't require a failure."""
+    clock = FakeClock()
+    transport = MockTransport()
+    transport.open()
+    client = ScpiClient(transport, minimum_interval_s=0.25, sleep=clock.sleep, now=clock.now)
+    for _ in range(4):
+        client.write("*CLS")
+    assert clock.slept == [pytest.approx(0.25)] * 3
+
+
+def test_no_pacing_by_default() -> None:
+    clock = FakeClock()
+    transport = MockTransport()
+    transport.open()
+    client = ScpiClient(transport, sleep=clock.sleep, now=clock.now)
+    client.write("OUTP ON")
+    client.write("VOLT 4.2")
+    assert clock.slept == []
+
+
+@pytest.mark.parametrize("interval", [0, -1.0, float("inf")])
+def test_constructor_rejects_invalid_minimum_interval(interval: float) -> None:
+    transport = MockTransport()
+    with pytest.raises(ConfigurationError):
+        ScpiClient(transport, minimum_interval_s=interval)

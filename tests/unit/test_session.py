@@ -129,6 +129,82 @@ def test_generation_lets_a_reader_detect_a_reconnect() -> None:
     assert session.generation != observed
 
 
+# -- recover_if_faulted -----------------------------------------------------
+
+
+def test_recover_if_faulted_does_nothing_to_an_open_transport() -> None:
+    session, transport = make()
+    session.open()
+    generation = session.generation
+    session.recover_if_faulted()
+    assert transport.state is TransportState.OPEN
+    assert transport.open_count == 1
+    assert session.generation == generation
+
+
+def test_recover_if_faulted_reopens_a_faulted_transport() -> None:
+    session, transport = make()
+    session.open()
+    transport.simulate_disconnect()
+    assert transport.state is TransportState.FAULTED
+
+    session.recover_if_faulted()
+
+    assert transport.state is TransportState.OPEN
+    assert transport.open_count == 2
+
+
+def test_recover_if_faulted_advances_the_generation() -> None:
+    """A fault-and-reopen is a new connection, so cached state can't be trusted as fresh."""
+    session, transport = make()
+    session.open()
+    observed = session.generation
+    transport.simulate_disconnect()
+    session.recover_if_faulted()
+    assert session.generation != observed
+
+
+def test_recover_if_faulted_drops_the_cached_identity() -> None:
+    session, transport = make(IDN)
+    session.open()
+    first = session.get_identity()
+    transport.simulate_disconnect()
+    transport.feed(IDN)  # disconnecting discards buffered data, as a real transport does
+    session.recover_if_faulted()
+    second = session.get_identity()
+    assert first is not second
+
+
+def test_recover_if_faulted_does_not_probe_or_validate() -> None:
+    """Unlike open(), this runs between retries of one operation, not at connection setup."""
+    session, transport = make()
+    session.open()
+    transport.simulate_disconnect()
+    written_before = transport.written
+    session.recover_if_faulted()
+    assert transport.written == written_before
+
+
+def test_recover_if_faulted_is_usable_as_a_before_retry_callback() -> None:
+    """The documented integration point: ScpiClient.query(..., before_retry=...)."""
+    session, transport = make()
+    session.open()
+    transport.fail_next_read(TransportError("TMO"), fault=True)
+    transport.feed(b"3.301\n")
+
+    from scpi_driver_core.execution.retry import RetryPolicy
+    from scpi_driver_core.transport import ReplayPolicy
+
+    result = session.client.query(
+        "MEAS:VOLT? (@1)",
+        replay_policy=ReplayPolicy.SAFE,
+        retry_policy=RetryPolicy(attempts=3, initial_delay_s=0.0),
+        before_retry=session.recover_if_faulted,
+    )
+    assert result == "3.301"
+    assert session.generation == 2
+
+
 # -- identity cache -------------------------------------------------------
 
 

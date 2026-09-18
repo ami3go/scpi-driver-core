@@ -8,6 +8,7 @@ from scpi_driver_core.exceptions import IdentityError, ResponseParseError
 from scpi_driver_core.scpi import (
     parse_bool,
     parse_csv,
+    parse_csv_floats,
     parse_float,
     parse_identity,
     parse_int,
@@ -134,6 +135,35 @@ def test_parse_csv_rejects_a_stray_carriage_return() -> None:
     with pytest.raises(ResponseParseError) as excinfo:
         parse_csv("a\rb,c")
     assert excinfo.value.raw == "a\rb,c"
+
+
+# -- CSV floats -------------------------------------------------------------
+
+
+def test_parse_csv_floats_multi_channel() -> None:
+    assert parse_csv_floats("3.301,3.298,3.305") == [3.301, 3.298, 3.305]
+
+
+def test_parse_csv_floats_single_field() -> None:
+    assert parse_csv_floats("3.301") == [3.301]
+
+
+def test_parse_csv_floats_empty_response_yields_empty_list() -> None:
+    assert parse_csv_floats("") == []
+
+
+def test_parse_csv_floats_rejects_a_non_numeric_field() -> None:
+    with pytest.raises(ResponseParseError):
+        parse_csv_floats("1.0,not-a-number,3.0")
+
+
+def test_parse_csv_floats_rejects_non_finite_by_default() -> None:
+    with pytest.raises(ResponseParseError):
+        parse_csv_floats("1.0,INF,3.0")
+
+
+def test_parse_csv_floats_allows_non_finite_when_asked() -> None:
+    assert parse_csv_floats("1.0,INF,3.0", allow_non_finite=True) == [1.0, math.inf, 3.0]
 
 
 # -- identity -------------------------------------------------------------

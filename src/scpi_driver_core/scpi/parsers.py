@@ -24,6 +24,7 @@ from scpi_driver_core.models import Identity, ScpiError
 __all__ = [
     "parse_bool",
     "parse_csv",
+    "parse_csv_floats",
     "parse_float",
     "parse_identity",
     "parse_int",
@@ -148,6 +149,20 @@ def parse_csv(response: str) -> list[str]:
     for row in rows:
         fields.extend(row)
     return fields
+
+
+def parse_csv_floats(response: str, *, allow_non_finite: bool = False) -> list[float]:
+    """Split a comma-separated response and parse every field as a float.
+
+    The common shape for a multi-channel measurement query, such as
+    ``MEAS:VOLT? (@1,2,3)`` answered with ``"3.301,3.298,3.305"``.
+
+    Raises:
+        ResponseParseError: if the response is not parsable as CSV, or any
+            field is not a finite float (or any float, unless
+            ``allow_non_finite``).
+    """
+    return [parse_float(field, allow_non_finite=allow_non_finite) for field in parse_csv(response)]
 
 
 def parse_optional_unit_float(
