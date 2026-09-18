@@ -112,6 +112,10 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   typed queries, IEEE-488.2 helpers, and session reconnect generations.
 - A short-bound `pytest-timeout` concurrency stress test covering session/client
   lock ordering so deadlock regressions fail quickly and visibly.
+- `docs/testing.md`, a canonical description of the layered harness and the
+  baseline expected from downstream concrete drivers.
+- `task/TEST_HARNESS_ADDENDUM.md`, recording the updated test/quality requirements
+  that supplement the original implementation task.
 
 ### Changed
 
@@ -120,6 +124,12 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   implementation, removing about 130 duplicated lines.
 - CI now runs the complete `not hardware` harness explicitly, keeping future
   HIL tests out of normal pull-request and `main` validation.
+- Synchronized the README, architecture docs, acceptance status, contributing
+  guide, examples, test documentation, and AI-agent guidance with the current
+  Hypothesis/PyVISA-sim/pytest-timeout harness and downstream-driver strategy.
+- AI-agent guidance now explicitly prefers auditable concrete-driver methods
+  over generic parameter/descriptor abstractions introduced only to reduce
+  generated boilerplate.
 
 ### Fixed
 
@@ -130,6 +140,5 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `close()` now reaches `CLOSED` even when releasing the backend resource
   raises, instead of stranding the transport in `CLOSING`, a state nothing
   transitioned out of. The failure still propagates.
-
 - Optional-unit parsing now honors `allow_non_finite=True` for responses such
   as `INF V`, rather than rejecting them before numeric parsing.
