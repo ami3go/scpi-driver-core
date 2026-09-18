@@ -215,3 +215,24 @@ def test_zero_delay_policy_does_not_sleep() -> None:
 
     run_with_retry(operation, policy=RetryPolicy(attempts=2), sleep=recorder.sleep)
     assert recorder.slept == []
+
+
+# -- constant() -------------------------------------------------------------
+
+
+def test_constant_builds_an_equivalent_policy() -> None:
+    assert RetryPolicy.constant(100, 5.0) == RetryPolicy(
+        attempts=100, initial_delay_s=5.0, backoff=1.0
+    )
+
+
+def test_constant_keeps_the_same_delay_every_attempt() -> None:
+    policy = RetryPolicy.constant(attempts=5, delay_s=5.0)
+    assert [policy.delay_before(n) for n in range(2, 6)] == [5.0, 5.0, 5.0, 5.0]
+
+
+def test_constant_rejects_invalid_values() -> None:
+    with pytest.raises(ConfigurationError):
+        RetryPolicy.constant(0, 5.0)
+    with pytest.raises(ConfigurationError):
+        RetryPolicy.constant(3, -1.0)

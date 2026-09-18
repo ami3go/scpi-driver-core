@@ -54,6 +54,9 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   clock.
 - `RetryPolicy` and `run_with_retry`; `ScpiClient.query` accepts a retry policy
   only when the query is classified `ReplayPolicy.SAFE`.
+- `RetryPolicy.constant`, a factory for a fixed-delay retry schedule (e.g. an
+  instrument whose replies need a flat multi-second wait before a retry is
+  worth attempting).
 - `ConfirmationGuard`, per-instance phrase confirmation with no global state.
 - `ScpiSession`: transport ownership, connection generations, identity cache,
   health, an opt-in connection probe, and driver-supplied identity validation.

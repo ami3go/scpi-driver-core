@@ -66,6 +66,17 @@ class RetryPolicy:
             return 0.0
         return self.initial_delay_s * (self.backoff ** (attempt - 2))
 
+    @classmethod
+    def constant(cls, attempts: int, delay_s: float) -> RetryPolicy:
+        """A policy that waits the same ``delay_s`` before every retry.
+
+        Equivalent to ``RetryPolicy(attempts=attempts, initial_delay_s=delay_s,
+        backoff=1.0)``, spelled out for the common case of a fixed pause
+        rather than a backing-off one, e.g. a slow instrument that needs a
+        flat multi-second wait before its reply is ready to retry.
+        """
+        return cls(attempts=attempts, initial_delay_s=delay_s, backoff=1.0)
+
 
 NO_RETRY: Final = RetryPolicy()
 """The default: a single attempt, no delay."""
