@@ -103,6 +103,9 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   and unbounded test hangs fail visibly in CI.
 - PyVISA-sim integration coverage that exercises a simulated GPIB instrument
   through `VisaTransport`, `ScpiClient`, and `ScpiSession` without hardware.
+- `AGENTS.md` guidance requiring AI-generated/migrated concrete drivers to reuse
+  `pytest-timeout`, Hypothesis, PyVISA-sim, scripted simulation, and HIL as a
+  layered final-driver test harness where each layer is applicable.
 
 ### Changed
 
