@@ -10,6 +10,14 @@ devices:
       - q: "*IDN?"
         r: "SCPI Core,Simulator,SIM0001,1.0"
       - q: "*CLS"
+      - q: "*OPC?"
+        r: "1"
+      - q: "*TST?"
+        r: "0"
+      - q: "MEAS:ALL?"
+        r: "1.000,2.000,3.000"
+      - q: "SYST:ERR?"
+        r: "0,No error"
     properties:
       voltage:
         default: 1.0
@@ -21,6 +29,17 @@ devices:
         specs:
           min: 0.0
           max: 30.0
+          type: float
+      current:
+        default: 0.1
+        getter:
+          q: "CURR?"
+          r: "{:.3f}"
+        setter:
+          q: "CURR {:.3f}"
+        specs:
+          min: 0.0
+          max: 10.0
           type: float
 
 resources:

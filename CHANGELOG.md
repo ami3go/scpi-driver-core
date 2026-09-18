@@ -106,12 +106,20 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `AGENTS.md` guidance requiring AI-generated/migrated concrete drivers to reuse
   `pytest-timeout`, Hypothesis, PyVISA-sim, scripted simulation, and HIL as a
   layered final-driver test harness where each layer is applicable.
+- Expanded Hypothesis coverage for parsers, engineering prefixes, read-request
+  bounds, retry schedules, binary-block truncation and codec framing invariants.
+- Expanded PyVISA-sim fixture and end-to-end tests for identity, stateful set/get,
+  typed queries, IEEE-488.2 helpers, and session reconnect generations.
+- A short-bound `pytest-timeout` concurrency stress test covering session/client
+  lock ordering so deadlock regressions fail quickly and visibly.
 
 ### Changed
 
 - Extracted `TransportStateMachine`, the lifecycle and state rules every
   backend had copied verbatim. TCP, UDP, serial, VISA and mock now share one
   implementation, removing about 130 duplicated lines.
+- CI now runs the complete `not hardware` harness explicitly, keeping future
+  HIL tests out of normal pull-request and `main` validation.
 
 ### Fixed
 
