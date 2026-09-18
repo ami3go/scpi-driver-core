@@ -140,9 +140,8 @@ class ScpiSession:
         against recovery on another thread. Keeping one lock order preserves
         operation serialization without an AB/BA cycle.
         """
-        with self._client.operation_lock():
-            with self._lock:
-                yield
+        with self._client.operation_lock(), self._lock:
+            yield
 
     # -- connection state, without touching the instrument ----------------
 
