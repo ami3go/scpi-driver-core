@@ -66,9 +66,7 @@ def test_command_terminator_is_appended_exactly_once(text: str, already_terminat
 
 
 @given(text=_ASCII_TEXT, trailing_spaces=st.integers(min_value=0, max_value=16))
-def test_response_codec_removes_only_exact_terminator(
-    text: str, trailing_spaces: int
-) -> None:
+def test_response_codec_removes_only_exact_terminator(text: str, trailing_spaces: int) -> None:
     codec = ScpiTextCodec(response_terminator=b"\r\n")
     response = (text + (" " * trailing_spaces)).encode("ascii") + b"\r\n"
 
