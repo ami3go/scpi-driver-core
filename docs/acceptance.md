@@ -1,7 +1,8 @@
 # Acceptance criteria status
 
 Against section 48 of `task/SCPI_DRIVER_CORE_IMPLEMENTATION_TASK.md`.
-Last audited at commit `0857b98`.
+Last audited after the `0.1.0.dev4` test-harness expansion on `main` commit
+`2c46b4fc55d79319ae17d7508308555db8a1decf`.
 
 ## Framework independence
 
@@ -10,8 +11,8 @@ Last audited at commit `0857b98`.
 - [x] no pytest runtime dependency
 - [x] usable directly from plain Python
 
-Verified by grep over `src/` and by importing the package with none of the
-three installed. `pytest` is a dev dependency only.
+`pytest`, Hypothesis, pytest-timeout, and PyVISA-sim are development/test dependencies only.
+The runtime package remains framework-independent.
 
 ## Transport
 
@@ -26,9 +27,8 @@ three installed. `pytest` is a dev dependency only.
 - [x] all I/O bounded
 - [x] transaction serialization implemented
 
-Every backend passes the same conformance suite in `tests/transport_contract/`.
-The serialization test was checked against a variant with the lock removed and
-fails there, so it discriminates.
+Applicable backends are exercised through reusable transport-contract tests. TCP/UDP also use
+real local loopback endpoints; VISA has a PyVISA-sim end-to-end path.
 
 ## SCPI / IEEE-488.2
 
@@ -40,6 +40,9 @@ fails there, so it discriminates.
 - [x] SCPI error queue implemented
 - [x] definite-length binary block encode/decode implemented
 - [x] arbitrary binary bytes preserved exactly
+
+Protocol invariants and malformed/truncated cases have both deterministic regression tests and
+Hypothesis property coverage.
 
 ## Runtime
 
@@ -53,6 +56,9 @@ fails there, so it discriminates.
 - [x] safe retry rules
 - [x] bounded polling
 
+Session/client lock ordering has a dedicated multithreaded pytest-timeout watchdog so a
+deadlock regression fails in bounded time.
+
 ## Diagnostics
 
 - [x] trace observer
@@ -62,9 +68,24 @@ fails there, so it discriminates.
 - [x] redaction hook
 - [x] command history in scripted simulation
 
+## Test harness
+
+- [x] deterministic pytest unit/regression suite
+- [x] reusable transport conformance suite
+- [x] Hypothesis property tests with separate `dev` and deterministic CI profiles
+- [x] PyVISA-sim end-to-end integration through `VisaTransport`/PyVISA
+- [x] local TCP/UDP socket integration without external endpoints
+- [x] pytest-timeout per-test/session bounds
+- [x] explicit short-bound concurrency/deadlock watchdog
+- [x] `hardware` marker reserved for HIL and excluded from default CI
+- [x] default CI requires no connected laboratory hardware
+
+The detailed harness contract is documented in `docs/testing.md`, `tests/README.md`, and
+`AGENTS.md`.
+
 ## Quality
 
-- [x] meaningful unit coverage >= 90% (96%)
+- [x] meaningful coverage >= 90%
 - [x] ruff passes
 - [x] formatting check passes
 - [x] mypy passes (strict)
@@ -72,6 +93,10 @@ fails there, so it discriminates.
 - [x] sdist builds
 - [x] `py.typed` included
 - [x] CI passes on supported Python versions (3.10, 3.11, 3.12, 3.13)
+- [x] full non-hardware harness passes on all supported Python versions
+
+The `0.1.0.dev4` PR and post-merge `main` CI matrices both passed all four supported Python
+versions, including the expanded hardware-free harness.
 
 ## Migration proof — NOT MET
 
@@ -83,19 +108,21 @@ fails there, so it discriminates.
 - [ ] existing Robot adapters can call migrated drivers
 - [ ] HardPy/pytest can call the same migrated drivers without Robot dependency
 
-These require the driver sources in `ami3go/RobotFrameworks_hw_drivers`, which
-are not part of this repository. Phase 15 cannot be carried out here, so none
-of these can be claimed.
+These require work in the concrete driver repositories and HIL evidence. Simulation and
+hardware-free CI strengthen confidence in the generic core, but they do not establish real
+instrument compatibility.
+
+Each migrated concrete driver should reuse the layered test-harness approach described in
+`docs/testing.md`: unit + scripted simulation + Hypothesis where useful + PyVISA-sim where
+applicable + bounded pytest-timeout execution + separate HIL.
 
 ## Release status
 
-**`v0.1.0` is not tagged.** Section 47 permits the tag only once the acceptance
-criteria are met, and the migration-proof section is not. Everything else is
-complete and verified.
+**`v0.1.0` is not tagged.** The representative migration proof remains the release blocker.
 
-The architecture has been exercised only against the scripted simulator and the
-conformance suite. That is real evidence, but it is not the evidence section 42
-asks for: five representative drivers migrated without manufacturer-specific
-code leaking into the core. Until that happens the public API should be treated
-as provisional, since a migration is exactly the thing likely to reveal a
-missing primitive.
+The architecture has substantial hardware-free evidence: unit/regression tests, transport
+contracts, Hypothesis-generated cases, scripted simulation, local TCP/UDP endpoints,
+PyVISA-sim integration, and bounded concurrency tests. What remains intentionally unclaimed is
+compatibility evidence from the representative real drivers/instruments. Until that work is
+complete, the public API should still be treated as provisional because migrations may expose
+a missing primitive or an abstraction that needs adjustment.
