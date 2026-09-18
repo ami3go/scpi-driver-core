@@ -34,7 +34,6 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - Loopback TCP/UDP integration tests wired into the reusable transport contract.
 - `SerialTransport` as an optional pyserial backend with finite read/write
   timeouts, serial-line configuration, DTR/RTS control, and directional flush.
-
 - `VisaTransport` as an optional PyVISA backend: byte-preserving raw I/O with
   terminations disabled, second-to-millisecond timeout conversion, native
   `BACKEND_DEFINED_MESSAGE` reads, and resource-manager ownership rules.
@@ -98,6 +97,12 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
   disconnects and delays, a simulated SCPI error queue, and command history.
 - `MockTransport.operation_lock`, so a composed transport can keep a write and
   its matching read indivisible.
+- Hypothesis property-based tests for binary-block framing and SCPI text-codec
+  round trips, with a deterministic higher-volume CI profile.
+- `pytest-timeout` watchdogs with per-test and whole-suite bounds so deadlocks
+  and unbounded test hangs fail visibly in CI.
+- PyVISA-sim integration coverage that exercises a simulated GPIB instrument
+  through `VisaTransport`, `ScpiClient`, and `ScpiSession` without hardware.
 
 ### Changed
 

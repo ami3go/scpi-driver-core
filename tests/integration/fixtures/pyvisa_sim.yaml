@@ -1,0 +1,28 @@
+spec: "1.0"
+
+devices:
+  scpi-driver-core:
+    eom:
+      GPIB INSTR:
+        q: "\n"
+        r: "\n"
+    dialogues:
+      - q: "*IDN?"
+        r: "SCPI Core,Simulator,SIM0001,1.0"
+      - q: "*CLS"
+    properties:
+      voltage:
+        default: 1.0
+        getter:
+          q: "VOLT?"
+          r: "{:.3f}"
+        setter:
+          q: "VOLT {:.3f}"
+        specs:
+          min: 0.0
+          max: 30.0
+          type: float
+
+resources:
+  GPIB::9::INSTR:
+    device: scpi-driver-core
