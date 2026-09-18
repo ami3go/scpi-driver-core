@@ -57,6 +57,14 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 - `RetryPolicy.constant`, a factory for a fixed-delay retry schedule (e.g. an
   instrument whose replies need a flat multi-second wait before a retry is
   worth attempting).
+- `RetryPolicy.fast_attempts` and `RetryPolicy.max_delay_s`, extending a
+  flat-delay plateau before `backoff` compounding starts, and capping how
+  large any single wait can grow.
+- `RetryPolicy.max_elapsed_s` and matching `run_with_retry(..., now=...)`
+  support: a wall-clock retry budget that stops further attempts once
+  crossed, independently of `attempts`.
+- `RetryPolicy.progressive`, a factory for the "retry fast a few times, then
+  back off, then give up after a deadline" shape.
 - `ConfirmationGuard`, per-instance phrase confirmation with no global state.
 - `ScpiSession`: transport ownership, connection generations, identity cache,
   health, an opt-in connection probe, and driver-supplied identity validation.
