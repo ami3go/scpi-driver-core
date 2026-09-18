@@ -107,6 +107,10 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 ### Fixed
 
+- Session/client cross-layer locking now always acquires the client operation
+  lock before the session state lock. This removes the AB/BA deadlock possible
+  when a retry callback called `ScpiSession.recover_if_faulted()` while another
+  thread held the session lock and was entering `ScpiClient`.
 - `close()` now reaches `CLOSED` even when releasing the backend resource
   raises, instead of stranding the transport in `CLOSING`, a state nothing
   transitioned out of. The failure still propagates.

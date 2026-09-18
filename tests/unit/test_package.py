@@ -5,7 +5,7 @@ from scpi_driver_core import exceptions
 
 
 def test_package_imports() -> None:
-    assert scpi_driver_core.__version__ == "0.1.0.dev0"
+    assert scpi_driver_core.__version__ == "0.1.0.dev1"
 
 
 def test_error_hierarchy_is_reachable_from_the_top_level() -> None:
