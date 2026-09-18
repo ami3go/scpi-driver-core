@@ -14,6 +14,7 @@ responsibility is protocol.
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TypeVar
@@ -30,6 +31,7 @@ from scpi_driver_core.scpi.errors import ScpiErrorQueue, ScpiExecutionPolicy
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
     parse_csv,
+    parse_csv_floats,
     parse_float,
     parse_int,
     parse_optional_unit_float,
@@ -76,9 +78,20 @@ class ScpiClient:
             numbers operations from one within this client.
         retry_observer: notified after every retried attempt, so the tracing
             layer can record how many an operation needed.
+        minimum_interval_s: floor on the gap between the end of one operation
+            and the start of the next, for a device documented to need quiet
+            time between commands regardless of whether either succeeded.
+            Unlike :class:`~scpi_driver_core.execution.retry.RetryPolicy`,
+            which only delays after a failure, this applies unconditionally —
+            including between back-to-back writes with no read in between.
+            ``None``, the default, paces nothing.
+        sleep: how ``minimum_interval_s`` waits; injectable for tests.
+        now: monotonic clock backing ``minimum_interval_s``; injectable for
+            tests.
 
     Raises:
-        ConfigurationError: if ``timeout_s`` is not finite and positive.
+        ConfigurationError: if ``timeout_s`` or ``minimum_interval_s`` is not
+            finite and positive.
     """
 
     def __init__(
@@ -90,9 +103,18 @@ class ScpiClient:
         timeout_s: float | None = None,
         operation_id_factory: Callable[[], str] | None = None,
         retry_observer: Callable[[RetryAttempt], None] | None = None,
+        minimum_interval_s: float | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        now: Callable[[], float] = time.monotonic,
     ) -> None:
         if timeout_s is not None and not (timeout_s > 0 and timeout_s != float("inf")):
             raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
+        if minimum_interval_s is not None and not (
+            minimum_interval_s > 0 and minimum_interval_s != float("inf")
+        ):
+            raise ConfigurationError(
+                f"minimum_interval_s must be finite and positive, got {minimum_interval_s!r}"
+            )
 
         self._transport = transport
         self._codec = codec if codec is not None else ScpiTextCodec()
@@ -108,6 +130,10 @@ class ScpiClient:
         self._error_queue: ScpiErrorQueue | None = None
         self._execution_policy = ScpiExecutionPolicy()
         self._checking_errors = False
+        self._minimum_interval_s = minimum_interval_s
+        self._sleep = sleep
+        self._now = now
+        self._last_operation_at: float | None = None
 
     def _default_response_request(self) -> ReadRequest:
         terminator = self._codec.response_terminator
@@ -217,7 +243,20 @@ class ScpiClient:
             raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
         effective = self._timeout_s if timeout_s is None else timeout_s
         with self._lock:
-            return action(self._next_operation_id(), effective)
+            self._wait_for_pacing()
+            try:
+                return action(self._next_operation_id(), effective)
+            finally:
+                if self._minimum_interval_s is not None:
+                    self._last_operation_at = self._now()
+
+    def _wait_for_pacing(self) -> None:
+        """Sleep off whatever's left of ``minimum_interval_s`` since the last operation."""
+        if self._minimum_interval_s is None or self._last_operation_at is None:
+            return
+        remaining = self._minimum_interval_s - (self._now() - self._last_operation_at)
+        if remaining > 0:
+            self._sleep(remaining)
 
     # -- byte operations --------------------------------------------------
 
@@ -277,6 +316,7 @@ class ScpiClient:
         timeout_s: float | None = None,
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
         retry_policy: RetryPolicy | None = None,
+        before_retry: Callable[[], None] | None = None,
     ) -> str:
         """Send a query and return its decoded reply.
 
@@ -286,10 +326,19 @@ class ScpiClient:
             retry_policy: how many attempts to make. Requires ``replay_policy``
                 to be ``SAFE``, because retrying means resending a command that
                 may already have reached the device.
+            before_retry: called before each retried attempt. The client never
+                opens or closes the transport itself — see the module
+                docstring — so when a failure has faulted it, recovering is the
+                caller's job. A concrete driver typically passes
+                ``session.recover_if_faulted`` here; without it, every retry
+                after the first transport-level failure fails immediately with
+                ``NotConnectedError`` rather than ever reaching the instrument
+                again. Ignored if ``retry_policy`` is ``None``.
 
         Raises:
             ConfigurationError: if a retrying policy is given without
-                classifying the query as safe to replay.
+                classifying the query as safe to replay, or ``before_retry``
+                is given without a retry policy for it to run under.
         """
         if (
             retry_policy is not None
@@ -300,6 +349,8 @@ class ScpiClient:
                 "retrying a query requires replay_policy=ReplayPolicy.SAFE, "
                 "which asserts that resending it has no side effect"
             )
+        if before_retry is not None and retry_policy is None:
+            raise ConfigurationError("before_retry has no effect without a retry_policy")
 
         outbound = self._codec.encode_command(command)
 
@@ -317,7 +368,10 @@ class ScpiClient:
                 response = attempt()
             else:
                 response = run_with_retry(
-                    attempt, policy=retry_policy, on_attempt=self._retry_observer
+                    attempt,
+                    policy=retry_policy,
+                    before_retry=before_retry,
+                    on_attempt=self._retry_observer,
                 )
             self._check_errors(after_query=True)
             return response
@@ -347,6 +401,22 @@ class ScpiClient:
     def query_csv(self, command: str, *, timeout_s: float | None = None) -> list[str]:
         """Query and split a comma-separated reply."""
         return parse_csv(self.query(command, timeout_s=timeout_s))
+
+    def query_csv_floats(
+        self,
+        command: str,
+        *,
+        allow_non_finite: bool = False,
+        timeout_s: float | None = None,
+    ) -> list[float]:
+        """Query and parse a comma-separated reply as floats.
+
+        The common shape for a multi-channel measurement query, such as
+        ``MEAS:VOLT? (@1,2,3)`` answered with ``"3.301,3.298,3.305"``.
+        """
+        return parse_csv_floats(
+            self.query(command, timeout_s=timeout_s), allow_non_finite=allow_non_finite
+        )
 
     # -- binary blocks ----------------------------------------------------
 

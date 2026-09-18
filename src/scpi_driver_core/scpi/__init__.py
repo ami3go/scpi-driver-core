@@ -22,6 +22,7 @@ from scpi_driver_core.scpi.ieee488 import Ieee4882
 from scpi_driver_core.scpi.parsers import (
     parse_bool,
     parse_csv,
+    parse_csv_floats,
     parse_float,
     parse_identity,
     parse_int,
@@ -45,6 +46,7 @@ __all__ = [
     "read_definite_length_block",
     "parse_bool",
     "parse_csv",
+    "parse_csv_floats",
     "parse_engineering_value",
     "parse_float",
     "parse_identity",

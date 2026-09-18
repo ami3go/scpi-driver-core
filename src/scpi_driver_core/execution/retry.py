@@ -171,6 +171,7 @@ def run_with_retry(
     retry_on: tuple[type[BaseException], ...] = (TransportError,),
     sleep: Callable[[float], None] = time.sleep,
     now: Callable[[], float] = time.monotonic,
+    before_retry: Callable[[], None] | None = None,
     on_attempt: Callable[[RetryAttempt], None] | None = None,
 ) -> _T:
     """Run ``operation``, retrying it according to ``policy``.
@@ -185,6 +186,14 @@ def run_with_retry(
         sleep: how to pause between attempts; injectable for tests.
         now: monotonic clock used to enforce ``policy.max_elapsed_s``;
             injectable for tests.
+        before_retry: called immediately before each retried attempt (never
+            before the first), after any delay has elapsed. A failure that
+            justifies a retry can leave more than a timer to reset: a byte
+            transport moves to a faulted state on any I/O error and releases
+            its resource (see ``Transport``'s contract), so resending without
+            first reopening it fails immediately with ``NotConnectedError``
+            instead of ever reaching the operation again. Use this hook to put
+            things back in a state the next attempt can actually succeed from.
         on_attempt: called after every attempt, successful or not, so tracing
             can record how many were needed.
 
@@ -210,6 +219,8 @@ def run_with_retry(
             break
         if delay > 0:
             sleep(delay)
+        if number > 1 and before_retry is not None:
+            before_retry()
         try:
             result = operation()
         except retry_on as exc:

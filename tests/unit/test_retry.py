@@ -333,6 +333,63 @@ def test_without_max_elapsed_s_the_deadline_never_triggers() -> None:
     assert calls[0] == 3
 
 
+# -- before_retry -----------------------------------------------------------
+
+
+def test_before_retry_runs_ahead_of_every_retried_attempt() -> None:
+    calls: list[str] = []
+    outcomes: list[BaseException | None] = [TransportError("a"), TransportError("b"), None]
+
+    def operation() -> str:
+        calls.append("attempt")
+        outcome = outcomes.pop(0)
+        if outcome is not None:
+            raise outcome
+        return "ok"
+
+    def before_retry() -> None:
+        calls.append("before_retry")
+
+    result = run_with_retry(
+        operation,
+        policy=RetryPolicy(attempts=3),
+        before_retry=before_retry,
+        sleep=lambda _: None,
+    )
+    assert result == "ok"
+    assert calls == ["attempt", "before_retry", "attempt", "before_retry", "attempt"]
+
+
+def test_before_retry_does_not_run_before_the_first_attempt() -> None:
+    calls: list[str] = []
+
+    def operation() -> str:
+        calls.append("attempt")
+        return "ok"
+
+    run_with_retry(
+        operation,
+        policy=RetryPolicy(attempts=3),
+        before_retry=lambda: calls.append("before_retry"),
+        sleep=lambda _: None,
+    )
+    assert calls == ["attempt"]
+
+
+def test_before_retry_is_skipped_with_no_retries_configured() -> None:
+    """A default single-attempt policy never retries, so the hook never fires."""
+    calls: list[str] = []
+
+    def operation() -> str:
+        raise TransportError("dead")
+
+    with pytest.raises(TransportError):
+        run_with_retry(
+            operation, before_retry=lambda: calls.append("before_retry"), sleep=lambda _: None
+        )
+    assert calls == []
+
+
 # -- constant() -------------------------------------------------------------
 
 

@@ -170,11 +170,7 @@ class ScpiSession:
                 partial failure leaves nothing open.
         """
         with self._lock:
-            self.transport.open()
-            self._generation += 1
-            self._identity = None
-            self._health.record_connected()
-            self._publish_trace_context()
+            self._reopen_transport()
 
             if not (probe or validate_identity is not None):
                 return
@@ -189,6 +185,36 @@ class ScpiSession:
                 with suppress(Exception):
                     self.close()
                 raise
+
+    def _reopen_transport(self) -> None:
+        """Acquire the transport resource and start a new connection generation."""
+        self.transport.open()
+        self._generation += 1
+        self._identity = None
+        self._health.record_connected()
+        self._publish_trace_context()
+
+    def recover_if_faulted(self) -> None:
+        """Reopen the transport if a previous failure left it unusable.
+
+        A byte transport moves to a faulted state on any I/O error and
+        releases its resource as part of that (see ``Transport``'s contract) —
+        that's true across every backend, not an edge case. So resuming a
+        retried operation after one requires reopening first; without it,
+        every subsequent attempt fails immediately with ``NotConnectedError``
+        instead of ever reaching the instrument again.
+
+        Meant to be passed as ``ScpiClient.query(..., before_retry=...)``.
+        Unlike :meth:`open`, this never probes or validates identity — it runs
+        between retries of a single operation, not at connection setup — and
+        does nothing if the transport is already open.
+
+        Raises:
+            ScpiDriverError: whatever the transport raised trying to reopen.
+        """
+        with self._lock:
+            if self.transport.state is not TransportState.OPEN:
+                self._reopen_transport()
 
     def close(self) -> None:
         """Close the transport and forget everything tied to this connection."""
