@@ -1,15 +1,4 @@
-"""The instrument error queue, and the policy for consulting it.
-
-``SYST:ERR?`` pops one entry and answers ``0,"No error"`` once the queue is
-empty. Draining therefore means querying repeatedly until a no-error code
-appears, which is exactly the loop every driver in the source set had written
-for itself.
-
-Nothing here runs on its own. Reading the queue is itself instrument traffic,
-and doing it after every operation would double the command count and clear
-errors a driver may have wanted to inspect. A concrete driver opts in through
-:class:`ScpiExecutionPolicy`.
-"""
+"""The instrument error queue, and the policy for consulting it."""
 
 from __future__ import annotations
 
@@ -17,7 +6,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
-from scpi_driver_core.exceptions import ConfigurationError, ScpiErrorQueueError
+from scpi_driver_core.exceptions import (
+    ConfigurationError,
+    ResponseParseError,
+    ScpiErrorQueueError,
+)
 from scpi_driver_core.models import ScpiError
 from scpi_driver_core.scpi.parsers import parse_scpi_error
 
@@ -39,12 +32,7 @@ DEFAULT_MAXIMUM_ENTRIES: Final = 32
 
 @dataclass(frozen=True)
 class ScpiExecutionPolicy:
-    """When to consult the error queue automatically.
-
-    Both checks are off by default. Turning one on makes every write or query
-    cost an extra round trip, which is worth it while bringing a driver up and
-    usually not in a tight measurement loop.
-    """
+    """When to consult the error queue automatically after successful traffic."""
 
     check_error_queue_after_write: bool = False
     check_error_queue_after_query: bool = False
@@ -56,22 +44,6 @@ class ScpiExecutionPolicy:
 
 @dataclass
 class ScpiErrorQueue:
-    """Reads and drains an instrument's error queue.
-
-    Args:
-        client: the client to query on.
-        command: the query to use. Most instruments accept ``SYST:ERR?``, but
-            some spell it differently, so it is configurable rather than
-            assumed.
-        no_error_codes: codes meaning "queue empty". Conventionally just 0.
-        maximum_entries: how many entries a single drain will pop before giving
-            up, so a device stuck reporting errors cannot loop forever.
-
-    Raises:
-        ConfigurationError: if the command is empty, the no-error set is empty,
-            or ``maximum_entries`` is not positive.
-    """
-
     client: ScpiClient
     command: str = DEFAULT_ERROR_QUERY
     no_error_codes: frozenset[int] = field(default=DEFAULT_NO_ERROR_CODES)
@@ -89,43 +61,15 @@ class ScpiErrorQueue:
             )
 
     def is_no_error(self, error: ScpiError) -> bool:
-        """Whether ``error`` is the instrument's way of saying the queue is empty."""
         return error.code in self.no_error_codes
 
     def read_one(self, *, timeout_s: float | None = None) -> ScpiError:
-        """Pop and parse a single entry.
-
-        A no-error reply is returned like any other, not swallowed, so a caller
-        can tell an empty queue from a populated one.
-
-        Raises:
-            ResponseParseError: if the reply is not ``code,"message"``.
-        """
         return parse_scpi_error(self.client.query(self.command, timeout_s=timeout_s))
 
     def drain(
         self, *, max_entries: int | None = None, timeout_s: float | None = None
     ) -> list[ScpiError]:
-        """Pop entries until the queue reports empty.
-
-        The whole drain is held under the client's operation lock, so a
-        concurrent caller cannot consume half of it.
-
-        Args:
-            max_entries: override the configured bound for this drain.
-            timeout_s: bound for each individual query.
-
-        Returns:
-            The real errors, in the order the instrument reported them. Empty
-            when there were none. The terminating no-error entry is not
-            included.
-
-        Raises:
-            ScpiErrorQueueError: if the queue never reports empty within the
-                bound, which means the instrument is producing errors faster
-                than they can be read, or does not use a no-error code this
-                queue knows about.
-        """
+        """Pop entries until empty, preserving every popped entry on failure."""
         limit = self.maximum_entries if max_entries is None else max_entries
         if limit <= 0:
             raise ConfigurationError(f"max_entries must be positive, got {limit}")
@@ -133,28 +77,31 @@ class ScpiErrorQueue:
         collected: list[ScpiError] = []
         with self.client.operation_lock():
             for _ in range(limit):
-                entry = self.read_one(timeout_s=timeout_s)
+                reply = self.client.query(self.command, timeout_s=timeout_s)
+                try:
+                    entry = parse_scpi_error(reply)
+                except ResponseParseError as exc:
+                    raise ScpiErrorQueueError(
+                        f"unparsable error-queue reply {reply!r}",
+                        errors=collected,
+                        complete=False,
+                    ) from exc
                 if self.is_no_error(entry):
                     return collected
                 collected.append(entry)
 
         raise ScpiErrorQueueError(
-            f"error queue did not empty within {limit} entries; last was {collected[-1].raw!r}"
+            f"error queue did not empty within {limit} entries: {_describe(collected)}",
+            errors=collected,
+            complete=False,
         )
 
     def raise_if_errors(
         self, *, max_entries: int | None = None, timeout_s: float | None = None
     ) -> None:
-        """Drain, and raise if the instrument had anything to report.
-
-        Raises:
-            ScpiErrorQueueError: if the queue held any entries. The message
-                lists all of them, since the first is often a consequence of a
-                command several steps earlier.
-        """
         errors = self.drain(max_entries=max_entries, timeout_s=timeout_s)
         if errors:
-            raise ScpiErrorQueueError(_describe(errors))
+            raise ScpiErrorQueueError(_describe(errors), errors=errors, complete=True)
 
 
 def _describe(errors: Sequence[ScpiError]) -> str:
