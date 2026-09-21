@@ -169,9 +169,6 @@ class InstrumentedTransport:
         try:
             data = self._inner.read(request, timeout_s=timeout_s, operation_id=operation_id)
         except BaseException as exc:
-            # A read failure is unambiguously an RX-side failure; unlike a
-            # failed transaction, there is no uncertainty about whether an
-            # outbound command was transmitted by this wrapper call.
             self._fail(TraceDirection.RX, started, exc, operation_id=operation_id)
             raise
         self._tracer.emit(
@@ -193,7 +190,7 @@ class InstrumentedTransport:
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
         operation_id: str | None = None,
     ) -> bytes:
-        """Emit success only after the inner transaction really succeeded."""
+        """Trace one transaction without ever claiming an uncertain write succeeded."""
         started = self._clock()
         with self._inner.operation_lock():
             try:
@@ -205,15 +202,22 @@ class InstrumentedTransport:
                     operation_id=operation_id,
                 )
             except BaseException as exc:
-                # It is unknown whether any/all outbound bytes reached the
-                # device, so never record a successful TX in this path.
-                self._fail(
-                    TraceDirection.ERROR,
-                    started,
-                    exc,
+                # The wrapper cannot know whether a failing backend transaction
+                # wrote no bytes, some bytes, or the complete command. Record
+                # the outbound attempt as unsuccessful, then the failed receive
+                # phase. This preserves phase visibility without a false
+                # positive such as "OUTP ON was transmitted successfully".
+                self._tracer.emit(
+                    TraceDirection.TX,
                     data=outbound,
                     operation_id=operation_id,
+                    descriptor=self._inner.descriptor,
+                    context=self._context,
+                    success=False,
+                    duration_s=self._clock() - started,
+                    error=exc,
                 )
+                self._fail(TraceDirection.RX, started, exc, operation_id=operation_id)
                 raise
             self._tracer.emit(
                 TraceDirection.TX,
