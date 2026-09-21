@@ -1,15 +1,4 @@
-"""Generic parsers for SCPI response text.
-
-These operate on text already decoded by :class:`~scpi_driver_core.scpi.codec.ScpiTextCodec`,
-so surrounding whitespace is padding an instrument added, not protocol framing,
-and is tolerated. The prohibition on ``strip()`` applies to the framing layer,
-which has already run by this point.
-
-Every failure raises with the offending response attached, and nothing is ever
-silently coerced: a value that cannot be parsed is an error, never a zero.
-Device-specific sentinels, such as the 9.9E37 an overloaded meter returns,
-stay in the concrete driver; to the core that is simply a large float.
-"""
+"""Generic parsers for decoded SCPI response text."""
 
 from __future__ import annotations
 
@@ -17,8 +6,10 @@ import csv
 import io
 import math
 import re
+from decimal import Decimal, InvalidOperation
+from typing import Final
 
-from scpi_driver_core.exceptions import IdentityError, ResponseParseError
+from scpi_driver_core.exceptions import ConfigurationError, IdentityError, ResponseParseError
 from scpi_driver_core.models import Identity, ScpiError
 
 __all__ = [
@@ -35,85 +26,87 @@ __all__ = [
 
 _TRUE_TOKENS = frozenset({"1", "ON", "TRUE"})
 _FALSE_TOKENS = frozenset({"0", "OFF", "FALSE"})
-
-#: A number, optionally followed by a unit suffix. The suffix is restricted to
-#: letters, so trailing junk such as "1 2" is rejected rather than read as a
-#: value with a nonsense unit. ``[^\W\d_]`` covers Ω and µ as well as ASCII.
+_SCPI_DECIMAL = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", re.ASCII)
 _VALUE_WITH_UNIT = re.compile(
-    r"""^\s*
-        (?P<number>[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|inf(?:inity)?|nan))
-        \s*
-        (?P<unit>[^\W\d_]*)
-        \s*$""",
-    re.IGNORECASE | re.VERBOSE,
+    r"^\s*(?P<number>[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|[+-]?(?:inf(?:inity)?|nan))\s*(?P<unit>[^\W\d_]*)\s*$",
+    re.IGNORECASE,
 )
 
+_SCPI_POS_INF: Final = Decimal("9.9E37")
+_SCPI_NEG_INF: Final = Decimal("-9.9E37")
+_SCPI_NAN: Final = Decimal("9.91E37")
 
-def parse_float(response: str, *, allow_non_finite: bool = False) -> float:
-    """Parse a floating-point response.
 
-    Args:
-        allow_non_finite: permit ``NaN`` and infinities. Off by default,
-            because a device reporting one usually indicates a fault the caller
-            should see rather than propagate into arithmetic.
+def _decimal(text: str, response: str) -> Decimal:
+    if _SCPI_DECIMAL.fullmatch(text) is None:
+        raise ResponseParseError(f"expected a numeric SCPI value, got {response!r}", raw=response)
+    try:
+        return Decimal(text)
+    except InvalidOperation as exc:  # defensive after regex validation
+        raise ResponseParseError(f"expected a numeric SCPI value, got {response!r}", raw=response) from exc
 
-    Raises:
-        ResponseParseError: if the response is not a number, or is non-finite
-            and ``allow_non_finite`` is false.
+
+def parse_float(
+    response: str,
+    *,
+    allow_non_finite: bool = False,
+    scpi_special_values: bool = True,
+) -> float:
+    """Parse an ASCII SCPI decimal value.
+
+    SCPI-99 overload/special encodings ``9.9E37``, ``-9.9E37`` and ``9.91E37``
+    are treated as +infinity, -infinity and NaN by default. Thus they are
+    rejected when ``allow_non_finite`` is false rather than silently entering
+    limit arithmetic as very large finite measurements.
     """
     text = response.strip()
-    try:
-        value = float(text)
-    except ValueError as exc:
-        raise ResponseParseError(f"expected a float, got {response!r}", raw=response) from exc
+    upper = text.upper()
+    mnemonic: float | None = None
+    if upper in {"INF", "+INF", "INFINITY", "+INFINITY"}:
+        mnemonic = math.inf
+    elif upper in {"-INF", "-INFINITY", "NINF"}:
+        mnemonic = -math.inf
+    elif upper in {"NAN", "+NAN", "-NAN"}:
+        mnemonic = math.nan
+
+    if mnemonic is not None:
+        value = mnemonic
+    else:
+        exact = _decimal(text, response)
+        if scpi_special_values and exact == _SCPI_NAN:
+            value = math.nan
+        elif scpi_special_values and exact == _SCPI_POS_INF:
+            value = math.inf
+        elif scpi_special_values and exact == _SCPI_NEG_INF:
+            value = -math.inf
+        else:
+            value = float(exact)
+
     if not allow_non_finite and not math.isfinite(value):
         raise ResponseParseError(f"expected a finite float, got {response!r}", raw=response)
     return value
 
 
 def parse_int(response: str) -> int:
-    """Parse an integer response.
-
-    Accepts the ``+1.00000000E+02`` form some instruments return where an
-    integer is documented, but only when the value is exactly integral.
-
-    Raises:
-        ResponseParseError: if the response is not an integer.
-    """
+    """Parse an integral ASCII SCPI decimal without binary-float precision loss."""
     text = response.strip()
-    try:
-        return int(text)
-    except ValueError:
-        pass
-
-    try:
-        value = float(text)
-    except ValueError as exc:
-        raise ResponseParseError(f"expected an integer, got {response!r}", raw=response) from exc
-
-    if not math.isfinite(value) or value != int(value):
+    value = _decimal(text, response)
+    integral = value.to_integral_value()
+    if value != integral:
         raise ResponseParseError(f"expected an integer, got {response!r}", raw=response)
-    return int(value)
+    return int(integral)
 
 
 def parse_bool(response: str) -> bool:
-    """Parse a SCPI boolean.
-
-    Accepts ``1``/``0``, ``ON``/``OFF`` and ``TRUE``/``FALSE`` in any case, and
-    numeric forms such as ``1.000000E+00`` whose value is exactly 0 or 1.
-
-    Raises:
-        ResponseParseError: for anything else, including other numbers.
-    """
+    """Parse the conventional SCPI boolean forms, rejecting other numerics."""
     token = response.strip().upper()
     if token in _TRUE_TOKENS:
         return True
     if token in _FALSE_TOKENS:
         return False
-
     try:
-        value = float(token)
-    except ValueError as exc:
+        value = _decimal(response.strip(), response)
+    except ResponseParseError as exc:
         raise ResponseParseError(f"expected a boolean, got {response!r}", raw=response) from exc
     if value == 0:
         return False
@@ -123,46 +116,30 @@ def parse_bool(response: str) -> bool:
 
 
 def parse_csv(response: str) -> list[str]:
-    """Split a comma-separated response, honoring quoted fields.
-
-    Uses real CSV parsing rather than ``split(",")`` so a quoted field
-    containing a comma survives. Fields are returned as they appear, apart from
-    whitespace immediately after a separator; the typed parsers tolerate any
-    remaining padding.
-
-    An empty response yields an empty list. A response containing embedded
-    newlines is flattened into one list of fields, since a SCPI reply is a
-    single logical record however the instrument chose to wrap it.
-
-    Raises:
-        ResponseParseError: if the response is not parsable as CSV, which a
-            stray carriage return will cause.
-    """
+    """Split a comma-separated response, honoring quoted fields."""
     if not response.strip():
         return []
     try:
         rows = list(csv.reader(io.StringIO(response), skipinitialspace=True))
     except csv.Error as exc:
         raise ResponseParseError(f"malformed CSV response {response!r}", raw=response) from exc
-
-    fields: list[str] = []
-    for row in rows:
-        fields.extend(row)
-    return fields
+    return [field for row in rows for field in row]
 
 
-def parse_csv_floats(response: str, *, allow_non_finite: bool = False) -> list[float]:
-    """Split a comma-separated response and parse every field as a float.
-
-    The common shape for a multi-channel measurement query, such as
-    ``MEAS:VOLT? (@1,2,3)`` answered with ``"3.301,3.298,3.305"``.
-
-    Raises:
-        ResponseParseError: if the response is not parsable as CSV, or any
-            field is not a finite float (or any float, unless
-            ``allow_non_finite``).
-    """
-    return [parse_float(field, allow_non_finite=allow_non_finite) for field in parse_csv(response)]
+def parse_csv_floats(
+    response: str,
+    *,
+    allow_non_finite: bool = False,
+    scpi_special_values: bool = True,
+) -> list[float]:
+    return [
+        parse_float(
+            field,
+            allow_non_finite=allow_non_finite,
+            scpi_special_values=scpi_special_values,
+        )
+        for field in parse_csv(response)
+    ]
 
 
 def parse_optional_unit_float(
@@ -170,31 +147,17 @@ def parse_optional_unit_float(
     *,
     expected_unit: str | None = None,
     allow_non_finite: bool = False,
+    scpi_special_values: bool = True,
 ) -> float:
-    """Parse a number that may carry a unit suffix.
-
-    Instruments in the source driver set answer the same query as either
-    ``500.0`` or ``500.0 V``, sometimes depending on firmware, so both forms
-    have to work. The unit is not scaled: this returns the number as written.
-    For prefix handling such as ``500mV``, use
-    :func:`~scpi_driver_core.scpi.engineering.parse_engineering_value`.
-
-    Args:
-        expected_unit: if given, the suffix must match it case-insensitively.
-            A response without a suffix is always accepted.
-
-    Raises:
-        ResponseParseError: if there is no number, the number is non-finite and
-            ``allow_non_finite`` is false, or the unit contradicts
-            ``expected_unit``.
-    """
     match = _VALUE_WITH_UNIT.match(response)
     if match is None:
         raise ResponseParseError(f"expected a number, got {response!r}", raw=response)
-
-    value = parse_float(match.group("number"), allow_non_finite=allow_non_finite)
+    value = parse_float(
+        match.group("number"),
+        allow_non_finite=allow_non_finite,
+        scpi_special_values=scpi_special_values,
+    )
     unit = match.group("unit")
-
     if expected_unit is not None and unit and unit.casefold() != expected_unit.casefold():
         raise ResponseParseError(
             f"expected unit {expected_unit!r}, got {unit!r} in {response!r}", raw=response
@@ -203,31 +166,16 @@ def parse_optional_unit_float(
 
 
 def parse_identity(response: str) -> Identity:
-    """Parse a conventional comma-separated ``*IDN?`` reply.
-
-    The usual shape is ``manufacturer,model,serial,firmware``. Instruments that
-    supply fewer fields leave the optional ones as ``None``; fields beyond the
-    fourth are ignored but remain visible in
-    :attr:`~scpi_driver_core.models.Identity.raw`. Empty fields become ``None``
-    rather than empty strings, except that a serial number an instrument
-    reports literally as ``0`` is kept as written.
-
-    Raises:
-        IdentityError: if manufacturer and model are not both present.
-    """
     try:
         fields = parse_csv(response)
     except ResponseParseError as exc:
         raise IdentityError(f"malformed *IDN? reply {response!r}") from exc
-
     trimmed = [field.strip() for field in fields]
     if len(trimmed) < 2 or not trimmed[0] or not trimmed[1]:
         raise IdentityError(f"*IDN? reply lacks manufacturer and model: {response!r}")
 
     def optional(index: int) -> str | None:
-        if index >= len(trimmed) or not trimmed[index]:
-            return None
-        return trimmed[index]
+        return None if index >= len(trimmed) or not trimmed[index] else trimmed[index]
 
     return Identity(
         manufacturer=trimmed[0],
@@ -239,25 +187,20 @@ def parse_identity(response: str) -> Identity:
 
 
 def parse_scpi_error(response: str) -> ScpiError:
-    """Parse a ``SYST:ERR?`` reply of the form ``code,"message"``.
-
-    Raises:
-        ResponseParseError: if the reply has no numeric code.
-    """
     fields = parse_csv(response)
     if len(fields) < 2:
         raise ResponseParseError(f"expected a code and message, got {response!r}", raw=response)
-
     try:
-        code = int(fields[0].strip())
-    except ValueError as exc:
+        code = parse_int(fields[0].strip())
+    except ResponseParseError as exc:
         raise ResponseParseError(
             f"expected a numeric error code, got {response!r}", raw=response
         ) from exc
-
     return ScpiError(code=code, message=",".join(fields[1:]).strip(), raw=response)
 
 
 def quote_scpi_string(value: str) -> str:
-    """Wrap ``value`` in the double quotes SCPI expects, doubling any it contains."""
+    """Quote SCPI string data without permitting line-oriented command injection."""
+    if "\r" in value or "\n" in value:
+        raise ConfigurationError("SCPI string data must not contain CR or LF")
     return '"' + value.replace('"', '""') + '"'
