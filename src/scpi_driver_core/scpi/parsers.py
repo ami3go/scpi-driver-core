@@ -43,7 +43,9 @@ def _decimal(text: str, response: str) -> Decimal:
     try:
         return Decimal(text)
     except InvalidOperation as exc:  # defensive after regex validation
-        raise ResponseParseError(f"expected a numeric SCPI value, got {response!r}", raw=response) from exc
+        raise ResponseParseError(
+            f"expected a numeric SCPI value, got {response!r}", raw=response
+        ) from exc
 
 
 def parse_float(
