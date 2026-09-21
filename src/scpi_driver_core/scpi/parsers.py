@@ -90,9 +90,18 @@ def parse_float(
 
 
 def parse_int(response: str) -> int:
-    """Parse an integral ASCII SCPI decimal without binary-float precision loss."""
+    """Parse an integral ASCII SCPI decimal without binary-float precision loss.
+
+    Decimal arithmetic avoids the previous loss of precision above ``2**53``.
+    Values whose magnitude cannot be represented as a finite IEEE-754 double
+    are still rejected, preserving the historical bounded numeric domain and
+    preventing inputs such as ``1e999`` from turning into enormous Python
+    integers unexpectedly.
+    """
     text = response.strip()
     value = _decimal(text, response)
+    if not math.isfinite(float(value)):
+        raise ResponseParseError(f"expected a finite integer, got {response!r}", raw=response)
     integral = value.to_integral_value()
     if value != integral:
         raise ResponseParseError(f"expected an integer, got {response!r}", raw=response)
