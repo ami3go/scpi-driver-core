@@ -278,30 +278,30 @@ class ScpiClient:
         outbound = self._codec.encode_command(command)
 
         def attempt() -> str:
-            raw = self.transact_bytes(
-                outbound,
-                self._response_request,
-                timeout_s=timeout_s,
-                replay_policy=replay_policy,
-            )
-            return self._codec.decode_response(raw)
-
-        # Intentionally retained across backoff/recovery. Releasing this lock
-        # would let another command consume a late response or error-queue entry
-        # belonging to the operation being recovered.
-        with self._lock:
-            response = (
-                attempt()
-                if retry_policy is None
-                else run_with_retry(
-                    attempt,
-                    policy=retry_policy,
-                    before_retry=before_retry,
-                    on_attempt=self._retry_observer,
+            # Serialization is per attempt rather than per retry sequence. The
+            # lock is therefore released while backoff sleeps, so shutdown and
+            # other control paths are not blocked for the whole retry budget.
+            # The successful transaction and its error-queue check remain one
+            # indivisible client operation.
+            with self._lock:
+                raw = self.transact_bytes(
+                    outbound,
+                    self._response_request,
+                    timeout_s=timeout_s,
+                    replay_policy=replay_policy,
                 )
-            )
-            self._check_errors(after_query=True)
-            return response
+                response = self._codec.decode_response(raw)
+                self._check_errors(after_query=True)
+                return response
+
+        if retry_policy is None:
+            return attempt()
+        return run_with_retry(
+            attempt,
+            policy=retry_policy,
+            before_retry=before_retry,
+            on_attempt=self._retry_observer,
+        )
 
     def query_float(
         self,
