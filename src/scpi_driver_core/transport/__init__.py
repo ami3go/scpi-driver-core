@@ -1,9 +1,16 @@
 """Byte-oriented transport layer."""
 
-from scpi_driver_core.transport.base import Transport
+from scpi_driver_core.transport.base import (
+    SupportsBusTrigger,
+    SupportsDeviceClear,
+    SupportsLocalControl,
+    SupportsSerialPoll,
+    Transport,
+)
 from scpi_driver_core.transport.mock import MockOperation, MockTransport
 from scpi_driver_core.transport.models import (
     FlushDirection,
+    FrozenMetadata,
     ReadMode,
     ReadRequest,
     ReplayPolicy,
@@ -18,12 +25,17 @@ from scpi_driver_core.transport.visa import VisaTransport
 
 __all__ = [
     "FlushDirection",
+    "FrozenMetadata",
     "MockOperation",
     "MockTransport",
     "ReadMode",
     "ReadRequest",
     "ReplayPolicy",
     "SerialTransport",
+    "SupportsBusTrigger",
+    "SupportsDeviceClear",
+    "SupportsLocalControl",
+    "SupportsSerialPoll",
     "Transport",
     "TransportDescriptor",
     "TransportState",
