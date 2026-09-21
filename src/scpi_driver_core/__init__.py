@@ -1,10 +1,4 @@
-"""Framework-independent SCPI/IEEE-488.2 driver infrastructure.
-
-The public API is implemented according to
-``task/SCPI_DRIVER_CORE_IMPLEMENTATION_TASK.md``. The error hierarchy is
-re-exported here because catching ``ScpiDriverError`` is the one import every
-consumer needs, regardless of which subsystem it uses.
-"""
+"""Framework-independent SCPI/IEEE-488.2 driver infrastructure."""
 
 from scpi_driver_core.exceptions import (
     ConfigurationError,
@@ -17,6 +11,8 @@ from scpi_driver_core.exceptions import (
     ScpiCommandError,
     ScpiDriverError,
     ScpiErrorQueueError,
+    ScpiTimeoutError,
+    SessionClosedError,
     TransportError,
     TransportTimeoutError,
     UnsupportedOperationError,
@@ -34,14 +30,16 @@ __all__ = [
     "SafetyGuardError",
     "ScpiClient",
     "ScpiCommandError",
-    "ScpiSession",
-    "SessionHealth",
-    "SessionRegistry",
     "ScpiDriverError",
     "ScpiErrorQueueError",
+    "ScpiSession",
+    "ScpiTimeoutError",
+    "SessionClosedError",
+    "SessionHealth",
+    "SessionRegistry",
     "TransportError",
     "TransportTimeoutError",
     "UnsupportedOperationError",
 ]
 
-__version__ = "0.1.0.dev5"
+__version__ = "0.1.0.dev6"
