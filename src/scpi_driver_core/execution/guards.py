@@ -1,18 +1,7 @@
 """Confirmation guards for operations that should not happen by accident.
 
-This is a mechanism, not a policy. The core does not decide that raw SCPI or
-calibration needs guarding: a concrete driver creates a guard, chooses its
-phrase, and calls :meth:`ConfirmationGuard.require_enabled` wherever it has
-decided the risk warrants it.
-
-State lives on the guard instance, which a driver holds per session. There is
-no module-level registry and no ambient authorization, so enabling raw SCPI on
-one instrument cannot silently unlock it on another. Distinct risks deserve
-distinct guards: a calibration guard should be its own instance with its own
-phrase, so confirming one never confirms the other.
-
-A guard is a speed bump against mistakes, not a security boundary, and it is no
-substitute for interlocks, fuses, or a wiring review.
+A guard is a deliberate-action mechanism, not a security boundary. Its lock
+protects only guard state and is never held while user code runs.
 """
 
 from __future__ import annotations
@@ -29,16 +18,11 @@ __all__ = ["ConfirmationGuard"]
 class ConfirmationGuard:
     """Requires an exact phrase before guarded operations are permitted.
 
-    Args:
-        phrase: what a caller must repeat to enable the guard. Matched exactly,
-            including case and spacing, so it cannot be satisfied by a stray
-            truthy value.
-        name: how the guard describes itself in errors, such as
-            ``"raw SCPI"``. Defaults to the phrase.
-
-    Raises:
-        ConfigurationError: if the phrase is empty, which would make the guard
-            trivially satisfiable.
+    Permanent :meth:`enable` state is shared intentionally. Scoped
+    :meth:`enabled` state is thread-local: one worker's temporary calibration
+    window must not unlock another worker. :meth:`disable` increments a global
+    epoch, revoking every open scoped window immediately without waiting for
+    those blocks to exit.
     """
 
     def __init__(self, phrase: str, *, name: str | None = None) -> None:
@@ -47,7 +31,9 @@ class ConfirmationGuard:
         self._phrase = phrase
         self._name = name if name is not None else phrase
         self._enabled = False
-        self._lock = threading.RLock()
+        self._epoch = 0
+        self._lock = threading.Lock()
+        self._local = threading.local()
 
     @property
     def name(self) -> str:
@@ -55,60 +41,68 @@ class ConfirmationGuard:
 
     @property
     def phrase(self) -> str:
-        """The phrase required to enable this guard."""
         return self._phrase
+
+    def _local_scope(self) -> tuple[int, int]:
+        depth = int(getattr(self._local, "depth", 0))
+        epoch = int(getattr(self._local, "epoch", -1))
+        return depth, epoch
+
+    def _scoped_enabled(self, epoch: int) -> bool:
+        depth, local_epoch = self._local_scope()
+        return depth > 0 and local_epoch == epoch
 
     @property
     def is_enabled(self) -> bool:
         with self._lock:
-            return self._enabled
+            globally_enabled = self._enabled
+            epoch = self._epoch
+        return globally_enabled or self._scoped_enabled(epoch)
 
     def enable(self, phrase: str) -> None:
-        """Unlock the guard.
-
-        Raises:
-            SafetyGuardError: if ``phrase`` does not match exactly.
-
-        The phrase is not a secret and a driver is expected to document it.
-        Its job is to make the action deliberate, the way typing a branch name
-        does, not to withhold a credential.
-        """
+        """Unlock globally after an exact phrase match."""
+        if phrase != self._phrase:
+            raise SafetyGuardError(
+                f"{self._name} guard was not enabled: the confirmation phrase did not match"
+            )
         with self._lock:
-            if phrase != self._phrase:
-                raise SafetyGuardError(
-                    f"{self._name} guard was not enabled: the confirmation phrase did not match"
-                )
             self._enabled = True
 
     def disable(self) -> None:
-        """Lock the guard again. Safe to call when already locked."""
+        """Lock globally and revoke all currently open scoped windows."""
         with self._lock:
             self._enabled = False
+            self._epoch += 1
 
     def require_enabled(self) -> None:
-        """Assert the guard is unlocked, for a driver to call before a risky operation.
-
-        Raises:
-            SafetyGuardError: if the guard is locked.
-        """
+        """Fail fast unless globally or locally enabled for the current epoch."""
         with self._lock:
-            if not self._enabled:
-                raise SafetyGuardError(
-                    f"{self._name} is guarded; enable it with its confirmation phrase first"
-                )
+            globally_enabled = self._enabled
+            epoch = self._epoch
+        if not globally_enabled and not self._scoped_enabled(epoch):
+            raise SafetyGuardError(
+                f"{self._name} is guarded; enable it with its confirmation phrase first"
+            )
 
     @contextmanager
     def enabled(self, phrase: str) -> Iterator[None]:
-        """Unlock for the duration of a block, then restore the previous state.
-
-        Preferable to a bare :meth:`enable` where the intent is to permit one
-        sequence of operations, since the guard re-locks even if that sequence
-        raises.
-        """
+        """Temporarily enable only the current thread, without holding a lock."""
+        if phrase != self._phrase:
+            raise SafetyGuardError(
+                f"{self._name} guard was not enabled: the confirmation phrase did not match"
+            )
         with self._lock:
-            previous = self._enabled
-            self.enable(phrase)
-            try:
-                yield
-            finally:
-                self._enabled = previous
+            epoch = self._epoch
+        depth, local_epoch = self._local_scope()
+        if depth and local_epoch != epoch:
+            depth = 0
+        self._local.depth = depth + 1
+        self._local.epoch = epoch
+        try:
+            yield
+        finally:
+            current_depth, current_epoch = self._local_scope()
+            if current_epoch == epoch and current_depth > 0:
+                self._local.depth = current_depth - 1
+                if self._local.depth == 0:
+                    self._local.epoch = -1
