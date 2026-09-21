@@ -139,7 +139,9 @@ class ScriptedScpiTransport:
     def on_predicate(
         self, predicate: Callable[[str], bool], reply: HandlerResult | Handler = None
     ) -> ScriptedScpiTransport:
-        self._rules.append(_Rule(matcher=predicate, handler=_as_handler(reply), description="predicate"))
+        self._rules.append(
+            _Rule(matcher=predicate, handler=_as_handler(reply), description="predicate")
+        )
         return self
 
     def reply_block(self, command: str, payload: bytes) -> ScriptedScpiTransport:
