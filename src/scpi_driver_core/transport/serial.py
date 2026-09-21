@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from contextlib import suppress
 from types import ModuleType
 from typing import Any
 
@@ -126,7 +127,7 @@ class SerialTransport(TransportStateMachine):
                     if self._exclusive is not None and hasattr(resource, "exclusive"):
                         resource.exclusive = self._exclusive
                     resource.open()
-                else:  # lightweight fake backends used by downstream tests
+                else:
                     resource = serial.Serial(
                         port=self._port,
                         baudrate=self._baudrate,
@@ -147,10 +148,8 @@ class SerialTransport(TransportStateMachine):
                         resource.exclusive = self._exclusive
             except Exception as exc:
                 if resource is not None:
-                    try:
+                    with suppress(Exception):
                         resource.close()
-                    except Exception:
-                        pass
                 self._set_state(TransportState.FAULTED)
                 raise TransportError(f"serial open failed for {self._port}: {exc}") from exc
             self._resource = resource
