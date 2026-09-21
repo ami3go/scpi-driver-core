@@ -45,7 +45,9 @@ class PatternRedactor:
         return self._apply(self._command, command)
 
     def redact_response(self, response: str, *, command: str | None = None) -> str:
-        if command is not None and any(pattern.search(command) for pattern in self._sensitive_queries):
+        if command is not None and any(
+            pattern.search(command) for pattern in self._sensitive_queries
+        ):
             return self._placeholder
         return self._apply(self._response, response)
 
