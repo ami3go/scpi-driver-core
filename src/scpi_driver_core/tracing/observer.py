@@ -105,7 +105,11 @@ class Tracer:
         source_text = self._decode_source(data)
         response_command: str | None = None
         with self._lock:
-            if direction is TraceDirection.TX and operation_id is not None and source_text is not None:
+            if (
+                direction is TraceDirection.TX
+                and operation_id is not None
+                and source_text is not None
+            ):
                 self._commands[operation_id] = source_text
                 while len(self._commands) > _MAX_COMMAND_CONTEXT:
                     self._commands.pop(next(iter(self._commands)))
@@ -115,9 +119,7 @@ class Tracer:
                 # A failed transaction is complete from the tracer's point of view.
                 self._commands.pop(operation_id, None)
 
-        text, event_data, redacted = self._render(
-            direction, data, command=response_command
-        )
+        text, event_data, redacted = self._render(direction, data, command=response_command)
         with self._lock:
             self._sequence += 1
             event = ProtocolTraceEvent(
