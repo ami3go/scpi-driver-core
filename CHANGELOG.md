@@ -6,6 +6,58 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 ## [Unreleased]
 
+## [0.1.0.dev6] - 2026-09-21
+
+### Added
+
+- Explicit transport `invalidate()` and transport-level `operation_lock()` contract support for multi-step protocol readers.
+- Optional VISA bus capabilities for Device Clear, serial poll, bus trigger and return-to-local control.
+- `ScpiTimeoutError`, a common base for transport and higher-level bounded-wait timeouts.
+- `SessionClosedError`, preventing retry recovery from silently reopening deliberately closed or never-opened sessions.
+- Structured `ScpiErrorQueueError.errors` and `.complete` diagnostics.
+- Serial flow-control, exclusivity and URL-handler configuration.
+- Context-manager cleanup for transports, sessions, instrumented transports and registries.
+- `FrozenMetadata`, preserving immutable transport metadata while supporting pickle/deepcopy/dataclass serialization.
+- Trace loss accounting, query-aware redaction, optional per-event `fsync`, and transport-local trace context.
+- `docs/deep-review-2026-09-21-disposition.md`, mapping all 38 external review findings to their implementation or documented design adjustment.
+
+### Changed
+
+- Timeouts and interruptions that can desynchronize a request/response stream now use the uniform safe default of faulting the transport; mock/scripted simulation follows the same profile by default.
+- UDP recovery closes the timed-out socket and prevents late replies from being consumed by a later transaction.
+- PyVISA `ResourceManager` instances are always treated as borrowed; transports close only their own resource.
+- VISA `flush()` is strictly local-buffer discard; destructive Device Clear is explicit.
+- VISA message reads are bounded during acquisition and message-based resources use END/message boundaries with normal codec terminator removal.
+- Serial reads use one call-level timeout budget and avoid unnecessary port reconfiguration.
+- Retry recovery failures consume retry attempts; retry backoff no longer holds the client operation lock for the whole retry budget.
+- Confirmation guard scoped enablement is thread-local and revocable without holding its lock across user code.
+- Binary-block operations are transport-atomic, participate in error-queue policy, and invalidate on partial framing failure.
+- Session health is updated by normal client traffic; recovery is fault-only and re-applies configured probe/identity validation.
+- SCPI numeric parsing is ASCII-strict and exact for integral decimals; standard SCPI special values map to Inf/NaN semantics.
+- Engineering prefix scaling uses `Decimal` before float conversion.
+- Scripted simulation models compound commands, delayed/late replies and concurrent ordering more faithfully.
+
+### Fixed
+
+- Cross-instrument VISA session invalidation caused by closing PyVISA's per-library manager singleton.
+- Silent stale-response corruption after UDP timeout, interrupted I/O or malformed binary blocks.
+- Retry budgets aborting after one failed reconnect.
+- VISA `flush()` unexpectedly issuing `viClear` and aborting instrument activity.
+- ConfirmationGuard AB/BA deadlock and blocking `disable()` behavior.
+- Trace redaction bypass on undecodable payloads and wrong-session attribution with shared tracers.
+- Successful TX trace records emitted before the backend transaction outcome was known.
+- Embedded CR/LF command injection through text commands and quoted SCPI strings.
+- Stale session health, recovery of deliberately closed sessions, and recovery without identity revalidation.
+- Error-queue overflow/parse failures discarding already-collected entries.
+- Standard SCPI overload encodings being treated as ordinary finite measurements.
+- Precision loss in integral parsing above `2**53` and acceptance of non-SCPI numeric syntax.
+- Retry backoff overflow, high-fd socket polling limitations, large-response scan/allocation hot paths, and registry/session alias divergence.
+
+### Verification
+
+- The hardware-free CI matrix covers Python 3.10–3.13 with Ruff, format checks, strict mypy, unit/contract/integration/property/watchdog tests and the branch-coverage gate.
+- Hardware-dependent VISA/GPIB/USBTMC and serial line-behavior claims remain explicitly HIL pending; simulation is not presented as physical-bus qualification.
+
 ### Added
 
 - Initial repository skeleton.

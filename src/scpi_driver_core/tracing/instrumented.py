@@ -1,22 +1,14 @@
-"""A transport wrapper that traces everything passing through it.
-
-Instrumenting here rather than in each backend means TCP, UDP, serial, VISA and
-mock are all traced by one implementation, and a backend added later is traced
-without touching it. The wrapper satisfies the
-:class:`~scpi_driver_core.transport.base.Transport` protocol itself, so it drops
-in wherever a transport is expected, including underneath ``ScpiClient``.
-
-Tracing never changes behavior. Payloads are passed through byte for byte,
-exceptions propagate unchanged after being recorded, and an observer that
-misbehaves cannot break instrument I/O.
-"""
+"""A transport wrapper that traces everything passing through it."""
 
 from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from contextlib import AbstractContextManager
+from types import TracebackType
+from typing import Any
 
-from scpi_driver_core.tracing.events import TraceDirection
+from scpi_driver_core.tracing.events import TraceContext, TraceDirection
 from scpi_driver_core.tracing.observer import Tracer
 from scpi_driver_core.transport.base import Transport
 from scpi_driver_core.transport.models import (
@@ -30,37 +22,41 @@ from scpi_driver_core.transport.models import (
 
 __all__ = ["InstrumentedTransport"]
 
+_CAPABILITY_NAMES = frozenset({"device_clear", "read_status_byte", "assert_trigger", "go_to_local"})
+
 
 class InstrumentedTransport:
-    """Wraps a transport and emits a trace event for each operation.
-
-    Args:
-        inner: the transport actually doing the work.
-        tracer: where events go.
-        clock: monotonic source used for durations; injectable for tests.
-    """
+    """Trace a transport without changing its protocol behavior."""
 
     def __init__(
         self,
         inner: Transport,
         tracer: Tracer,
         *,
+        context: TraceContext | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._inner = inner
         self._tracer = tracer
+        # ``None`` deliberately means "use the tracer's current context". A
+        # session calls set_context() to pin a transport-local context when one
+        # tracer is shared by several instruments. This keeps legacy
+        # single-session tracer-context use working without reintroducing the
+        # shared-context attribution bug.
+        self._context: TraceContext | None = context
         self._clock = clock
 
     @property
     def inner(self) -> Transport:
-        """The wrapped transport, for a driver that needs backend specifics."""
         return self._inner
 
     @property
     def tracer(self) -> Tracer:
         return self._tracer
 
-    # -- introspection is not traced --------------------------------------
+    def set_context(self, context: TraceContext) -> None:
+        """Bind trace context to this transport, not to a shared tracer."""
+        self._context = context
 
     @property
     def state(self) -> TransportState:
@@ -74,7 +70,28 @@ class InstrumentedTransport:
     def descriptor(self) -> TransportDescriptor:
         return self._inner.descriptor
 
-    # -- lifecycle --------------------------------------------------------
+    @property
+    def message_based(self) -> bool:
+        return bool(getattr(self._inner, "message_based", False))
+
+    def operation_lock(self) -> AbstractContextManager[None]:
+        return self._inner.operation_lock()
+
+    def invalidate(self) -> None:
+        started = self._clock()
+        try:
+            self._inner.invalidate()
+        except BaseException as exc:
+            self._fail(TraceDirection.ERROR, started, exc)
+            raise
+        self._tracer.emit(
+            TraceDirection.ERROR,
+            descriptor=self._inner.descriptor,
+            context=self._context,
+            success=False,
+            duration_s=self._clock() - started,
+            error=RuntimeError("transport invalidated by protocol layer"),
+        )
 
     def open(self) -> TransportDescriptor:
         started = self._clock()
@@ -86,6 +103,7 @@ class InstrumentedTransport:
         self._tracer.emit(
             TraceDirection.OPEN,
             descriptor=descriptor,
+            context=self._context,
             duration_s=self._clock() - started,
         )
         return descriptor
@@ -101,10 +119,21 @@ class InstrumentedTransport:
         self._tracer.emit(
             TraceDirection.CLOSE,
             descriptor=descriptor,
+            context=self._context,
             duration_s=self._clock() - started,
         )
 
-    # -- I/O --------------------------------------------------------------
+    def __enter__(self) -> InstrumentedTransport:
+        self.open()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def write(
         self,
@@ -117,13 +146,14 @@ class InstrumentedTransport:
         try:
             result = self._inner.write(data, timeout_s=timeout_s, operation_id=operation_id)
         except BaseException as exc:
-            self._fail(TraceDirection.TX, started, exc, data=data, operation_id=operation_id)
+            self._fail(TraceDirection.ERROR, started, exc, data=data, operation_id=operation_id)
             raise
         self._tracer.emit(
             TraceDirection.TX,
             data=data,
             operation_id=operation_id,
             descriptor=self._inner.descriptor,
+            context=self._context,
             duration_s=self._clock() - started,
         )
         return result
@@ -146,6 +176,7 @@ class InstrumentedTransport:
             data=data,
             operation_id=operation_id,
             descriptor=self._inner.descriptor,
+            context=self._context,
             duration_s=self._clock() - started,
         )
         return data
@@ -159,38 +190,51 @@ class InstrumentedTransport:
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
         operation_id: str | None = None,
     ) -> bytes:
-        """Trace the write and the read as two events under one operation id.
-
-        The halves are recorded separately because that is what a reader needs
-        in order to see which one failed, while ``operation_id`` keeps them
-        correlated.
-        """
+        """Trace one transaction without ever claiming an uncertain write succeeded."""
         started = self._clock()
-        self._tracer.emit(
-            TraceDirection.TX,
-            data=outbound,
-            operation_id=operation_id,
-            descriptor=self._inner.descriptor,
-        )
-        try:
-            data = self._inner.transact(
-                outbound,
-                response,
-                timeout_s=timeout_s,
-                replay_policy=replay_policy,
+        with self._inner.operation_lock():
+            try:
+                data = self._inner.transact(
+                    outbound,
+                    response,
+                    timeout_s=timeout_s,
+                    replay_policy=replay_policy,
+                    operation_id=operation_id,
+                )
+            except BaseException as exc:
+                # The wrapper cannot know whether a failing backend transaction
+                # wrote no bytes, some bytes, or the complete command. Record
+                # the outbound attempt as unsuccessful, then the failed receive
+                # phase. This preserves phase visibility without a false
+                # positive such as "OUTP ON was transmitted successfully".
+                self._tracer.emit(
+                    TraceDirection.TX,
+                    data=outbound,
+                    operation_id=operation_id,
+                    descriptor=self._inner.descriptor,
+                    context=self._context,
+                    success=False,
+                    duration_s=self._clock() - started,
+                    error=exc,
+                )
+                self._fail(TraceDirection.RX, started, exc, operation_id=operation_id)
+                raise
+            self._tracer.emit(
+                TraceDirection.TX,
+                data=outbound,
                 operation_id=operation_id,
+                descriptor=self._inner.descriptor,
+                context=self._context,
             )
-        except BaseException as exc:
-            self._fail(TraceDirection.RX, started, exc, operation_id=operation_id)
-            raise
-        self._tracer.emit(
-            TraceDirection.RX,
-            data=data,
-            operation_id=operation_id,
-            descriptor=self._inner.descriptor,
-            duration_s=self._clock() - started,
-        )
-        return data
+            self._tracer.emit(
+                TraceDirection.RX,
+                data=data,
+                operation_id=operation_id,
+                descriptor=self._inner.descriptor,
+                context=self._context,
+                duration_s=self._clock() - started,
+            )
+            return data
 
     def flush(self, direction: FlushDirection) -> None:
         started = self._clock()
@@ -202,10 +246,15 @@ class InstrumentedTransport:
         self._tracer.emit(
             TraceDirection.FLUSH,
             descriptor=self._inner.descriptor,
+            context=self._context,
             duration_s=self._clock() - started,
         )
 
-    # -- internals --------------------------------------------------------
+    def __getattr__(self, name: str) -> Any:
+        """Forward optional bus capabilities only when the inner transport has them."""
+        if name in _CAPABILITY_NAMES:
+            return getattr(self._inner, name)
+        raise AttributeError(name)
 
     def _fail(
         self,
@@ -222,6 +271,7 @@ class InstrumentedTransport:
             data=data,
             operation_id=operation_id,
             descriptor=descriptor if descriptor is not None else self._inner.descriptor,
+            context=self._context,
             success=False,
             duration_s=self._clock() - started,
             error=error,

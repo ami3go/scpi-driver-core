@@ -8,6 +8,7 @@ intact. SCPI text framing belongs above this layer, in the codec and client.
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from typing import Protocol, runtime_checkable
 
 from scpi_driver_core.transport.models import (
@@ -19,43 +20,85 @@ from scpi_driver_core.transport.models import (
     WriteResult,
 )
 
-__all__ = ["Transport"]
+__all__ = [
+    "SupportsBusTrigger",
+    "SupportsDeviceClear",
+    "SupportsLocalControl",
+    "SupportsSerialPoll",
+    "Transport",
+]
+
+
+@runtime_checkable
+class SupportsDeviceClear(Protocol):
+    """Transport can issue an explicit device clear without closing the session."""
+
+    def device_clear(self) -> None: ...
+
+
+@runtime_checkable
+class SupportsSerialPoll(Protocol):
+    """Transport can read the IEEE-488 status byte outside the message queue."""
+
+    def read_status_byte(self, *, timeout_s: float | None = None) -> int: ...
+
+
+@runtime_checkable
+class SupportsBusTrigger(Protocol):
+    """Transport can issue its backend's bus-level trigger primitive."""
+
+    def assert_trigger(self) -> None: ...
+
+
+@runtime_checkable
+class SupportsLocalControl(Protocol):
+    """Transport can return a remotely controlled instrument to local control."""
+
+    def go_to_local(self) -> None: ...
 
 
 @runtime_checkable
 class Transport(Protocol):
     """A bounded, byte-oriented connection to an instrument.
 
-    Implementations must satisfy the following behavioral contract, which the
-    reusable suite in ``tests/transport_contract`` enforces against every
-    backend:
+    Normative read semantics:
 
-    - :meth:`close` is idempotent and always releases the backend resource.
-    - I/O attempted while the transport is not :attr:`TransportState.OPEN`
-      fails with :class:`~scpi_driver_core.exceptions.NotConnectedError`
-      *before* anything is transmitted.
-    - An I/O failure that leaves session validity uncertain moves the
-      transport to :attr:`TransportState.FAULTED`.
-    - Reopening from :attr:`TransportState.FAULTED` releases the failed
-      backend resource before acquiring a new one.
-    - No operation blocks forever; every one is bounded by a finite timeout.
-    - Individual operations are serialized, so concurrent callers cannot
-      interleave at the byte level.
+    * ``UNTIL_TERMINATOR`` waits for the requested terminator, within
+      ``maximum_size``, or times out.
+    * ``EXACT_LENGTH`` waits for exactly ``length`` bytes. The *whole call* is
+      bounded by ``timeout_s``; partial progress never restarts that deadline.
+    * ``UP_TO_LENGTH`` waits for at least one byte, then returns immediately
+      with whatever is already available, up to ``length``.
+    * ``AVAILABLE`` is the same shape as ``UP_TO_LENGTH`` but is bounded only by
+      ``maximum_size``. Empty input is a timeout, not a successful empty read.
+    * ``BACKEND_DEFINED_MESSAGE`` returns one backend message (for example a
+      VISA END-delimited message), or is unsupported on raw streams.
+
+    The safe default after a read/write timeout is ``FAULTED``: once a request
+    may have reached an instrument, a late response must never be allowed to
+    become the next query's answer. A backend offering a cheaper recovery
+    mechanism may expose it as an explicit capability, but must document any
+    non-faulting profile separately.
+
+    Other lifecycle rules enforced by the contract suite:
+
+    * :meth:`close` is idempotent and always releases the backend resource.
+    * I/O while not ``OPEN`` fails before anything is transmitted.
+    * any escaping interruption during an exchange invalidates the transport;
+    * reopening a faulted transport acquires a fresh backend resource;
+    * all operations are finite-time and serialized;
+    * multi-step protocol readers may use :meth:`operation_lock` and
+      :meth:`invalidate` to preserve framing integrity.
     """
 
     @property
     def state(self) -> TransportState:
-        """Current resource state. Says nothing about communication health."""
+        """Current resource state. Introspection must not wait for in-flight I/O."""
         ...
 
     @property
     def is_open(self) -> bool:
-        """Whether the backend resource is held.
-
-        This never performs device I/O. A transport can be open while the
-        instrument is unresponsive; communication health is tracked separately
-        by the session layer.
-        """
+        """Whether the backend resource is held; no device I/O is performed."""
         ...
 
     @property
@@ -63,19 +106,16 @@ class Transport(Protocol):
         """Identity of this transport, available before and after opening."""
         ...
 
-    def open(self) -> TransportDescriptor:
-        """Acquire the backend resource.
+    def open(self) -> TransportDescriptor: ...
 
-        Returns:
-            The descriptor of the opened transport.
+    def close(self) -> None: ...
 
-        Raises:
-            TransportError: if the resource cannot be acquired.
-        """
+    def invalidate(self) -> None:
+        """Release an open resource and move to ``FAULTED`` after desynchronization."""
         ...
 
-    def close(self) -> None:
-        """Release the backend resource. Safe to call repeatedly."""
+    def operation_lock(self) -> AbstractContextManager[None]:
+        """Serialize a multi-call operation at the transport level."""
         ...
 
     def write(
@@ -84,19 +124,7 @@ class Transport(Protocol):
         *,
         timeout_s: float | None = None,
         operation_id: str | None = None,
-    ) -> WriteResult:
-        """Send ``data`` in full, without adding or removing any byte.
-
-        Args:
-            data: exact bytes to transmit. No terminator is appended.
-            timeout_s: bound for this call; ``None`` uses the transport default.
-            operation_id: correlation identifier carried into trace records.
-
-        Raises:
-            NotConnectedError: if the transport is not open.
-            TransportTimeoutError: if the write does not complete in time.
-        """
-        ...
+    ) -> WriteResult: ...
 
     def read(
         self,
@@ -104,15 +132,7 @@ class Transport(Protocol):
         *,
         timeout_s: float | None = None,
         operation_id: str | None = None,
-    ) -> bytes:
-        """Read according to ``request``, which is always explicitly bounded.
-
-        Raises:
-            NotConnectedError: if the transport is not open.
-            TransportTimeoutError: if the request is not satisfied in time.
-            TransportError: if the response exceeds ``request.maximum_size``.
-        """
-        ...
+    ) -> bytes: ...
 
     def transact(
         self,
@@ -122,24 +142,8 @@ class Transport(Protocol):
         timeout_s: float | None = None,
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
         operation_id: str | None = None,
-    ) -> bytes:
-        """Write then read as one indivisible operation.
-
-        The write and its matching read are serialized together, so a
-        concurrent caller cannot consume this transaction's response.
-
-        Args:
-            replay_policy: whether the backend may retransmit internally.
-                ``NEVER`` forbids it. ``SAFE`` permits it only for messages the
-                caller has classified as idempotent, and is honored by backends
-                where retransmission is meaningful, such as UDP.
-        """
-        ...
+    ) -> bytes: ...
 
     def flush(self, direction: FlushDirection) -> None:
-        """Discard buffered data in ``direction``.
-
-        Raises:
-            NotConnectedError: if the transport is not open.
-        """
+        """Discard locally buffered data. It must not implicitly clear the device."""
         ...

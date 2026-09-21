@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from scpi_driver_core.exceptions import IdentityError, ResponseParseError
+from scpi_driver_core.exceptions import ConfigurationError, IdentityError, ResponseParseError
 from scpi_driver_core.scpi import (
     parse_bool,
     parse_csv,
@@ -27,7 +27,6 @@ from scpi_driver_core.scpi import (
         ("  1.5  ", 1.5),
         ("+1.04858000E+00", 1.04858),
         ("-3.2e-4", -3.2e-4),
-        ("9.9E37", 9.9e37),
         ("0", 0.0),
         ("-0", 0.0),
     ],
@@ -43,7 +42,10 @@ def test_parse_float_rejects_malformed(response: str) -> None:
     assert excinfo.value.raw == response
 
 
-@pytest.mark.parametrize("response", ["nan", "inf", "-inf", "NaN", "Infinity"])
+@pytest.mark.parametrize(
+    "response",
+    ["nan", "inf", "-inf", "NaN", "Infinity", "9.9E37", "+9.90000000E+37", "-9.9E37", "9.91E37"],
+)
 def test_parse_float_rejects_non_finite_by_default(response: str) -> None:
     with pytest.raises(ResponseParseError):
         parse_float(response)
@@ -51,12 +53,24 @@ def test_parse_float_rejects_non_finite_by_default(response: str) -> None:
 
 def test_parse_float_can_allow_non_finite() -> None:
     assert parse_float("inf", allow_non_finite=True) == float("inf")
+    assert parse_float("9.9E37", allow_non_finite=True) == math.inf
+    assert parse_float("-9.9E37", allow_non_finite=True) == -math.inf
+    assert math.isnan(parse_float("9.91E37", allow_non_finite=True))
+
+
+def test_parse_float_can_disable_scpi_special_mapping() -> None:
+    assert parse_float("9.9E37", scpi_special_values=False) == pytest.approx(9.9e37)
 
 
 def test_parse_float_never_coerces_to_zero() -> None:
-    """A malformed value must surface, not quietly become 0.0."""
     with pytest.raises(ResponseParseError):
         parse_float("OVERLOAD")
+
+
+@pytest.mark.parametrize("response", ["1_000", "٣.٥", "0x10"])
+def test_parse_float_rejects_non_scpi_numeric_syntax(response: str) -> None:
+    with pytest.raises(ResponseParseError):
+        parse_float(response)
 
 
 # -- integers -------------------------------------------------------------
@@ -64,13 +78,20 @@ def test_parse_float_never_coerces_to_zero() -> None:
 
 @pytest.mark.parametrize(
     ("response", "expected"),
-    [("5", 5), (" -12 ", -12), ("+7", 7), ("1.00000000E+02", 100), ("0", 0)],
+    [
+        ("5", 5),
+        (" -12 ", -12),
+        ("+7", 7),
+        ("1.00000000E+02", 100),
+        ("12345678901234567.0", 12345678901234567),
+        ("0", 0),
+    ],
 )
 def test_parse_int(response: str, expected: int) -> None:
     assert parse_int(response) == expected
 
 
-@pytest.mark.parametrize("response", ["1.5", "abc", "", "nan", "inf", "1e999"])
+@pytest.mark.parametrize("response", ["1.5", "abc", "", "nan", "inf", "1e999", "1_000", "٣"])
 def test_parse_int_rejects_non_integers(response: str) -> None:
     with pytest.raises(ResponseParseError):
         parse_int(response)
@@ -131,13 +152,12 @@ def test_parse_csv_keeps_empty_fields() -> None:
 
 
 def test_parse_csv_rejects_a_stray_carriage_return() -> None:
-    """A CRLF instrument read with an LF codec leaves this behind; it must not crash."""
     with pytest.raises(ResponseParseError) as excinfo:
         parse_csv("a\rb,c")
     assert excinfo.value.raw == "a\rb,c"
 
 
-# -- CSV floats -------------------------------------------------------------
+# -- CSV floats -----------------------------------------------------------
 
 
 def test_parse_csv_floats_multi_channel() -> None:
@@ -220,7 +240,6 @@ def test_parse_identity_rejects_incomplete(response: str) -> None:
 
 
 def test_parse_identity_reports_unparsable_reply_as_identity_error() -> None:
-    """A CSV failure must still surface as IdentityError, not leak csv.Error."""
     with pytest.raises(IdentityError):
         parse_identity("KEYSIGHT\r,N6700C")
 
@@ -311,7 +330,6 @@ def test_parse_optional_unit_float_allows_explicit_non_finite(response: str) -> 
 
 
 def test_parse_optional_unit_float_does_not_scale_prefixes() -> None:
-    """This parser reports the number as written; prefixes are engineering's job."""
     assert parse_optional_unit_float("500 mV") == 500.0
 
 
@@ -328,3 +346,9 @@ def test_quote_scpi_string_doubles_embedded_quotes() -> None:
 
 def test_quote_scpi_string_empty() -> None:
     assert quote_scpi_string("") == '""'
+
+
+@pytest.mark.parametrize("value", ["a\nb", "a\rb", "a\r\nb"])
+def test_quote_scpi_string_rejects_line_breaks(value: str) -> None:
+    with pytest.raises(ConfigurationError):
+        quote_scpi_string(value)

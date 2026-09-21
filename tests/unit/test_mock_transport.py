@@ -103,7 +103,7 @@ def test_reopen_from_faulted_releases_the_failed_resource_first() -> None:
 
     transport.open()
     assert transport.open_count == 2
-    assert transport.release_count == 1  # released at fault time, not re-released
+    assert transport.release_count == 1
 
 
 def test_failed_open_faults_the_transport() -> None:
@@ -177,9 +177,17 @@ def test_partial_chunk_consumption_leaves_the_remainder() -> None:
     assert transport.read(ReadRequest(mode=ReadMode.AVAILABLE)) == b"3456789"
 
 
-def test_available_returns_empty_when_nothing_buffered() -> None:
+def test_available_times_out_and_faults_when_nothing_buffered() -> None:
     transport = opened()
+    with pytest.raises(TransportTimeoutError):
+        transport.read(ReadRequest(mode=ReadMode.AVAILABLE))
+    assert transport.state is TransportState.FAULTED
+
+
+def test_available_can_emulate_nonfaulting_empty_polling_explicitly() -> None:
+    transport = opened(fault_on_timeout=False, available_when_empty="empty")
     assert transport.read(ReadRequest(mode=ReadMode.AVAILABLE)) == b""
+    assert transport.state is TransportState.OPEN
 
 
 def test_available_is_capped_by_maximum_size() -> None:
@@ -201,6 +209,7 @@ def test_backend_defined_message_times_out_when_empty() -> None:
     transport = opened()
     with pytest.raises(TransportTimeoutError):
         transport.read(ReadRequest(mode=ReadMode.BACKEND_DEFINED_MESSAGE))
+    assert transport.state is TransportState.FAULTED
 
 
 def test_exact_length_times_out_when_short() -> None:
@@ -208,12 +217,14 @@ def test_exact_length_times_out_when_short() -> None:
     transport.feed(b"ab")
     with pytest.raises(TransportTimeoutError):
         transport.read(ReadRequest(mode=ReadMode.EXACT_LENGTH, length=4))
+    assert transport.state is TransportState.FAULTED
 
 
 def test_up_to_length_times_out_when_empty() -> None:
     transport = opened()
     with pytest.raises(TransportTimeoutError):
         transport.read(ReadRequest(mode=ReadMode.UP_TO_LENGTH, length=4))
+    assert transport.state is TransportState.FAULTED
 
 
 def test_up_to_length_truncates_to_length() -> None:
@@ -240,12 +251,9 @@ def test_multibyte_terminator_is_stripped_whole() -> None:
 
 
 def test_embedded_terminator_bytes_are_not_trimmed() -> None:
-    """A payload byte that happens to equal the terminator must survive."""
     transport = opened()
     transport.feed(b"\x00\n\x00\n")
-    data = transport.read(
-        ReadRequest(mode=ReadMode.EXACT_LENGTH, length=4),
-    )
+    data = transport.read(ReadRequest(mode=ReadMode.EXACT_LENGTH, length=4))
     assert data == b"\x00\n\x00\n"
 
 
@@ -347,11 +355,10 @@ def test_transact_does_not_retry_on_failure() -> None:
             ReadRequest(mode=ReadMode.AVAILABLE),
             replay_policy=ReplayPolicy.SAFE,
         )
-    assert transport.written == b"Q\n"  # sent exactly once
+    assert transport.written == b"Q\n"
 
 
 def test_transact_holds_the_lock_across_write_and_read() -> None:
-    """With a forced yield between the halves, the log must still pair W/R."""
     transport = opened()
     count = 8
     for index in range(count):
@@ -360,8 +367,6 @@ def test_transact_holds_the_lock_across_write_and_read() -> None:
     barrier = threading.Barrier(count)
 
     def midpoint() -> None:
-        # If transact did not hold its lock, every thread would pile up here
-        # between its own write and read, interleaving the operation log.
         with contextlib.suppress(threading.BrokenBarrierError):
             barrier.wait(timeout=0.2)
 

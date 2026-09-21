@@ -1,13 +1,8 @@
 """SCPI text framing, layered above the byte transport.
 
-The codec owns exactly one job: turning a command string into the bytes that go
-on the wire, and turning response bytes back into a string. It is the only
-place allowed to add or remove framing, and it removes only the terminator it
-was configured with. Generic ``strip()``/``rstrip()`` is never used, because
-trailing whitespace and null bytes can be payload.
-
-Binary transfers bypass this layer entirely; see
-:mod:`scpi_driver_core.scpi.binary_block`.
+Binary transfers bypass this layer entirely. Text commands are one program
+message each: embedded CR/LF is rejected rather than allowed to inject a second
+instrument command.
 """
 
 from __future__ import annotations
@@ -15,34 +10,18 @@ from __future__ import annotations
 import codecs
 from dataclasses import dataclass
 
-from scpi_driver_core.exceptions import (
-    ConfigurationError,
-    ProtocolError,
-    ResponseParseError,
-)
+from scpi_driver_core.exceptions import ConfigurationError, ProtocolError, ResponseParseError
 
 __all__ = ["ScpiTextCodec"]
 
 
 @dataclass(frozen=True)
 class ScpiTextCodec:
-    """Encodes SCPI commands and decodes SCPI responses.
+    """Encodes SCPI text while preserving byte-level framing explicitly.
 
-    Args:
-        encoding: text encoding, stated explicitly rather than assumed.
-        command_terminator: appended to outbound commands. Use ``b""`` for a
-            backend that frames messages itself, such as VISA.
-        response_terminator: removed from the end of a response when present.
-            ``None`` means responses are not terminated.
-        decode_errors: passed to the decoder; strict by default, so a malformed
-            response is reported rather than silently mangled.
-        maximum_command_size: largest encoded command permitted, terminator
-            included.
-        maximum_response_size: largest response accepted.
-
-    Raises:
-        ConfigurationError: if the encoding is unknown or a size limit is not
-            positive.
+    ``command_terminator=b""`` is appropriate only when the selected transport
+    guarantees message framing for writes. It must not be assumed for VISA
+    ASRL or TCPIP::SOCKET resources merely because VISA is in use.
     """
 
     encoding: str = "ascii"
@@ -65,52 +44,51 @@ class ScpiTextCodec:
             raise ConfigurationError(
                 f"maximum_response_size must be positive, got {self.maximum_response_size}"
             )
+        if b"\r" in self.command_terminator or b"\n" in self.command_terminator:
+            return
+        if self.command_terminator and any(
+            token in self.command_terminator for token in (b"\r", b"\n")
+        ):
+            raise ConfigurationError("command terminator must be a valid byte sequence")
 
     def encode_command(self, command: str) -> bytes:
-        """Encode ``command`` and terminate it exactly once.
+        """Encode one command and terminate it exactly once.
 
-        A command that already ends with the configured terminator is not
-        terminated again, so callers that write their own terminator do not
-        produce a doubled one.
-
-        Raises:
-            ConfigurationError: if the command cannot be encoded, or exceeds
-                ``maximum_command_size``.
+        A single already-present trailing terminator is accepted. Any CR/LF or
+        configured terminator remaining inside the body is rejected.
         """
         try:
-            encoded = command.encode(self.encoding, errors="strict")
+            body = command.encode(self.encoding, errors="strict")
         except UnicodeEncodeError as exc:
             raise ConfigurationError(
                 f"command is not encodable as {self.encoding}: {command!r}"
             ) from exc
 
-        if self.command_terminator and not encoded.endswith(self.command_terminator):
-            encoded += self.command_terminator
+        terminator = self.command_terminator
+        if terminator and body.endswith(terminator):
+            body = body[: -len(terminator)]
 
+        forbidden = [b"\r", b"\n"]
+        if terminator and terminator not in forbidden:
+            forbidden.append(terminator)
+        if any(token and token in body for token in forbidden):
+            raise ConfigurationError(
+                f"command contains an embedded line break or terminator: {command!r}; "
+                "send separate commands, or use write_bytes() deliberately"
+            )
+
+        encoded = body + terminator
         if len(encoded) > self.maximum_command_size:
             raise ConfigurationError(
-                f"command of {len(encoded)} bytes exceeds "
-                f"maximum_command_size {self.maximum_command_size}"
+                f"command of {len(encoded)} bytes exceeds maximum_command_size "
+                f"{self.maximum_command_size}"
             )
         return encoded
 
     def encode_block_command(self, prefix: str, block: bytes) -> bytes:
-        """Frame a text prefix followed by raw binary, as ``CURV #41234...\\n``.
-
-        The terminator is appended unconditionally, unlike
-        :meth:`encode_command`. A binary block can legitimately end with the
-        same byte as the terminator, so testing for one already present would
-        occasionally drop it and leave the instrument waiting.
-
-        ``maximum_command_size`` bounds only the text prefix here. It exists to
-        catch runaway command construction, whereas the size of a waveform or
-        setup upload is a deliberate choice by the caller and is limited by the
-        instrument itself.
-
-        Raises:
-            ConfigurationError: if the prefix cannot be encoded or exceeds
-                ``maximum_command_size``.
-        """
+        """Frame a text prefix followed by an arbitrary binary block."""
+        if "\r" in prefix or "\n" in prefix:
+            raise ConfigurationError("binary-block command prefix must not contain CR or LF")
         try:
             encoded = prefix.encode(self.encoding, errors="strict")
         except UnicodeEncodeError as exc:
@@ -119,33 +97,22 @@ class ScpiTextCodec:
             ) from exc
         if len(encoded) > self.maximum_command_size:
             raise ConfigurationError(
-                f"command prefix of {len(encoded)} bytes exceeds "
-                f"maximum_command_size {self.maximum_command_size}"
+                f"command prefix of {len(encoded)} bytes exceeds maximum_command_size "
+                f"{self.maximum_command_size}"
             )
         return encoded + block + self.command_terminator
 
     def decode_response(self, data: bytes) -> str:
-        """Remove one trailing terminator if present, then decode.
-
-        Only the exact configured terminator is removed, and only from the end.
-        Everything else, including interior and trailing whitespace, is
-        preserved for the parsers to deal with.
-
-        Raises:
-            ProtocolError: if the response exceeds ``maximum_response_size``.
-            ResponseParseError: if the bytes are not decodable.
-        """
+        """Remove one exact trailing response terminator, then decode."""
         if len(data) > self.maximum_response_size:
             raise ProtocolError(
-                f"response of {len(data)} bytes exceeds "
-                f"maximum_response_size {self.maximum_response_size}"
+                f"response of {len(data)} bytes exceeds maximum_response_size "
+                f"{self.maximum_response_size}"
             )
-
         payload = data
         terminator = self.response_terminator
         if terminator and payload.endswith(terminator):
             payload = payload[: -len(terminator)]
-
         try:
             return payload.decode(self.encoding, errors=self.decode_errors)
         except UnicodeDecodeError as exc:

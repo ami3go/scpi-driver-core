@@ -41,9 +41,8 @@ def test_normalize_alias_rejects_empty(given: str) -> None:
 
 
 def test_aliases_differing_only_in_case_are_the_same_session() -> None:
-    """Otherwise two aliases would silently shadow each other."""
     registry = SessionRegistry()
-    first = session()
+    first = session("psu")
     registry.register("PSU", first)
     assert registry.get("psu") is first
     assert "  PsU " in registry
@@ -66,26 +65,39 @@ def test_default_alias_is_deterministic() -> None:
     assert registry.list_aliases() == ["default"]
 
 
-def test_duplicate_registration_is_rejected() -> None:
-    """Silently replacing would strand the previous transport, still open."""
+def test_register_rejects_alias_that_disagrees_with_session() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
+    with pytest.raises(ConfigurationError, match="does not match"):
+        registry.register("psu", session("dmm"))
+
+
+def test_duplicate_registration_is_rejected() -> None:
+    registry = SessionRegistry()
+    registry.register("psu", session("psu"))
     with pytest.raises(ConfigurationError, match="already registered"):
-        registry.register("psu", session())
+        registry.register("psu", session("psu"))
 
 
 def test_duplicate_can_be_replaced_deliberately() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
-    replacement = session()
+    registry.register("psu", session("psu"))
+    replacement = session("psu")
     registry.register("psu", replacement, replace=True)
     assert registry.get("psu") is replacement
     assert len(registry) == 1
 
 
+def test_same_session_cannot_be_registered_under_another_alias() -> None:
+    registry = SessionRegistry()
+    made = session("psu")
+    registry.register("psu", made)
+    with pytest.raises(ConfigurationError):
+        registry.register("scope", made)
+
+
 def test_get_unknown_alias_lists_what_is_available() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
+    registry.register("psu", session("psu"))
     with pytest.raises(ConfigurationError, match="psu") as caught:
         registry.get("scope")
     assert "no session registered" in str(caught.value)
@@ -102,7 +114,7 @@ def test_contains_and_len_on_an_empty_registry() -> None:
 
 def test_first_registration_becomes_active() -> None:
     registry = SessionRegistry()
-    first = session()
+    first = session("psu")
     registry.register("psu", first)
     assert registry.get_active() is first
     assert registry.active_alias == "psu"
@@ -110,16 +122,16 @@ def test_first_registration_becomes_active() -> None:
 
 def test_later_registrations_do_not_steal_active() -> None:
     registry = SessionRegistry()
-    first = session()
+    first = session("psu")
     registry.register("psu", first)
-    registry.register("scope", session())
+    registry.register("scope", session("scope"))
     assert registry.get_active() is first
 
 
 def test_set_active_switches() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
-    scope = session()
+    registry.register("psu", session("psu"))
+    scope = session("scope")
     registry.register("scope", scope)
     registry.set_active("SCOPE")
     assert registry.get_active() is scope
@@ -128,7 +140,7 @@ def test_set_active_switches() -> None:
 
 def test_set_active_rejects_an_unknown_alias() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
+    registry.register("psu", session("psu"))
     with pytest.raises(ConfigurationError):
         registry.set_active("scope")
 
@@ -139,10 +151,9 @@ def test_get_active_on_an_empty_registry() -> None:
 
 
 def test_removing_the_active_session_does_not_promote_a_survivor() -> None:
-    """Picking an instrument the caller did not choose could energize the wrong bench."""
     registry = SessionRegistry()
-    registry.register("psu", session())
-    registry.register("scope", session())
+    registry.register("psu", session("psu"))
+    registry.register("scope", session("scope"))
     registry.remove("psu")
     with pytest.raises(ConfigurationError, match="no active session"):
         registry.get_active()
@@ -150,8 +161,8 @@ def test_removing_the_active_session_does_not_promote_a_survivor() -> None:
 
 def test_the_error_says_how_to_recover() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
-    registry.register("scope", session())
+    registry.register("psu", session("psu"))
+    registry.register("scope", session("scope"))
     registry.remove("psu")
     with pytest.raises(ConfigurationError, match="scope"):
         registry.get_active()
@@ -159,8 +170,8 @@ def test_the_error_says_how_to_recover() -> None:
 
 def test_active_can_be_chosen_again_after_removal() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session())
-    scope = session()
+    registry.register("psu", session("psu"))
+    scope = session("scope")
     registry.register("scope", scope)
     registry.remove("psu")
     registry.set_active("scope")
@@ -225,7 +236,6 @@ def test_disconnect_all_on_an_empty_registry() -> None:
 
 
 def test_disconnect_all_closes_the_rest_when_one_fails() -> None:
-    """One stuck instrument must not leave the remaining bench connected."""
     registry = SessionRegistry()
     stuck = opened("psu")
     healthy = opened("scope")
@@ -259,9 +269,9 @@ def test_disconnect_unregisters_even_if_closing_fails() -> None:
 
 def test_removing_a_non_active_session_leaves_active_alone() -> None:
     registry = SessionRegistry()
-    first = session()
+    first = session("psu")
     registry.register("psu", first)
-    registry.register("scope", session())
+    registry.register("scope", session("scope"))
     registry.remove("scope")
     assert registry.get_active() is first
     assert registry.active_alias == "psu"
@@ -286,3 +296,11 @@ def test_disconnect_all_raises_the_first_failure_of_several() -> None:
     with pytest.raises(TransportError, match="first stuck"):
         registry.disconnect_all()
     assert len(registry) == 0
+
+
+def test_registry_context_manager_disconnects_everything() -> None:
+    made = opened("psu")
+    with SessionRegistry() as registry:
+        registry.register("psu", made)
+        assert made.is_connected
+    assert not made.is_connected

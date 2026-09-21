@@ -22,11 +22,7 @@ class FakeVisaIOError(Exception):
 
 
 class FakeVisaResource:
-    """A message-oriented VISA session.
-
-    Fed data keeps its message boundaries for ``read_raw``, while ``read_bytes``
-    pulls across them, which is how a real VISA session behaves.
-    """
+    """A message-oriented VISA session used by unit/contract tests."""
 
     instances: ClassVar[list[FakeVisaResource]] = []
     max_write_chunk: ClassVar[int | None] = None
@@ -39,8 +35,14 @@ class FakeVisaResource:
         self.messages: deque[bytes] = deque()
         self.written = bytearray()
         self.fail_read: Exception | None = None
+        self.fail_flush: Exception | None = None
+        self.fail_clear: Exception | None = None
+        self.flush_masks: list[Any] = []
         self.clears = 0
         self.closed = False
+        self.status_byte = 0
+        self.triggers = 0
+        self.ren_operations: list[Any] = []
         type(self).instances.append(self)
 
     def feed(self, data: bytes) -> None:
@@ -78,9 +80,27 @@ class FakeVisaResource:
             taken += message
         return bytes(taken)
 
+    def flush(self, mask: Any) -> None:
+        if self.fail_flush is not None:
+            error, self.fail_flush = self.fail_flush, None
+            raise error
+        self.flush_masks.append(mask)
+
     def clear(self) -> None:
+        if self.fail_clear is not None:
+            error, self.fail_clear = self.fail_clear, None
+            raise error
         self.clears += 1
         self.messages.clear()
+
+    def read_stb(self) -> int:
+        return self.status_byte
+
+    def assert_trigger(self) -> None:
+        self.triggers += 1
+
+    def control_ren(self, operation: Any) -> None:
+        self.ren_operations.append(operation)
 
     def close(self) -> None:
         self.closed = True

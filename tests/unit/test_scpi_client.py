@@ -271,7 +271,6 @@ def test_client_serializes_separate_operations() -> None:
     for thread in threads:
         thread.start()
     assert entered.wait(timeout=1)
-    # Only the lock holder may reach the factory before it is released.
     with entries_lock:
         assert len(factory_entries) == 1
     assert sum(thread.is_alive() for thread in threads) == count
@@ -373,16 +372,16 @@ def test_query_before_retry_requires_a_retry_policy() -> None:
 
 
 def test_query_before_retry_recovers_a_faulted_transport() -> None:
-    """The exact scenario before_retry exists for: a timeout faults the transport."""
+    """A retry response belongs to the new connection, never the faulted one."""
     transport = opened()
     transport.fail_next_read(TransportTimeoutError("TMO"), fault=True)
-    transport.feed(b"3.301\n")
     client = ScpiClient(transport)
     calls: list[str] = []
 
     def before_retry() -> None:
         calls.append("reopen")
         transport.open()
+        transport.feed(b"3.301\n")
 
     result = client.query(
         "MEAS:VOLT? (@1)",
@@ -450,7 +449,7 @@ def test_pacing_does_not_delay_once_enough_real_time_has_passed() -> None:
     transport.open()
     client = ScpiClient(transport, minimum_interval_s=0.25, sleep=clock.sleep, now=clock.now)
     client.write("OUTP ON")
-    clock.elapsed += 1.0  # time passes outside the client's control
+    clock.elapsed += 1.0
     client.write("VOLT 4.2")
     assert clock.slept == []
 

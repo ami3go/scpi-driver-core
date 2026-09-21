@@ -118,7 +118,7 @@ def test_udp_source_validation_ignores_other_sender() -> None:
         other.sendto(b"spoof", transport.local_address)
         with pytest.raises(TransportTimeoutError):
             transport.read(ReadRequest(mode=ReadMode.BACKEND_DEFINED_MESSAGE))
-        assert transport.state is TransportState.OPEN
+        assert transport.state is TransportState.FAULTED
     finally:
         other.close()
         transport.close()

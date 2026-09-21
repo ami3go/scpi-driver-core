@@ -1,14 +1,8 @@
 """The high-level SCPI client.
 
-Every piece of SCPI traffic goes through one execution choke point,
-:meth:`ScpiClient._execute`, so that locking, operation-identifier assignment,
-and timeout resolution are applied uniformly instead of being reimplemented per
-call site. Tracing and error-queue policy hook into the same place in later
-phases.
-
-The client deliberately does not open or close the transport. Owning the
-connection lifecycle belongs to the session layer; the client's single
-responsibility is protocol.
+Every protocol operation passes through one execution choke point so locking,
+operation identifiers, pacing, outcome reporting and timeout resolution remain
+consistent across text, raw-byte and binary-block traffic.
 """
 
 from __future__ import annotations
@@ -16,10 +10,10 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager, suppress
 from typing import TypeVar
 
-from scpi_driver_core.exceptions import ConfigurationError
+from scpi_driver_core.exceptions import ConfigurationError, ScpiDriverError
 from scpi_driver_core.execution.retry import RetryAttempt, RetryPolicy, run_with_retry
 from scpi_driver_core.scpi.binary_block import (
     DEFAULT_MAXIMUM_BLOCK_SIZE,
@@ -37,20 +31,15 @@ from scpi_driver_core.scpi.parsers import (
     parse_optional_unit_float,
 )
 from scpi_driver_core.transport.base import Transport
-from scpi_driver_core.transport.models import (
-    ReadMode,
-    ReadRequest,
-    ReplayPolicy,
-    TransportState,
-)
+from scpi_driver_core.transport.models import ReadMode, ReadRequest, ReplayPolicy, TransportState
 
 __all__ = ["ScpiClient"]
 
 _T = TypeVar("_T")
+OutcomeListener = Callable[[ScpiDriverError | None], None]
 
 
 def _counting_operation_ids() -> Callable[[], str]:
-    """Return a factory yielding ``op-1``, ``op-2``, ... for one client."""
     counter = 0
     lock = threading.Lock()
 
@@ -64,35 +53,7 @@ def _counting_operation_ids() -> Callable[[], str]:
 
 
 class ScpiClient:
-    """Sends SCPI commands and parses responses over a byte transport.
-
-    Args:
-        transport: the opened, or yet to be opened, byte transport.
-        codec: text framing. Defaults to ASCII with ``\\n`` terminators.
-        response_request: how a query's reply is read. Defaults to reading up
-            to the codec's response terminator, or to one backend-framed
-            message when the codec has no response terminator, as with VISA.
-        timeout_s: default bound for this client's operations. ``None`` defers
-            to the transport's own default.
-        operation_id_factory: supplies correlation identifiers. The default
-            numbers operations from one within this client.
-        retry_observer: notified after every retried attempt, so the tracing
-            layer can record how many an operation needed.
-        minimum_interval_s: floor on the gap between the end of one operation
-            and the start of the next, for a device documented to need quiet
-            time between commands regardless of whether either succeeded.
-            Unlike :class:`~scpi_driver_core.execution.retry.RetryPolicy`,
-            which only delays after a failure, this applies unconditionally —
-            including between back-to-back writes with no read in between.
-            ``None``, the default, paces nothing.
-        sleep: how ``minimum_interval_s`` waits; injectable for tests.
-        now: monotonic clock backing ``minimum_interval_s``; injectable for
-            tests.
-
-    Raises:
-        ConfigurationError: if ``timeout_s`` or ``minimum_interval_s`` is not
-            finite and positive.
-    """
+    """Send SCPI commands and parse responses over one byte transport."""
 
     def __init__(
         self,
@@ -115,7 +76,6 @@ class ScpiClient:
             raise ConfigurationError(
                 f"minimum_interval_s must be finite and positive, got {minimum_interval_s!r}"
             )
-
         self._transport = transport
         self._codec = codec if codec is not None else ScpiTextCodec()
         self._timeout_s = timeout_s
@@ -134,10 +94,12 @@ class ScpiClient:
         self._sleep = sleep
         self._now = now
         self._last_operation_at: float | None = None
+        self._outcome_listeners: list[OutcomeListener] = []
 
     def _default_response_request(self) -> ReadRequest:
         terminator = self._codec.response_terminator
-        if terminator:
+        message_based = bool(getattr(self._transport, "message_based", False))
+        if terminator and not message_based:
             return ReadRequest(
                 mode=ReadMode.UNTIL_TERMINATOR,
                 terminator=terminator,
@@ -148,8 +110,6 @@ class ScpiClient:
             mode=ReadMode.BACKEND_DEFINED_MESSAGE,
             maximum_size=self._codec.maximum_response_size,
         )
-
-    # -- introspection ----------------------------------------------------
 
     @property
     def transport(self) -> Transport:
@@ -165,36 +125,36 @@ class ScpiClient:
 
     @property
     def response_request(self) -> ReadRequest:
-        """The read used for a query reply."""
         return self._response_request
 
     @property
     def is_open(self) -> bool:
-        """Whether the underlying transport holds its resource."""
         return self._transport.state is TransportState.OPEN
 
-    # -- execution --------------------------------------------------------
+    def add_outcome_listener(self, listener: OutcomeListener) -> None:
+        """Observe completed transport/protocol operations for health tracking."""
+        with self._lock:
+            if listener not in self._outcome_listeners:
+                self._outcome_listeners.append(listener)
+
+    def remove_outcome_listener(self, listener: OutcomeListener) -> None:
+        with self._lock:
+            if listener in self._outcome_listeners:
+                self._outcome_listeners.remove(listener)
+
+    def _notify_outcome(self, error: ScpiDriverError | None) -> None:
+        for listener in tuple(self._outcome_listeners):
+            with suppress(Exception):
+                listener(error)
 
     def enable_error_checking(
         self, error_queue: ScpiErrorQueue, policy: ScpiExecutionPolicy
     ) -> None:
-        """Consult ``error_queue`` automatically, as ``policy`` directs.
-
-        Off until a concrete driver asks for it. Each check costs an extra
-        round trip and clears entries the driver might have wanted to read, so
-        the core will not impose it.
-
-        The check runs inside the same lock as the operation it follows, so a
-        concurrent caller cannot consume the errors belonging to this one. The
-        queue's own queries are exempt, which is what stops a check from
-        triggering another check.
-        """
         with self._lock:
             self._error_queue = error_queue
             self._execution_policy = policy
 
     def disable_error_checking(self) -> None:
-        """Stop consulting the error queue automatically."""
         with self._lock:
             self._error_queue = None
             self._execution_policy = ScpiExecutionPolicy()
@@ -208,7 +168,6 @@ class ScpiClient:
         return self._error_queue
 
     def _check_errors(self, *, after_query: bool) -> None:
-        """Consult the error queue if policy says to, without recursing."""
         queue = self._error_queue
         if queue is None or self._checking_errors:
             return
@@ -226,51 +185,46 @@ class ScpiClient:
         finally:
             self._checking_errors = False
 
-    @contextmanager
-    def operation_lock(self) -> Iterator[None]:
-        """Hold the client's lock across several operations.
+    def operation_lock(self) -> AbstractContextManager[None]:
+        """Hold the client's serialization lock across several operations."""
+        return self._operation_lock()
 
-        Use this where a sequence has to be indivisible, such as a write
-        followed by the error-queue check that belongs to it, so that a
-        concurrent caller cannot consume the result in between.
-        """
+    @contextmanager
+    def _operation_lock(self) -> Iterator[None]:
         with self._lock:
             yield
 
     def _execute(self, action: Callable[[str, float | None], _T], *, timeout_s: float | None) -> _T:
-        """The single choke point every SCPI operation passes through."""
         if timeout_s is not None and not (timeout_s > 0 and timeout_s != float("inf")):
             raise ConfigurationError(f"timeout_s must be finite and positive, got {timeout_s!r}")
         effective = self._timeout_s if timeout_s is None else timeout_s
         with self._lock:
             self._wait_for_pacing()
             try:
-                return action(self._next_operation_id(), effective)
+                result = action(self._next_operation_id(), effective)
+            except ScpiDriverError as exc:
+                self._notify_outcome(exc)
+                raise
             finally:
                 if self._minimum_interval_s is not None:
                     self._last_operation_at = self._now()
+            self._notify_outcome(None)
+            return result
 
     def _wait_for_pacing(self) -> None:
-        """Sleep off whatever's left of ``minimum_interval_s`` since the last operation."""
         if self._minimum_interval_s is None or self._last_operation_at is None:
             return
         remaining = self._minimum_interval_s - (self._now() - self._last_operation_at)
         if remaining > 0:
             self._sleep(remaining)
 
-    # -- byte operations --------------------------------------------------
-
     def write_bytes(self, data: bytes, *, timeout_s: float | None = None) -> None:
-        """Send raw bytes with no framing added."""
-
         def action(operation_id: str, effective: float | None) -> None:
             self._transport.write(data, timeout_s=effective, operation_id=operation_id)
 
         self._execute(action, timeout_s=timeout_s)
 
     def read_bytes(self, request: ReadRequest, *, timeout_s: float | None = None) -> bytes:
-        """Read raw bytes according to ``request``."""
-
         def action(operation_id: str, effective: float | None) -> bytes:
             return self._transport.read(request, timeout_s=effective, operation_id=operation_id)
 
@@ -284,8 +238,6 @@ class ScpiClient:
         timeout_s: float | None = None,
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
     ) -> bytes:
-        """Write raw bytes and read the reply as one indivisible operation."""
-
         def action(operation_id: str, effective: float | None) -> bytes:
             return self._transport.transact(
                 outbound,
@@ -297,14 +249,8 @@ class ScpiClient:
 
         return self._execute(action, timeout_s=timeout_s)
 
-    # -- text operations --------------------------------------------------
-
     def write(self, command: str, *, timeout_s: float | None = None) -> None:
-        """Send a SCPI command, terminated by the codec.
-
-        Writes are never retried. A repeated write can mean a second trigger or
-        a second output-enable, and the core cannot know whether that is safe.
-        """
+        """Send one SCPI command. Writes are never retried automatically."""
         with self._lock:
             self.write_bytes(self._codec.encode_command(command), timeout_s=timeout_s)
             self._check_errors(after_query=False)
@@ -318,28 +264,6 @@ class ScpiClient:
         retry_policy: RetryPolicy | None = None,
         before_retry: Callable[[], None] | None = None,
     ) -> str:
-        """Send a query and return its decoded reply.
-
-        Args:
-            replay_policy: ``SAFE`` asserts that resending this exact query has
-                no side effect on the instrument. Left at ``NEVER`` otherwise.
-            retry_policy: how many attempts to make. Requires ``replay_policy``
-                to be ``SAFE``, because retrying means resending a command that
-                may already have reached the device.
-            before_retry: called before each retried attempt. The client never
-                opens or closes the transport itself — see the module
-                docstring — so when a failure has faulted it, recovering is the
-                caller's job. A concrete driver typically passes
-                ``session.recover_if_faulted`` here; without it, every retry
-                after the first transport-level failure fails immediately with
-                ``NotConnectedError`` rather than ever reaching the instrument
-                again. Ignored if ``retry_policy`` is ``None``.
-
-        Raises:
-            ConfigurationError: if a retrying policy is given without
-                classifying the query as safe to replay, or ``before_retry``
-                is given without a retry policy for it to run under.
-        """
         if (
             retry_policy is not None
             and retry_policy.retries
@@ -351,55 +275,55 @@ class ScpiClient:
             )
         if before_retry is not None and retry_policy is None:
             raise ConfigurationError("before_retry has no effect without a retry_policy")
-
         outbound = self._codec.encode_command(command)
 
         def attempt() -> str:
-            raw = self.transact_bytes(
-                outbound,
-                self._response_request,
-                timeout_s=timeout_s,
-                replay_policy=replay_policy,
-            )
-            return self._codec.decode_response(raw)
-
-        with self._lock:
-            if retry_policy is None:
-                response = attempt()
-            else:
-                response = run_with_retry(
-                    attempt,
-                    policy=retry_policy,
-                    before_retry=before_retry,
-                    on_attempt=self._retry_observer,
+            # Serialization is per attempt rather than per retry sequence. The
+            # lock is therefore released while backoff sleeps, so shutdown and
+            # other control paths are not blocked for the whole retry budget.
+            # The successful transaction and its error-queue check remain one
+            # indivisible client operation.
+            with self._lock:
+                raw = self.transact_bytes(
+                    outbound,
+                    self._response_request,
+                    timeout_s=timeout_s,
+                    replay_policy=replay_policy,
                 )
-            self._check_errors(after_query=True)
-            return response
+                response = self._codec.decode_response(raw)
+                self._check_errors(after_query=True)
+                return response
 
-    # -- typed queries ----------------------------------------------------
+        if retry_policy is None:
+            return attempt()
+        return run_with_retry(
+            attempt,
+            policy=retry_policy,
+            before_retry=before_retry,
+            on_attempt=self._retry_observer,
+        )
 
     def query_float(
         self,
         command: str,
         *,
         allow_non_finite: bool = False,
+        scpi_special_values: bool = True,
         timeout_s: float | None = None,
     ) -> float:
-        """Query and parse a float."""
         return parse_float(
-            self.query(command, timeout_s=timeout_s), allow_non_finite=allow_non_finite
+            self.query(command, timeout_s=timeout_s),
+            allow_non_finite=allow_non_finite,
+            scpi_special_values=scpi_special_values,
         )
 
     def query_int(self, command: str, *, timeout_s: float | None = None) -> int:
-        """Query and parse an integer."""
         return parse_int(self.query(command, timeout_s=timeout_s))
 
     def query_bool(self, command: str, *, timeout_s: float | None = None) -> bool:
-        """Query and parse a SCPI boolean."""
         return parse_bool(self.query(command, timeout_s=timeout_s))
 
     def query_csv(self, command: str, *, timeout_s: float | None = None) -> list[str]:
-        """Query and split a comma-separated reply."""
         return parse_csv(self.query(command, timeout_s=timeout_s))
 
     def query_csv_floats(
@@ -407,18 +331,14 @@ class ScpiClient:
         command: str,
         *,
         allow_non_finite: bool = False,
+        scpi_special_values: bool = True,
         timeout_s: float | None = None,
     ) -> list[float]:
-        """Query and parse a comma-separated reply as floats.
-
-        The common shape for a multi-channel measurement query, such as
-        ``MEAS:VOLT? (@1,2,3)`` answered with ``"3.301,3.298,3.305"``.
-        """
         return parse_csv_floats(
-            self.query(command, timeout_s=timeout_s), allow_non_finite=allow_non_finite
+            self.query(command, timeout_s=timeout_s),
+            allow_non_finite=allow_non_finite,
+            scpi_special_values=scpi_special_values,
         )
-
-    # -- binary blocks ----------------------------------------------------
 
     def query_binary_block(
         self,
@@ -428,34 +348,31 @@ class ScpiClient:
         maximum_size: int | None = None,
         consume_terminator: bool = True,
     ) -> bytes:
-        """Query an IEEE-488.2 definite-length block and return its payload.
-
-        The reply bypasses the text codec: every payload byte is returned
-        exactly as sent, including whitespace and nulls.
-
-        Args:
-            maximum_size: reject a block declaring more payload than this.
-                Defaults to :data:`~scpi_driver_core.scpi.binary_block.DEFAULT_MAXIMUM_BLOCK_SIZE`.
-            consume_terminator: also read the response terminator that follows
-                the block. Leaving it on the wire would corrupt the next
-                response, so this is on whenever the codec defines one. Turn it
-                off for an instrument that sends no terminator after a block.
-        """
+        """Query one definite-length block atomically and invalidate on framing failure."""
         limit = DEFAULT_MAXIMUM_BLOCK_SIZE if maximum_size is None else maximum_size
         terminator = self._codec.response_terminator if consume_terminator else None
         outbound = self._codec.encode_command(command)
 
         def action(operation_id: str, effective: float | None) -> bytes:
-            self._transport.write(outbound, timeout_s=effective, operation_id=operation_id)
-            return read_definite_length_block(
-                self._transport,
-                timeout_s=effective,
-                maximum_size=limit,
-                terminator=terminator,
-                operation_id=operation_id,
-            )
+            with self._transport.operation_lock():
+                self._transport.write(outbound, timeout_s=effective, operation_id=operation_id)
+                try:
+                    return read_definite_length_block(
+                        self._transport,
+                        timeout_s=effective,
+                        maximum_size=limit,
+                        terminator=terminator,
+                        operation_id=operation_id,
+                    )
+                except BaseException:
+                    with suppress(Exception):
+                        self._transport.invalidate()
+                    raise
 
-        return self._execute(action, timeout_s=timeout_s)
+        with self._lock:
+            payload = self._execute(action, timeout_s=timeout_s)
+            self._check_errors(after_query=True)
+            return payload
 
     def write_binary_block(
         self,
@@ -464,16 +381,12 @@ class ScpiClient:
         *,
         timeout_s: float | None = None,
     ) -> None:
-        """Send ``command_prefix`` followed by ``payload`` as a definite-length block.
-
-        The prefix is the command up to where the block begins, including any
-        separating space, such as ``"CURVE "`` or ``"DATA:ARB myWave, "``. The
-        block header and the command terminator are added here.
-        """
         data = self._codec.encode_block_command(
             command_prefix, encode_definite_length_block(payload)
         )
-        self.write_bytes(data, timeout_s=timeout_s)
+        with self._lock:
+            self.write_bytes(data, timeout_s=timeout_s)
+            self._check_errors(after_query=False)
 
     def query_optional_unit_float(
         self,
@@ -481,11 +394,12 @@ class ScpiClient:
         *,
         expected_unit: str | None = None,
         allow_non_finite: bool = False,
+        scpi_special_values: bool = True,
         timeout_s: float | None = None,
     ) -> float:
-        """Query a number that the instrument may or may not suffix with a unit."""
         return parse_optional_unit_float(
             self.query(command, timeout_s=timeout_s),
             expected_unit=expected_unit,
             allow_non_finite=allow_non_finite,
+            scpi_special_values=scpi_special_values,
         )

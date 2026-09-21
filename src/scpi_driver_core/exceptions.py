@@ -7,6 +7,12 @@ so the original cause is preserved.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from scpi_driver_core.models import ScpiError
+
 __all__ = [
     "ConfigurationError",
     "IdentityError",
@@ -18,6 +24,8 @@ __all__ = [
     "ScpiCommandError",
     "ScpiDriverError",
     "ScpiErrorQueueError",
+    "ScpiTimeoutError",
+    "SessionClosedError",
     "TransportError",
     "TransportTimeoutError",
     "UnsupportedOperationError",
@@ -32,6 +40,10 @@ class ConfigurationError(ScpiDriverError):
     """Invalid or inconsistent configuration supplied by the caller."""
 
 
+class ScpiTimeoutError(ScpiDriverError):
+    """Base class for every bounded wait that expires."""
+
+
 class TransportError(ScpiDriverError):
     """Failure in the byte-oriented transport layer."""
 
@@ -40,7 +52,7 @@ class NotConnectedError(TransportError):
     """I/O was attempted while the transport was not open."""
 
 
-class TransportTimeoutError(TransportError):
+class TransportTimeoutError(TransportError, ScpiTimeoutError):
     """A transport operation exceeded its timeout."""
 
 
@@ -54,10 +66,6 @@ class ResponseParseError(ProtocolError):
     The offending response is retained on ``raw`` so a caller can report what
     the instrument actually sent, which is frequently the only clue available
     when a device deviates from its documented format.
-
-    Args:
-        message: description of what could not be parsed.
-        raw: the unmodified response, when available.
     """
 
     def __init__(self, message: str, *, raw: str | bytes | None = None) -> None:
@@ -70,15 +78,39 @@ class ScpiCommandError(ProtocolError):
 
 
 class ScpiErrorQueueError(ScpiDriverError):
-    """The instrument reported one or more entries in its SCPI error queue."""
+    """The instrument reported one or more entries in its SCPI error queue.
+
+    ``errors`` contains every entry that was removed from the instrument before
+    this exception was raised. ``complete`` is false if collection stopped at a
+    configured bound or on an unparsable queue reply.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        errors: Sequence[ScpiError] = (),
+        complete: bool = True,
+    ) -> None:
+        super().__init__(message)
+        self.errors = tuple(errors)
+        self.complete = complete
 
 
 class IdentityError(ScpiDriverError):
     """An ``*IDN?`` reply was missing, unparsable, or unacceptable."""
 
 
-class OperationTimeoutError(ScpiDriverError):
-    """A bounded operation (polling, completion wait) exceeded its deadline."""
+class OperationTimeoutError(ScpiTimeoutError):
+    """A bounded higher-level operation (polling, completion wait) expired."""
+
+
+class SessionClosedError(ScpiDriverError):
+    """Automatic recovery was requested for a session not faulted by I/O.
+
+    Deliberately closed or never-opened sessions are never silently reopened by
+    retry machinery. Call :meth:`ScpiSession.open` explicitly instead.
+    """
 
 
 class UnsupportedOperationError(ScpiDriverError):

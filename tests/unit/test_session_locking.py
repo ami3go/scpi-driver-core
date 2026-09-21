@@ -61,12 +61,15 @@ def test_identity_acquires_client_lock_before_session_lock() -> None:
 
 
 def test_retry_recovery_uses_same_client_then_session_lock_order() -> None:
-    """The before-retry callback must follow the same cross-layer lock order."""
-    client = ScpiClient(MockTransport())
+    """Recovery of an actual fault follows the canonical client->session order."""
+    transport = MockTransport()
+    client = ScpiClient(transport)
     session = ScpiSession("scope", client)
+    session.open()
+    transport.simulate_disconnect()
+
     events: list[str] = []
     _install_lock_recorders(session, client, events)
-
     session.recover_if_faulted()
 
     assert session.is_connected

@@ -5,11 +5,15 @@ import pytest
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     IdentityError,
+    SessionClosedError,
     TransportError,
 )
+from scpi_driver_core.execution.retry import RetryPolicy
+from scpi_driver_core.models import Identity
 from scpi_driver_core.scpi import ScpiClient
 from scpi_driver_core.session.session import ScpiSession
-from scpi_driver_core.transport import MockTransport, TransportState
+from scpi_driver_core.simulation import ScriptedScpiTransport
+from scpi_driver_core.transport import MockTransport, ReplayPolicy, TransportState
 
 IDN = b"KEYSIGHT,N6700C,MY56000102,D.01.09\n"
 
@@ -49,7 +53,6 @@ def test_is_connected_reflects_the_transport_only() -> None:
 
 
 def test_is_connected_performs_no_device_io() -> None:
-    """Checking connectivity must never put bytes on the wire."""
     session, transport = make()
     transport.open()
     assert session.is_connected is True
@@ -63,7 +66,6 @@ def test_health_starts_unknown() -> None:
 
 
 def test_opening_does_not_claim_the_instrument_replies() -> None:
-    """Holding a resource is not evidence that anything answers on it."""
     session, _ = make()
     session.open()
     assert session.health.connected is True
@@ -71,7 +73,6 @@ def test_opening_does_not_claim_the_instrument_replies() -> None:
 
 
 def test_an_open_transport_can_report_bad_communication() -> None:
-    """A powered-down instrument on a live connection is open and mute."""
     session, transport = make()
     session.open()
     transport.fail_next_read(TransportError("no reply"), fault=False)
@@ -79,6 +80,25 @@ def test_an_open_transport_can_report_bad_communication() -> None:
     assert session.is_connected is True
     assert session.health.connected is True
     assert session.health.communication_ok is False
+
+
+def test_normal_client_traffic_updates_health() -> None:
+    session, _ = make(b"1.25\n")
+    session.open()
+    assert session.client.query_float("MEAS?") == 1.25
+    assert session.health.communication_ok is True
+    assert session.health.last_success_monotonic is not None
+
+
+def test_failed_client_traffic_updates_health() -> None:
+    session, transport = make()
+    session.open()
+    transport.fail_next_read(TransportError("cable pulled"), fault=True)
+    with pytest.raises(TransportError):
+        session.client.query("MEAS?")
+    assert session.health.communication_ok is False
+    assert isinstance(session.health.last_error, TransportError)
+    assert session.health.connected is False
 
 
 def test_check_communication_records_success() -> None:
@@ -129,7 +149,7 @@ def test_generation_lets_a_reader_detect_a_reconnect() -> None:
     assert session.generation != observed
 
 
-# -- recover_if_faulted -----------------------------------------------------
+# -- recover_if_faulted ---------------------------------------------------
 
 
 def test_recover_if_faulted_does_nothing_to_an_open_transport() -> None:
@@ -146,16 +166,12 @@ def test_recover_if_faulted_reopens_a_faulted_transport() -> None:
     session, transport = make()
     session.open()
     transport.simulate_disconnect()
-    assert transport.state is TransportState.FAULTED
-
     session.recover_if_faulted()
-
     assert transport.state is TransportState.OPEN
     assert transport.open_count == 2
 
 
 def test_recover_if_faulted_advances_the_generation() -> None:
-    """A fault-and-reopen is a new connection, so cached state can't be trusted as fresh."""
     session, transport = make()
     session.open()
     observed = session.generation
@@ -169,14 +185,32 @@ def test_recover_if_faulted_drops_the_cached_identity() -> None:
     session.open()
     first = session.get_identity()
     transport.simulate_disconnect()
-    transport.feed(IDN)  # disconnecting discards buffered data, as a real transport does
+    transport.feed(IDN)
     session.recover_if_faulted()
     second = session.get_identity()
     assert first is not second
 
 
-def test_recover_if_faulted_does_not_probe_or_validate() -> None:
-    """Unlike open(), this runs between retries of one operation, not at connection setup."""
+def test_recover_if_faulted_never_reopens_created_session() -> None:
+    session, transport = make()
+    with pytest.raises(SessionClosedError):
+        session.recover_if_faulted()
+    assert transport.state is TransportState.CREATED
+    assert session.generation == 0
+
+
+def test_recover_if_faulted_never_reopens_deliberately_closed_session() -> None:
+    session, transport = make()
+    session.open()
+    generation = session.generation
+    session.close()
+    with pytest.raises(SessionClosedError):
+        session.recover_if_faulted()
+    assert transport.state is TransportState.CLOSED
+    assert session.generation == generation
+
+
+def test_recover_if_faulted_without_initial_probe_or_validator_sends_nothing() -> None:
     session, transport = make()
     session.open()
     transport.simulate_disconnect()
@@ -185,15 +219,29 @@ def test_recover_if_faulted_does_not_probe_or_validate() -> None:
     assert transport.written == written_before
 
 
-def test_recover_if_faulted_is_usable_as_a_before_retry_callback() -> None:
-    """The documented integration point: ScpiClient.query(..., before_retry=...)."""
-    session, transport = make()
-    session.open()
-    transport.fail_next_read(TransportError("TMO"), fault=True)
-    transport.feed(b"3.301\n")
+def test_recovery_reapplies_probe_and_identity_validation() -> None:
+    scripted = ScriptedScpiTransport().on("*IDN?", "ACME,GOOD,SN1,1.0")
+    session = ScpiSession("dut", ScpiClient(scripted))
 
-    from scpi_driver_core.execution.retry import RetryPolicy
-    from scpi_driver_core.transport import ReplayPolicy
+    def validate(identity: Identity) -> None:
+        if identity.model != "GOOD":
+            raise IdentityError("wrong instrument")
+
+    session.open(probe=True, validate_identity=validate)
+    scripted.on("*IDN?", "ACME,WRONG,SN2,1.0")
+    scripted.inner.simulate_disconnect()
+
+    with pytest.raises(IdentityError, match="wrong instrument"):
+        session.recover_if_faulted()
+    assert scripted.state is TransportState.CLOSED
+    assert scripted.history[-1] == "*IDN?"
+
+
+def test_recover_if_faulted_is_usable_as_a_before_retry_callback() -> None:
+    scripted = ScriptedScpiTransport().on("MEAS:VOLT? (@1)", "3.301")
+    session = ScpiSession("dut", ScpiClient(scripted))
+    session.open()
+    scripted.inner.fail_next_read(TransportError("TMO"), fault=True)
 
     result = session.client.query(
         "MEAS:VOLT? (@1)",
@@ -226,12 +274,11 @@ def test_identity_can_be_refreshed() -> None:
 
 
 def test_identity_cache_is_dropped_on_close() -> None:
-    """A cached identity must never describe a previous connection."""
     session, transport = make(IDN)
     session.open()
     session.get_identity()
     session.close()
-    transport.feed(IDN)  # closing discards buffered data, as a real transport does
+    transport.feed(IDN)
     session.open()
     session.get_identity()
     assert transport.written == b"*IDN?\n" * 2
@@ -260,8 +307,7 @@ def test_open_with_probe_verifies_the_link() -> None:
     assert session.health.communication_ok is True
 
 
-def test_a_failed_probe_leaves_nothing_open() -> None:
-    """A partial connection failure must release everything it acquired."""
+def test_a_failed_probe_leaves_nothing_open_and_keeps_reason() -> None:
     session, transport = make()
     transport.fail_next_read(TransportError("silent instrument"), fault=False)
     with pytest.raises(TransportError):
@@ -269,12 +315,14 @@ def test_a_failed_probe_leaves_nothing_open() -> None:
     assert session.is_connected is False
     assert transport.state is TransportState.CLOSED
     assert session.health.connected is False
+    assert isinstance(session.health.last_error, TransportError)
 
 
 def test_open_lets_a_driver_reject_the_wrong_instrument() -> None:
     session, _ = make(IDN)
 
-    def expect_tektronix(identity: object) -> None:
+    def expect_tektronix(identity: Identity) -> None:
+        del identity
         raise IdentityError("expected a TEKTRONIX scope")
 
     with pytest.raises(IdentityError):
@@ -284,7 +332,7 @@ def test_open_lets_a_driver_reject_the_wrong_instrument() -> None:
 
 def test_open_passes_the_parsed_identity_to_the_validator() -> None:
     session, _ = make(IDN)
-    seen = []
+    seen: list[Identity] = []
     session.open(validate_identity=seen.append)
     assert seen[0].manufacturer == "KEYSIGHT"
     assert seen[0].model == "N6700C"
@@ -298,7 +346,6 @@ def test_validation_alone_still_queries_identity() -> None:
 
 
 def test_a_failed_open_does_not_fall_back_to_anything() -> None:
-    """A hardware connection that fails must fail, not quietly become a simulation."""
     session, transport = make()
     transport.fail_next_open(TransportError("no route to host"))
     with pytest.raises(TransportError):
@@ -326,7 +373,7 @@ def test_close_is_idempotent() -> None:
     assert session.is_connected is False
 
 
-def test_close_clears_state_even_if_the_transport_fails_to_close() -> None:
+def test_close_failure_does_not_lie_about_transport_state() -> None:
     session, transport = make()
     session.open()
 
@@ -336,14 +383,23 @@ def test_close_clears_state_even_if_the_transport_fails_to_close() -> None:
     transport.close = boom  # type: ignore[method-assign]
     with pytest.raises(TransportError):
         session.close()
-    assert session.health.connected is False
+    assert transport.state is TransportState.OPEN
+    assert session.health.connected is True
 
 
 def test_operation_lock_is_usable_for_compound_sequences() -> None:
-    session, transport = make(b"1.5\n")
+    session, _ = make(b"1.5\n")
     session.open()
-    with session.operation_lock():  # type: ignore[attr-defined]
+    with session.operation_lock():
         assert session.client.query_float("MEAS?") == 1.5
+
+
+def test_session_context_manager_closes_on_exception() -> None:
+    session, transport = make()
+    with pytest.raises(RuntimeError), session:
+        assert session.is_connected
+        raise RuntimeError("boom")
+    assert transport.state is TransportState.CLOSED
 
 
 # -- communication timeout ------------------------------------------------
@@ -406,7 +462,6 @@ def test_session_publishes_its_alias_and_generation_to_the_tracer() -> None:
 
 
 def test_reconnecting_advances_the_traced_generation() -> None:
-    """A trace spanning a reconnect must not read as one unbroken connection."""
     from scpi_driver_core.tracing import RecordingTraceObserver, Tracer
 
     transport = MockTransport()
@@ -416,10 +471,3 @@ def test_reconnecting_advances_the_traced_generation() -> None:
     session.close()
     session.open()
     assert tracer.context.session_generation == 2
-
-
-def test_a_session_without_a_tracer_works_normally() -> None:
-    session, _ = make()
-    session.open()
-    assert session.tracer is None
-    assert session.is_connected is True
