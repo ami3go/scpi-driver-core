@@ -1,12 +1,4 @@
-"""Retry policy for operations a caller has classified as safe to repeat.
-
-The default is one attempt. Retrying instrument traffic is not a neutral
-convenience: once bytes may have reached the device, repeating them can mean a
-second output-enable, a second trigger, or a second calibration write. So
-nothing here retries unless the caller asks for it, and
-:class:`~scpi_driver_core.transport.models.ReplayPolicy` records that the
-caller has judged the specific operation idempotent.
-"""
+"""Retry policy for operations a caller has classified as safe to repeat."""
 
 from __future__ import annotations
 
@@ -14,41 +6,23 @@ import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final, TypeVar
+from typing import Final, Literal, TypeVar
 
 from scpi_driver_core.exceptions import ConfigurationError, TransportError
 
 __all__ = ["NO_RETRY", "RetryAttempt", "RetryPolicy", "run_with_retry"]
 
 _T = TypeVar("_T")
+RetryPhase = Literal["recover", "operation"]
 
 
 @dataclass(frozen=True)
 class RetryPolicy:
     """How many times to try, and how long to wait between tries.
 
-    Args:
-        attempts: total attempts including the first. One, the default, means
-            no retrying at all.
-        initial_delay_s: pause before the second attempt, and the flat pause
-            used throughout ``fast_attempts``.
-        backoff: multiplier applied to the delay after each failure once past
-            ``fast_attempts``. ``1.0`` keeps the delay constant.
-        fast_attempts: how many retries beyond the first stay at the flat
-            ``initial_delay_s`` before ``backoff`` starts compounding. ``0``,
-            the default, means backoff compounding starts immediately after
-            the first retry, as it always did before this field existed.
-        max_delay_s: ceiling on any single wait, so an exponential ``backoff``
-            cannot grow unbounded over many attempts. ``None`` leaves it
-            uncapped.
-        max_elapsed_s: total wall-clock budget for retrying, measured from the
-            first attempt. Once the wait before the next attempt would cross
-            this budget, :func:`run_with_retry` stops and raises rather than
-            waiting for it — this bounds *time*, independently of ``attempts``
-            bounding *count*. ``None`` leaves it unbounded.
-
-    Raises:
-        ConfigurationError: if any field is out of range.
+    ``max_elapsed_s`` bounds whether another attempt may *start*. It cannot
+    pre-empt an attempt already executing; each operation therefore still needs
+    its own finite timeout.
     """
 
     attempts: int = 1
@@ -86,37 +60,24 @@ class RetryPolicy:
 
     @property
     def retries(self) -> bool:
-        """Whether this policy will ever make a second attempt."""
         return self.attempts > 1
 
     def delay_before(self, attempt: int) -> float:
-        """Seconds to wait before ``attempt``, which is 1-based.
-
-        The first attempt is never delayed, and the first retry is always at
-        the flat ``initial_delay_s`` baseline (``backoff**0``) — that much is
-        true even with ``fast_attempts=0``. ``fast_attempts`` extends that
-        plateau: with ``fast_attempts=5``, the first *five* retries all wait
-        ``initial_delay_s``, and only the sixth retry onward compounds by
-        ``backoff``. ``max_delay_s`` (if set) caps the result.
-        """
+        """Seconds to wait before 1-based ``attempt`` without overflow."""
         if attempt <= 1:
             return 0.0
         plateau = max(self.fast_attempts - 1, 0)
         exponent = max(0, (attempt - 2) - plateau)
-        delay = self.initial_delay_s * (self.backoff**exponent)
+        try:
+            delay = self.initial_delay_s * (self.backoff**exponent)
+        except OverflowError:
+            delay = math.inf
         if self.max_delay_s is not None:
-            delay = min(delay, self.max_delay_s)
+            return min(delay, self.max_delay_s)
         return delay
 
     @classmethod
     def constant(cls, attempts: int, delay_s: float) -> RetryPolicy:
-        """A policy that waits the same ``delay_s`` before every retry.
-
-        Equivalent to ``RetryPolicy(attempts=attempts, initial_delay_s=delay_s,
-        backoff=1.0)``, spelled out for the common case of a fixed pause
-        rather than a backing-off one, e.g. a slow instrument that needs a
-        flat multi-second wait before its reply is ready to retry.
-        """
         return cls(attempts=attempts, initial_delay_s=delay_s, backoff=1.0)
 
     @classmethod
@@ -130,16 +91,6 @@ class RetryPolicy:
         max_delay_s: float | None = None,
         max_elapsed_s: float | None = None,
     ) -> RetryPolicy:
-        """A policy that starts with quick retries, then backs off.
-
-        The common "retry fast a few times, then slow down, then give up"
-        shape: e.g. ``RetryPolicy.progressive(50, 0.5, fast_attempts=5,
-        max_delay_s=10.0, max_elapsed_s=60.0)`` retries every 0.5s for the
-        first 5 retries, then doubles the wait each time up to a 10s
-        ceiling, and gives up once a minute has passed since the first
-        attempt — whichever bound, ``attempts`` or ``max_elapsed_s``, is hit
-        first.
-        """
         return cls(
             attempts=attempts,
             initial_delay_s=initial_delay_s,
@@ -151,17 +102,17 @@ class RetryPolicy:
 
 
 NO_RETRY: Final = RetryPolicy()
-"""The default: a single attempt, no delay."""
 
 
 @dataclass(frozen=True)
 class RetryAttempt:
-    """One attempt's outcome, reported to the observer for tracing."""
+    """One attempt's outcome, including whether recovery or operation failed."""
 
     number: int
     total: int
     error: BaseException | None
     delay_s: float
+    phase: RetryPhase = "operation"
 
 
 def run_with_retry(
@@ -174,43 +125,20 @@ def run_with_retry(
     before_retry: Callable[[], None] | None = None,
     on_attempt: Callable[[RetryAttempt], None] | None = None,
 ) -> _T:
-    """Run ``operation``, retrying it according to ``policy``.
+    """Run ``operation`` under a bounded retry/recovery policy.
 
-    Args:
-        operation: the work to attempt. It must be safe to repeat; deciding
-            that is the caller's responsibility, not this function's.
-        policy: how many attempts and how long to back off.
-        retry_on: which exceptions justify another attempt. Anything else
-            propagates immediately, so a parse failure or a configuration
-            mistake is not retried into a delay.
-        sleep: how to pause between attempts; injectable for tests.
-        now: monotonic clock used to enforce ``policy.max_elapsed_s``;
-            injectable for tests.
-        before_retry: called immediately before each retried attempt (never
-            before the first), after any delay has elapsed. A failure that
-            justifies a retry can leave more than a timer to reset: a byte
-            transport moves to a faulted state on any I/O error and releases
-            its resource (see ``Transport``'s contract), so resending without
-            first reopening it fails immediately with ``NotConnectedError``
-            instead of ever reaching the operation again. Use this hook to put
-            things back in a state the next attempt can actually succeed from.
-        on_attempt: called after every attempt, successful or not, so tracing
-            can record how many were needed.
-
-    Returns:
-        Whatever ``operation`` returned.
-
-    Raises:
-        BaseException: the exception from the final attempt, unchanged. Earlier
-            failures are reported through ``on_attempt`` rather than being
-            wrapped or chained, so the caller sees the real reason it gave up.
-            This is also what's raised if ``policy.max_elapsed_s`` is crossed:
-            the deadline stops further attempts, it doesn't invent a new error.
+    A retryable failure from ``before_retry`` consumes that attempt and leaves
+    the remaining budget intact. Non-retryable recovery failures propagate
+    immediately. This is essential while an instrument is rebooting: several
+    reconnect attempts may legitimately fail before the device returns.
     """
-    last_error: BaseException
+    last_error: BaseException | None = None
     start = now()
+
     for number in range(1, policy.attempts + 1):
         delay = policy.delay_before(number)
+        if not math.isfinite(delay):
+            break
         if (
             number > 1
             and policy.max_elapsed_s is not None
@@ -219,21 +147,40 @@ def run_with_retry(
             break
         if delay > 0:
             sleep(delay)
-        if number > 1 and before_retry is not None:
-            before_retry()
+
+        phase: RetryPhase = "operation"
         try:
+            if number > 1 and before_retry is not None:
+                phase = "recover"
+                before_retry()
+                phase = "operation"
             result = operation()
         except retry_on as exc:
             last_error = exc
             if on_attempt is not None:
                 on_attempt(
-                    RetryAttempt(number=number, total=policy.attempts, error=exc, delay_s=delay)
+                    RetryAttempt(
+                        number=number,
+                        total=policy.attempts,
+                        error=exc,
+                        delay_s=delay,
+                        phase=phase,
+                    )
                 )
             continue
+
         if on_attempt is not None:
             on_attempt(
-                RetryAttempt(number=number, total=policy.attempts, error=None, delay_s=delay)
+                RetryAttempt(
+                    number=number,
+                    total=policy.attempts,
+                    error=None,
+                    delay_s=delay,
+                    phase="operation",
+                )
             )
         return result
 
+    if last_error is None:  # defensive: first attempt normally establishes it
+        raise RuntimeError("retry policy exhausted without running an attempt")
     raise last_error
