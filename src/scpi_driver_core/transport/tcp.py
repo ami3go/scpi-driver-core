@@ -93,7 +93,9 @@ class TcpTransport(TransportStateMachine):
                 self._set_state(TransportState.FAULTED)
                 if isinstance(exc, OSError):
                     raise translate_socket_error(exc, "connect") from exc
-                raise ConfigurationError(f"invalid TCP endpoint {self._host!r}:{self._port}: {exc}") from exc
+                raise ConfigurationError(
+                    f"invalid TCP endpoint {self._host!r}:{self._port}: {exc}"
+                ) from exc
             self._socket = resource
             self._buffer.clear()
             self._set_state(TransportState.OPEN)
