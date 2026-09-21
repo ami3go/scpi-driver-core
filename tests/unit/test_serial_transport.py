@@ -54,7 +54,16 @@ def test_missing_pyserial_has_actionable_error(monkeypatch: pytest.MonkeyPatch) 
 
 def test_serial_open_forwards_settings_and_control_lines(fake_backend: None) -> None:
     transport = SerialTransport(
-        "COM5", baudrate=115200, bytesize=7, parity="e", stopbits=2, dtr=False, rts=False
+        "COM5",
+        baudrate=115200,
+        bytesize=7,
+        parity="e",
+        stopbits=2,
+        dtr=False,
+        rts=False,
+        rtscts=True,
+        dsrdtr=True,
+        xonxoff=True,
     )
     transport.open()
     resource = FakeSerial.instances[-1]
@@ -66,6 +75,9 @@ def test_serial_open_forwards_settings_and_control_lines(fake_backend: None) -> 
         "bytesize": 7,
         "parity": "E",
         "stopbits": 2,
+        "rtscts": True,
+        "dsrdtr": True,
+        "xonxoff": True,
     }
     assert resource.dtr is False
     assert resource.rts is False
@@ -99,8 +111,16 @@ def test_serial_open_failure_is_chained(
     assert transport.state is TransportState.FAULTED
 
 
-def test_serial_descriptor(fake_backend: None) -> None:
-    descriptor = SerialTransport("COM5", baudrate=19200, parity="o").descriptor
+def test_serial_descriptor_includes_flow_control(fake_backend: None) -> None:
+    descriptor = SerialTransport(
+        "COM5", baudrate=19200, parity="o", rtscts=True, dsrdtr=True, xonxoff=False
+    ).descriptor
     assert descriptor.kind == "serial"
     assert descriptor.address == "COM5"
-    assert descriptor.metadata == {"baudrate": "19200", "parity": "O"}
+    assert descriptor.metadata == {
+        "baudrate": "19200",
+        "parity": "O",
+        "rtscts": "True",
+        "dsrdtr": "True",
+        "xonxoff": "False",
+    }
