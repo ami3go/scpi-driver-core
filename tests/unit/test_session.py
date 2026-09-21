@@ -9,6 +9,7 @@ from scpi_driver_core.exceptions import (
     TransportError,
 )
 from scpi_driver_core.execution.retry import RetryPolicy
+from scpi_driver_core.models import Identity
 from scpi_driver_core.scpi import ScpiClient
 from scpi_driver_core.session.session import ScpiSession
 from scpi_driver_core.simulation import ScriptedScpiTransport
@@ -82,7 +83,7 @@ def test_an_open_transport_can_report_bad_communication() -> None:
 
 
 def test_normal_client_traffic_updates_health() -> None:
-    session, transport = make(b"1.25\n")
+    session, _ = make(b"1.25\n")
     session.open()
     assert session.client.query_float("MEAS?") == 1.25
     assert session.health.communication_ok is True
@@ -222,8 +223,8 @@ def test_recovery_reapplies_probe_and_identity_validation() -> None:
     scripted = ScriptedScpiTransport().on("*IDN?", "ACME,GOOD,SN1,1.0")
     session = ScpiSession("dut", ScpiClient(scripted))
 
-    def validate(identity: object) -> None:
-        if getattr(identity, "model") != "GOOD":
+    def validate(identity: Identity) -> None:
+        if identity.model != "GOOD":
             raise IdentityError("wrong instrument")
 
     session.open(probe=True, validate_identity=validate)
@@ -320,7 +321,8 @@ def test_a_failed_probe_leaves_nothing_open_and_keeps_reason() -> None:
 def test_open_lets_a_driver_reject_the_wrong_instrument() -> None:
     session, _ = make(IDN)
 
-    def expect_tektronix(identity: object) -> None:
+    def expect_tektronix(identity: Identity) -> None:
+        del identity
         raise IdentityError("expected a TEKTRONIX scope")
 
     with pytest.raises(IdentityError):
@@ -330,7 +332,7 @@ def test_open_lets_a_driver_reject_the_wrong_instrument() -> None:
 
 def test_open_passes_the_parsed_identity_to_the_validator() -> None:
     session, _ = make(IDN)
-    seen = []
+    seen: list[Identity] = []
     session.open(validate_identity=seen.append)
     assert seen[0].manufacturer == "KEYSIGHT"
     assert seen[0].model == "N6700C"
@@ -394,10 +396,9 @@ def test_operation_lock_is_usable_for_compound_sequences() -> None:
 
 def test_session_context_manager_closes_on_exception() -> None:
     session, transport = make()
-    with pytest.raises(RuntimeError):
-        with session:
-            assert session.is_connected
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError), session:
+        assert session.is_connected
+        raise RuntimeError("boom")
     assert transport.state is TransportState.CLOSED
 
 
