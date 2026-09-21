@@ -73,6 +73,7 @@ class UdpTransport(TransportStateMachine):
         self._remote: tuple[str, int] | None = None
         self._socket: socket.socket | None = None
         self._stale_discarded = 0
+        self._drain_before_transact = False
         super().__init__(
             TransportDescriptor(
                 kind="udp",
@@ -87,7 +88,8 @@ class UdpTransport(TransportStateMachine):
 
     def open(self) -> TransportDescriptor:
         with self._lock:
-            if self.state is TransportState.OPEN:
+            previous_state = self.state
+            if previous_state is TransportState.OPEN:
                 return self._descriptor
             self._release_resource()
             self._set_state(TransportState.OPENING)
@@ -113,6 +115,10 @@ class UdpTransport(TransportStateMachine):
             self._socket = resource
             self._remote = (str(remote[0]), int(remote[1]))
             self._set_state(TransportState.OPEN)
+            # Only a recovered socket can plausibly receive a reply belonging
+            # to the previous transaction. Draining every fresh transaction
+            # would discard valid unsolicited/primed datagrams.
+            self._drain_before_transact = previous_state is TransportState.FAULTED
             return self._descriptor
 
     def write(
@@ -184,8 +190,11 @@ class UdpTransport(TransportStateMachine):
     ) -> bytes:
         del replay_policy
         with self._lock:
-            stale = self._discard_stale_datagrams()
-            self._stale_discarded += stale
+            if self._drain_before_transact:
+                with self._faulting_io():
+                    stale = self._discard_stale_datagrams()
+                self._stale_discarded += stale
+                self._drain_before_transact = False
             self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
             return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
 
@@ -193,7 +202,9 @@ class UdpTransport(TransportStateMachine):
         with self._lock:
             self._require_open()
             if direction in (FlushDirection.INPUT, FlushDirection.BOTH):
-                self._stale_discarded += self._discard_stale_datagrams()
+                with self._faulting_io():
+                    self._stale_discarded += self._discard_stale_datagrams()
+                self._drain_before_transact = False
 
     def _discard_stale_datagrams(self, budget: int = _STALE_DRAIN_BUDGET) -> int:
         resource, _ = self._require_open()
