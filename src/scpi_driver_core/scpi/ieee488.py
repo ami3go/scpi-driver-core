@@ -6,7 +6,6 @@ from scpi_driver_core.exceptions import OperationTimeoutError, TransportTimeoutE
 from scpi_driver_core.models import Identity, SelfTestResult
 from scpi_driver_core.scpi.client import ScpiClient
 from scpi_driver_core.scpi.parsers import parse_identity, parse_int
-from scpi_driver_core.transport.base import SupportsSerialPoll
 
 __all__ = ["Ieee4882"]
 
@@ -29,11 +28,7 @@ class Ieee4882:
         self._client.write("*RST", timeout_s=timeout_s)
 
     def operation_complete(self, *, timeout_s: float | None = None) -> bool:
-        """Compatibility wrapper for the blocking ``*OPC?`` query.
-
-        ``*OPC?`` blocks until completion and conforming devices answer 1, so
-        callers should normally prefer :meth:`wait_operation_complete`.
-        """
+        """Compatibility wrapper for the blocking ``*OPC?`` query."""
         return parse_int(self._client.query("*OPC?", timeout_s=timeout_s)) == 1
 
     def wait_operation_complete(self, timeout_s: float) -> None:
@@ -58,10 +53,10 @@ class Ieee4882:
         return SelfTestResult(code=parse_int(raw), raw=raw)
 
     def read_status_byte(self, *, timeout_s: float | None = None) -> int:
-        """Use serial poll where the transport supports it, otherwise ``*STB?``."""
-        transport = self._client.transport
-        if isinstance(transport, SupportsSerialPoll):
-            return transport.read_status_byte(timeout_s=timeout_s)
+        """Use serial poll where exposed, otherwise fall back to ``*STB?``."""
+        serial_poll = getattr(self._client.transport, "read_status_byte", None)
+        if callable(serial_poll):
+            return int(serial_poll(timeout_s=timeout_s))
         return parse_int(self._client.query("*STB?", timeout_s=timeout_s))
 
     def read_event_status(self, *, timeout_s: float | None = None) -> int:
