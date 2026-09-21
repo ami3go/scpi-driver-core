@@ -4,6 +4,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from scpi_driver_core.exceptions import ConfigurationError
 from scpi_driver_core.scpi import (
     parse_csv,
     parse_engineering_value,
@@ -22,7 +23,7 @@ _FINITE_FLOATS = st.floats(
     allow_infinity=False,
 )
 _SCPI_STRING_TEXT = st.text(
-    alphabet=st.sampled_from(list('abcXYZ0123456789 ,"_-+/.:;\n\t')),
+    alphabet=st.sampled_from(list('abcXYZ0123456789 ,"_-+/.:;\t')),
     max_size=128,
 )
 _PREFIXES = st.sampled_from(
@@ -52,6 +53,12 @@ def test_integer_parser_round_trips_decimal_values(value: int) -> None:
 @given(value=_SCPI_STRING_TEXT)
 def test_scpi_quoted_string_round_trips_through_csv_parser(value: str) -> None:
     assert parse_csv(quote_scpi_string(value)) == [value]
+
+
+@given(value=st.text(alphabet=st.sampled_from(["\r", "\n"]), min_size=1, max_size=8))
+def test_scpi_quoted_string_rejects_line_breaks(value: str) -> None:
+    with pytest.raises(ConfigurationError):
+        quote_scpi_string(value)
 
 
 @given(value=_FINITE_FLOATS)
