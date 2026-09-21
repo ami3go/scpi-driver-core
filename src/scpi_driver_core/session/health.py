@@ -41,3 +41,10 @@ class SessionHealth:
         self.communication_ok = False
         self.last_failure_monotonic = clock()
         self.last_error = error
+
+    def record_protocol_failure(
+        self, error: ScpiDriverError, *, clock: Callable[[], float] = time.monotonic
+    ) -> None:
+        """Record an unusable reply while preserving that communication occurred."""
+        self.last_failure_monotonic = clock()
+        self.last_error = error
