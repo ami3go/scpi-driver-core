@@ -38,7 +38,12 @@ class InstrumentedTransport:
     ) -> None:
         self._inner = inner
         self._tracer = tracer
-        self._context = context if context is not None else TraceContext()
+        # ``None`` deliberately means "use the tracer's current context". A
+        # session calls set_context() to pin a transport-local context when one
+        # tracer is shared by several instruments. This keeps legacy
+        # single-session tracer-context use working without reintroducing the
+        # shared-context attribution bug.
+        self._context: TraceContext | None = context
         self._clock = clock
 
     @property
@@ -164,7 +169,10 @@ class InstrumentedTransport:
         try:
             data = self._inner.read(request, timeout_s=timeout_s, operation_id=operation_id)
         except BaseException as exc:
-            self._fail(TraceDirection.ERROR, started, exc, operation_id=operation_id)
+            # A read failure is unambiguously an RX-side failure; unlike a
+            # failed transaction, there is no uncertainty about whether an
+            # outbound command was transmitted by this wrapper call.
+            self._fail(TraceDirection.RX, started, exc, operation_id=operation_id)
             raise
         self._tracer.emit(
             TraceDirection.RX,
@@ -229,7 +237,7 @@ class InstrumentedTransport:
         try:
             self._inner.flush(direction)
         except BaseException as exc:
-            self._fail(TraceDirection.ERROR, started, exc)
+            self._fail(TraceDirection.FLUSH, started, exc)
             raise
         self._tracer.emit(
             TraceDirection.FLUSH,
