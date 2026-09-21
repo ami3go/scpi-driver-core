@@ -69,7 +69,6 @@ def test_missing_pyvisa_has_actionable_error(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_constructor_performs_no_io(fake_backend: None) -> None:
-    """No resource opened, no manager created, no registry enumerated."""
     VisaTransport("GPIB0::22::INSTR")
     assert FakeResourceManager.instances == []
     assert FakeVisaResource.instances == []
@@ -102,7 +101,6 @@ def test_resource_name_is_passed_through_untouched(fake_backend: None, resource_
 
 
 def test_terminations_are_disabled_for_byte_fidelity(fake_backend: None) -> None:
-    """PyVISA must not trim or append anything; the codec owns framing."""
     opened(fake_backend)
     settings = FakeVisaResource.instances[-1].settings
     assert settings["read_termination"] is None
@@ -131,18 +129,19 @@ def test_visa_library_is_forwarded(fake_backend: None) -> None:
     assert FakeResourceManager.instances[-1].visa_library == "@py"
 
 
-# -- resource-manager ownership -------------------------------------------
+# -- resource-manager lifetime -------------------------------------------
 
 
-def test_owned_manager_is_closed_on_close(fake_backend: None) -> None:
+def test_implicit_manager_is_never_closed_by_transport(fake_backend: None) -> None:
     transport = opened(fake_backend)
     manager = FakeResourceManager.instances[-1]
+    resource = FakeVisaResource.instances[-1]
     transport.close()
-    assert manager.closed is True
+    assert manager.closed is False
+    assert resource.closed is True
 
 
 def test_borrowed_manager_is_never_closed(fake_backend: None) -> None:
-    """Its lifetime belongs to whoever created it."""
     borrowed = FakeResourceManager()
     transport = VisaTransport("GPIB0::22::INSTR", resource_manager=borrowed)
     transport.open()
@@ -150,6 +149,20 @@ def test_borrowed_manager_is_never_closed(fake_backend: None) -> None:
     transport.close()
     assert borrowed.closed is False
     assert resource.closed is True
+
+
+def test_one_transport_close_does_not_close_shared_manager(fake_backend: None) -> None:
+    shared = FakeResourceManager()
+    a = VisaTransport("GPIB0::1::INSTR", resource_manager=shared)
+    b = VisaTransport("GPIB0::2::INSTR", resource_manager=shared)
+    a.open()
+    b.open()
+    second = FakeVisaResource.instances[-1]
+    a.close()
+    assert shared.closed is False
+    assert second.closed is False
+    b.write(b"*IDN?\n")
+    assert bytes(second.written) == b"*IDN?\n"
 
 
 def test_borrowed_manager_skips_pyvisa_import(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -165,7 +178,7 @@ def test_borrowed_manager_skips_pyvisa_import(monkeypatch: pytest.MonkeyPatch) -
 # -- lifecycle ------------------------------------------------------------
 
 
-def test_open_failure_faults_and_releases_the_manager(
+def test_open_failure_faults_without_closing_process_manager(
     fake_backend: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def boom(self: FakeResourceManager, name: str, **settings: object) -> object:
@@ -177,13 +190,12 @@ def test_open_failure_faults_and_releases_the_manager(
         transport.open()
     assert transport.state is TransportState.FAULTED
     assert not isinstance(caught.value, TransportTimeoutError)
-    assert FakeResourceManager.instances[-1].closed is True
+    assert FakeResourceManager.instances[-1].closed is False
 
 
 def test_reopen_from_faulted_closes_the_previous_resource(fake_backend: None) -> None:
     transport = opened(fake_backend)
     first = FakeVisaResource.instances[-1]
-    transport.fail_next_read = None  # type: ignore[attr-defined]
     first.fail_read = TransportError("dead")
     with pytest.raises(TransportError):
         transport.read(ReadRequest(mode=ReadMode.AVAILABLE))
@@ -194,12 +206,14 @@ def test_reopen_from_faulted_closes_the_previous_resource(fake_backend: None) ->
     assert FakeVisaResource.instances[-1] is not first
 
 
-def test_close_is_idempotent_and_closes_once(fake_backend: None) -> None:
+def test_close_is_idempotent_and_closes_only_resource(fake_backend: None) -> None:
     transport = opened(fake_backend)
     manager = FakeResourceManager.instances[-1]
+    resource = FakeVisaResource.instances[-1]
     transport.close()
     transport.close()
-    assert manager.closed is True
+    assert manager.closed is False
+    assert resource.closed is True
     assert len(FakeResourceManager.instances) == 1
 
 
@@ -207,7 +221,6 @@ def test_close_is_idempotent_and_closes_once(fake_backend: None) -> None:
 
 
 def test_backend_defined_message_reads_exactly_one_message(fake_backend: None) -> None:
-    """The mode exists for VISA; unlike TCP and serial it is honored here."""
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
     resource.feed(b"FIRST\n")
@@ -261,11 +274,7 @@ def test_open_is_idempotent_and_reuses_the_session(fake_backend: None) -> None:
 def test_failure_after_open_resource_still_closes_it(
     fake_backend: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The session exists but configuring it failed; it must not leak."""
-
     class ExplodingTimeout(FakeVisaResource):
-        """Constructs cleanly, then refuses the timeout the transport applies."""
-
         def __init__(self, resource_name: str, **settings: object) -> None:
             self._armed = False
             self._timeout = 0.0
@@ -291,10 +300,10 @@ def test_failure_after_open_resource_still_closes_it(
         transport.open()
     assert transport.state is TransportState.FAULTED
     assert FakeVisaResource.instances[-1].closed is True
+    assert FakeResourceManager.instances[-1].closed is False
 
 
 def test_leftover_buffer_is_drained_before_reading_a_new_message(fake_backend: None) -> None:
-    """A terminated read can leave bytes behind; they must be served first."""
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
     resource.feed(b"1.5\nTRAILING")
@@ -302,19 +311,16 @@ def test_leftover_buffer_is_drained_before_reading_a_new_message(fake_backend: N
     assert transport.read(ReadRequest(mode=ReadMode.BACKEND_DEFINED_MESSAGE)) == b"TRAILING"
 
 
-def test_leftover_buffer_serves_available_without_touching_the_wire(
-    fake_backend: None,
-) -> None:
+def test_leftover_buffer_serves_available_without_touching_the_wire(fake_backend: None) -> None:
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
     resource.feed(b"1.5\nEXTRA")
     transport.read(ReadRequest(mode=ReadMode.UNTIL_TERMINATOR, terminator=b"\n"))
-    assert not resource.messages  # nothing left on the wire
+    assert not resource.messages
     assert transport.read(ReadRequest(mode=ReadMode.AVAILABLE)) == b"EXTRA"
 
 
 def test_terminated_message_beyond_maximum_size_is_rejected(fake_backend: None) -> None:
-    """The terminator arrives, but only past the caller's bound."""
     transport = opened(fake_backend)
     FakeVisaResource.instances[-1].feed(b"x" * 40 + b"\n")
     with pytest.raises(TransportError) as caught:
@@ -332,6 +338,7 @@ def test_visa_timeout_becomes_transport_timeout(fake_backend: None) -> None:
     with pytest.raises(TransportTimeoutError) as caught:
         transport.read(ReadRequest(mode=ReadMode.AVAILABLE))
     assert isinstance(caught.value.__cause__, FakeVisaIOError)
+    assert transport.state is TransportState.FAULTED
 
 
 def test_non_timeout_visa_error_becomes_transport_error(fake_backend: None) -> None:
@@ -363,7 +370,6 @@ def test_write_that_makes_no_progress_times_out(fake_backend: None) -> None:
 
 
 def test_write_tolerates_a_backend_reporting_no_count(fake_backend: None) -> None:
-    """Some PyVISA backends return None instead of a byte count."""
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
 
@@ -376,42 +382,55 @@ def test_write_tolerates_a_backend_reporting_no_count(fake_backend: None) -> Non
     assert bytes(resource.written) == b"*RST\n"
 
 
-# -- flush ----------------------------------------------------------------
+# -- flush and explicit bus control --------------------------------------
 
 
-@pytest.mark.parametrize("direction", [FlushDirection.INPUT, FlushDirection.BOTH])
-def test_flush_clears_the_session(fake_backend: None, direction: FlushDirection) -> None:
-    transport = opened(fake_backend)
-    resource = FakeVisaResource.instances[-1]
-    resource.feed(b"stale\n")
-    transport.flush(direction)
-    assert resource.clears == 1
-
-
-def test_flush_output_only_is_a_no_op(fake_backend: None) -> None:
-    """VISA exposes only a whole-session clear, so this drops nothing."""
+@pytest.mark.parametrize(
+    "direction", [FlushDirection.INPUT, FlushDirection.OUTPUT, FlushDirection.BOTH]
+)
+def test_flush_uses_vi_flush_and_never_device_clear(
+    fake_backend: None, direction: FlushDirection
+) -> None:
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
     resource.feed(b"keep\n")
-    transport.flush(FlushDirection.OUTPUT)
+    transport.flush(direction)
     assert resource.clears == 0
-    assert len(resource.messages) == 1
+    assert resource.flush_masks
 
 
-def test_flush_failure_faults_the_transport(fake_backend: None) -> None:
+def test_flush_degrades_to_local_only_if_backend_masks_are_unsupported(fake_backend: None) -> None:
     transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
 
-    def boom() -> None:
-        raise FakeVisaIOError("VI_ERROR_IO", error_code=-1)
+    def boom(mask: object) -> None:
+        raise FakeVisaIOError(f"unsupported {mask}", error_code=-1)
 
-    FakeVisaResource.instances[-1].clear = boom  # type: ignore[method-assign]
+    resource.flush = boom  # type: ignore[method-assign]
+    transport.flush(FlushDirection.BOTH)
+    assert transport.state is TransportState.OPEN
+    assert resource.clears == 0
+
+
+def test_device_clear_is_the_only_path_to_vi_clear(fake_backend: None) -> None:
+    transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+    resource.feed(b"stale\n")
+    transport.device_clear()
+    assert resource.clears == 1
+    assert not resource.messages
+
+
+def test_device_clear_failure_faults_transport(fake_backend: None) -> None:
+    transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+    resource.fail_clear = FakeVisaIOError("VI_ERROR_IO", error_code=-1)
     with pytest.raises(TransportError):
-        transport.flush(FlushDirection.BOTH)
+        transport.device_clear()
     assert transport.state is TransportState.FAULTED
 
 
 def test_close_survives_a_backend_that_fails_to_close(fake_backend: None) -> None:
-    """A failing close must not mask the reason we were closing."""
     transport = opened(fake_backend)
 
     def boom() -> None:
