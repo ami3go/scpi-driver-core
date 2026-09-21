@@ -11,12 +11,14 @@ import threading
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager, suppress
 from types import TracebackType
-from typing import Self
+from typing import TypeVar
 
 from scpi_driver_core.exceptions import NotConnectedError
 from scpi_driver_core.transport.models import TransportDescriptor, TransportState
 
 __all__ = ["TransportStateMachine"]
+
+_TSelf = TypeVar("_TSelf", bound="TransportStateMachine")
 
 
 class TransportStateMachine:
@@ -32,8 +34,6 @@ class TransportStateMachine:
         self._state = TransportState.CREATED
         self._state_lock = threading.Lock()
         self._lock = threading.RLock()
-
-    # -- introspection ----------------------------------------------------
 
     @property
     def state(self) -> TransportState:
@@ -58,8 +58,6 @@ class TransportStateMachine:
         with self._lock:
             yield
 
-    # -- lifecycle --------------------------------------------------------
-
     def close(self) -> None:
         """Release the resource. Idempotent, and always reaches ``CLOSED``."""
         with self._lock:
@@ -73,23 +71,13 @@ class TransportStateMachine:
                 self._set_state(TransportState.CLOSED)
 
     def invalidate(self) -> None:
-        """Declare connection framing/state unusable and move to ``FAULTED``.
-
-        Protocol layers call this after partially consuming a response whose
-        framing later proves invalid. Reusing that byte stream could otherwise
-        turn leftovers into the next command's apparently valid response.
-        """
+        """Declare connection framing/state unusable and move to ``FAULTED``."""
         with self._lock:
             if self.state is TransportState.OPEN:
                 self._fault()
 
     def _fault(self) -> None:
-        """Release the resource and record uncertain session validity.
-
-        ``FAULTED`` is reached even if backend cleanup itself fails. Cleanup
-        errors may still propagate to an explicit caller, but the state can
-        never remain incorrectly ``OPEN`` or ``CLOSING``.
-        """
+        """Release the resource and record uncertain session validity."""
         try:
             self._release_resource()
         finally:
@@ -98,12 +86,7 @@ class TransportStateMachine:
 
     @contextmanager
     def _faulting_io(self) -> Iterator[None]:
-        """Fault if *anything* escapes an exchange, including ``BaseException``.
-
-        Ctrl+C, ``SystemExit`` and signal-mode watchdog exceptions can interrupt
-        after a query was transmitted but before its reply was consumed. The
-        original exception is re-raised unchanged after best-effort invalidation.
-        """
+        """Fault if *anything* escapes an exchange, including ``BaseException``."""
         try:
             yield
         except BaseException:
@@ -117,7 +100,7 @@ class TransportStateMachine:
         if state is not TransportState.OPEN:
             raise NotConnectedError(f"transport is {state.name}, not OPEN")
 
-    def __enter__(self) -> Self:
+    def __enter__(self: _TSelf) -> _TSelf:
         self.open()
         return self
 
@@ -128,8 +111,6 @@ class TransportStateMachine:
         traceback: TracebackType | None,
     ) -> None:
         self.close()
-
-    # -- hooks ------------------------------------------------------------
 
     def open(self) -> TransportDescriptor:
         """Acquire the backend resource."""
