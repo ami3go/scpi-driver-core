@@ -43,7 +43,9 @@ class SessionRegistry:
                 f"alias {alias!r} does not match session.alias {session.alias!r}"
             )
         with self._lock:
-            if any(existing is session for known, existing in self._sessions.items() if known != key):
+            if any(
+                existing is session for known, existing in self._sessions.items() if known != key
+            ):
                 raise ConfigurationError("this session is already registered under another alias")
             if key in self._sessions and not replace:
                 raise ConfigurationError(
