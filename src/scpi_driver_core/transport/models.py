@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from types import MappingProxyType
+from typing import Any
 
 from scpi_driver_core.exceptions import ConfigurationError
 
 __all__ = [
     "FlushDirection",
+    "FrozenMetadata",
     "ReadMode",
     "ReadRequest",
     "ReplayPolicy",
@@ -21,8 +22,6 @@ __all__ = [
 
 
 class TransportState(Enum):
-    """Resource state of a transport, independent of communication health."""
-
     CREATED = "created"
     OPENING = "opening"
     OPEN = "open"
@@ -31,31 +30,55 @@ class TransportState(Enum):
     CLOSED = "closed"
 
 
+class FrozenMetadata(Mapping[str, str]):
+    """Immutable, hashable, pickle/deepcopy-safe transport metadata."""
+
+    __slots__ = ("_data",)
+
+    def __init__(self, data: Mapping[str, str] | None = None) -> None:
+        object.__setattr__(self, "_data", dict(data or {}))
+
+    def __getitem__(self, key: str) -> str:
+        return self._data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __hash__(self) -> int:
+        return hash(frozenset(self._data.items()))
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Mapping) and dict(self) == dict(other)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("FrozenMetadata is immutable")
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (FrozenMetadata, (self._data,))
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> FrozenMetadata:
+        return self
+
+    def __repr__(self) -> str:
+        return f"FrozenMetadata({self._data!r})"
+
+
 @dataclass(frozen=True)
 class TransportDescriptor:
-    """Human-readable identity of a transport instance.
-
-    ``kind`` is the transport family (``"tcp"``, ``"visa"``, ...), ``address``
-    the resource it targets. Backend-specific detail belongs in ``metadata``
-    rather than in additional fields.
-
-    ``metadata`` is copied into a read-only mapping on construction, so a
-    descriptor cannot be altered through the mapping the caller passed in.
-    Descriptors are hashable; only ``kind`` and ``address`` contribute to the
-    hash, while equality still compares ``metadata``.
-    """
+    """Human-readable identity of a transport instance."""
 
     kind: str
     address: str
     metadata: Mapping[str, str] = field(default_factory=dict, hash=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        object.__setattr__(self, "metadata", FrozenMetadata(self.metadata))
 
 
 class ReadMode(Enum):
-    """Explicit, bounded read semantics requested from a transport."""
-
     UNTIL_TERMINATOR = "until_terminator"
     EXACT_LENGTH = "exact_length"
     UP_TO_LENGTH = "up_to_length"
@@ -68,16 +91,7 @@ _LENGTH_MODES = frozenset({ReadMode.EXACT_LENGTH, ReadMode.UP_TO_LENGTH})
 
 @dataclass(frozen=True)
 class ReadRequest:
-    """A bounded read instruction.
-
-    Every field must be applicable to the selected ``mode``. A field that the
-    mode would ignore is rejected rather than silently dropped, so a request
-    never reads differently from the way it looks.
-
-    Raises:
-        ConfigurationError: if the request would allow an unbounded read, or
-            sets a field the selected mode does not use.
-    """
+    """A bounded read instruction with no ignored fields."""
 
     mode: ReadMode
     length: int | None = None
@@ -115,25 +129,15 @@ class ReadRequest:
 
 @dataclass(frozen=True)
 class WriteResult:
-    """Outcome of a transport write."""
-
     bytes_written: int
 
 
 class FlushDirection(Enum):
-    """Which transport buffer(s) to discard."""
-
     INPUT = "input"
     OUTPUT = "output"
     BOTH = "both"
 
 
 class ReplayPolicy(Enum):
-    """Whether a transaction may be retried after a failure.
-
-    ``SAFE`` must only be selected by a caller that knows the outbound message
-    is idempotent; writes are never replayed automatically.
-    """
-
     NEVER = "never"
     SAFE = "safe"
