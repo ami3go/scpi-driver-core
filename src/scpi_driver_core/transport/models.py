@@ -34,6 +34,7 @@ class FrozenMetadata(Mapping[str, str]):
     """Immutable, hashable, pickle/deepcopy-safe transport metadata."""
 
     __slots__ = ("_data",)
+    _data: dict[str, str]
 
     def __init__(self, data: Mapping[str, str] | None = None) -> None:
         object.__setattr__(self, "_data", dict(data or {}))
