@@ -5,6 +5,7 @@ import pytest
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     ProtocolError,
+    TransportTimeoutError,
     UnsupportedOperationError,
 )
 from scpi_driver_core.scpi.binary_block import (
@@ -12,7 +13,7 @@ from scpi_driver_core.scpi.binary_block import (
     encode_definite_length_block,
     read_definite_length_block,
 )
-from scpi_driver_core.transport import MockTransport
+from scpi_driver_core.transport import MockTransport, TransportState
 
 #: Bytes that would be destroyed by any strip() on the way through.
 HOSTILE = b"  \t\r\n\x00 leading and trailing \x00\r\n\t  "
@@ -176,22 +177,21 @@ def test_read_rejects_a_wrong_terminator() -> None:
         read_definite_length_block(transport, terminator=b"\n")
 
 
-def test_read_detects_a_truncated_payload() -> None:
-    transport = transport_with(b"#18AB")
-    with pytest.raises(ProtocolError, match="payload did not arrive"):
-        read_definite_length_block(transport)
-
-
-def test_read_detects_a_missing_terminator() -> None:
-    transport = transport_with(b"#14ABCD")
-    with pytest.raises(ProtocolError, match="terminator did not arrive"):
-        read_definite_length_block(transport, terminator=b"\n")
-
-
-def test_read_detects_a_truncated_header() -> None:
-    transport = transport_with(b"#")
-    with pytest.raises(ProtocolError, match="header did not arrive"):
-        read_definite_length_block(transport)
+@pytest.mark.parametrize(
+    ("data", "terminator", "message"),
+    [
+        (b"#18AB", None, "payload did not arrive"),
+        (b"#14ABCD", b"\n", "terminator did not arrive"),
+        (b"#", None, "header did not arrive"),
+    ],
+)
+def test_read_timeouts_remain_transport_timeouts(
+    data: bytes, terminator: bytes | None, message: str
+) -> None:
+    transport = transport_with(data)
+    with pytest.raises(TransportTimeoutError, match=message):
+        read_definite_length_block(transport, terminator=terminator)
+    assert transport.state is TransportState.FAULTED
 
 
 def test_read_rejects_a_missing_hash() -> None:
