@@ -71,6 +71,16 @@ def test_serial_open_forwards_settings_and_control_lines(fake_backend: None) -> 
     assert resource.rts is False
 
 
+def test_serial_write_timeout_none_means_blocking(fake_backend: None) -> None:
+    transport = SerialTransport("COM5", write_timeout_s=None)
+    transport.open()
+    resource = FakeSerial.instances[-1]
+    assert resource.settings["write_timeout"] is None
+
+    transport.write(b"*IDN?\n")
+    assert resource.write_timeout is None
+
+
 def test_serial_flush_maps_directions(fake_backend: None) -> None:
     transport = SerialTransport("COM1")
     transport.open()

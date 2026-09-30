@@ -38,7 +38,13 @@ def _load_serial() -> ModuleType:
 
 
 class SerialTransport(TransportStateMachine):
-    """A finite-timeout serial byte stream with no implicit SCPI framing."""
+    """A serial byte stream with no implicit SCPI framing.
+
+    ``timeout_s`` (reads) is always finite. ``write_timeout_s`` defaults to a
+    finite value but also accepts ``None`` for pyserial's native blocking
+    write, since some USB/virtual-COM adapters misbehave under an overlapped
+    write with any finite timeout.
+    """
 
     def __init__(
         self,
@@ -46,7 +52,7 @@ class SerialTransport(TransportStateMachine):
         *,
         baudrate: int = 9600,
         timeout_s: float = 5.0,
-        write_timeout_s: float = 5.0,
+        write_timeout_s: float | None = 5.0,
         bytesize: int = 8,
         parity: str = "N",
         stopbits: float = 1,
@@ -58,7 +64,12 @@ class SerialTransport(TransportStateMachine):
         if baudrate <= 0:
             raise ConfigurationError("baudrate must be positive")
         validate_timeout(timeout_s, "timeout_s")
-        validate_timeout(write_timeout_s, "write_timeout_s")
+        # `None` means pyserial's own blocking-write mode (no write timeout at
+        # all), which is not representable as a finite positive number and so
+        # is deliberately exempt from validate_timeout(). Some USB/virtual-COM
+        # adapters only behave correctly with a blocking write.
+        if write_timeout_s is not None:
+            validate_timeout(write_timeout_s, "write_timeout_s")
         if bytesize not in (5, 6, 7, 8):
             raise ConfigurationError("bytesize must be one of 5, 6, 7, or 8")
         if parity.upper() not in ("N", "E", "O", "M", "S"):

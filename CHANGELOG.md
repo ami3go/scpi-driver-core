@@ -108,3 +108,9 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 - Optional-unit parsing now honors `allow_non_finite=True` for responses such
   as `INF V`, rather than rejecting them before numeric parsing.
+
+- `SerialTransport(write_timeout_s=None)` now selects pyserial's native
+  blocking write instead of being rejected by `validate_timeout`. Some
+  USB/virtual-COM adapters only accept writes reliably without an overlapped
+  write timeout; a finite `write_timeout_s` remains the default and is still
+  validated as before.
