@@ -389,7 +389,7 @@ class ScriptedScpiTransport:
     def _record_binary(self, command: str, payload: bytes) -> None:
         # The handler always receives the entire payload. History is intentionally
         # bounded to prevent a 24/7 simulator from retaining unlimited waveforms.
-        if len(payload) > self._max_binary_history_bytes:
+        if self._max_binary_history_bytes == 0 or len(payload) > self._max_binary_history_bytes:
             return
         while (
             self._state.binary_history
