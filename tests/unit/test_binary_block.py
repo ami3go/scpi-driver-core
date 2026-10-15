@@ -223,7 +223,9 @@ def test_read_rejects_an_oversized_declaration_before_reading_payload() -> None:
     transport = transport_with(b"#42048" + b"x" * 2048)
     with pytest.raises(ProtocolError, match="maximum_size"):
         read_definite_length_block(transport, maximum_size=1024)
-    assert transport.pending_bytes == 2048
+    # A malformed block invalidates the stream; buffered payload must not leak.
+    assert transport.state is TransportState.FAULTED
+    assert transport.pending_bytes == 0
 
 
 def test_read_rejects_a_nonpositive_maximum_size() -> None:
