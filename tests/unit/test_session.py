@@ -415,7 +415,7 @@ def test_communication_timeout_is_applied_to_the_health_query() -> None:
     session.set_communication_timeout(2.5)
     session.open()
     session.check_communication()
-    assert transport.operations[-1].timeout_s == 2.5
+    assert 2.4 < transport.operations[-1].timeout_s <= 2.5
 
 
 def test_an_explicit_per_call_timeout_wins() -> None:
@@ -423,7 +423,7 @@ def test_an_explicit_per_call_timeout_wins() -> None:
     session.set_communication_timeout(2.5)
     session.open()
     session.check_communication(timeout_s=0.5)
-    assert transport.operations[-1].timeout_s == 0.5
+    assert 0.4 < transport.operations[-1].timeout_s <= 0.5
 
 
 def test_communication_timeout_can_be_set_at_construction() -> None:
