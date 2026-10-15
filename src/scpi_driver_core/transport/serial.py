@@ -99,6 +99,11 @@ class SerialTransport(TransportStateMachine):
             )
         )
 
+    @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._timeout_s
+
     def open(self) -> TransportDescriptor:
         with self._lock:
             if self.state is TransportState.OPEN:
