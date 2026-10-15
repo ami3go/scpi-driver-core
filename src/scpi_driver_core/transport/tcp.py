@@ -12,6 +12,7 @@ from scpi_driver_core.exceptions import (
     TransportError,
     UnsupportedOperationError,
 )
+from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
     FlushDirection,
     ReadMode,
@@ -162,8 +163,9 @@ class TcpTransport(TransportStateMachine):
     ) -> bytes:
         del replay_policy
         with self._lock, self._faulting_io():
-            self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
-            return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
+            deadline = Deadline(effective_timeout(timeout_s, self._timeout_s))
+            self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
+            return self.read(response, timeout_s=deadline.remaining(), operation_id=operation_id)
 
     def flush(self, direction: FlushDirection) -> None:
         with self._lock:
