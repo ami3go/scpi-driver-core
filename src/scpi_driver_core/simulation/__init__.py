@@ -5,6 +5,7 @@ from scpi_driver_core.simulation.scripted import (
     NO_ERROR,
     UNDEFINED_HEADER,
     Handler,
+    BinaryWriteHandler,
     ScriptedReply,
     ScriptedScpiTransport,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "NO_ERROR",
     "UNDEFINED_HEADER",
     "Handler",
+    "BinaryWriteHandler",
     "ScriptedReply",
     "ScriptedScpiTransport",
 ]
