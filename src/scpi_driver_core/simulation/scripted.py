@@ -10,9 +10,12 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Union
 
-from scpi_driver_core.exceptions import ConfigurationError
+from scpi_driver_core.exceptions import ConfigurationError, ProtocolError, UnsupportedOperationError
 from scpi_driver_core.models import ScpiError
-from scpi_driver_core.scpi.binary_block import encode_definite_length_block
+from scpi_driver_core.scpi.binary_block import (
+    DEFAULT_MAXIMUM_BLOCK_SIZE,
+    encode_definite_length_block,
+)
 from scpi_driver_core.scpi.codec import ScpiTextCodec
 from scpi_driver_core.scpi.parsers import quote_scpi_string
 from scpi_driver_core.transport.mock import MockTransport
@@ -30,6 +33,7 @@ __all__ = [
     "NO_ERROR",
     "UNDEFINED_HEADER",
     "Handler",
+    "BinaryWriteHandler",
     "ScriptedReply",
     "ScriptedScpiTransport",
 ]
@@ -39,6 +43,7 @@ NO_ERROR = ScpiError(code=0, message="No error", raw='0,"No error"')
 UNDEFINED_HEADER = ScpiError(code=-113, message="Undefined header", raw='-113,"Undefined header"')
 HandlerResult = Union[str, bytes, "ScriptedReply", None]
 Handler = Callable[[str], HandlerResult]
+BinaryWriteHandler = Callable[[str, bytes], HandlerResult]
 
 
 @dataclass(frozen=True)
@@ -69,6 +74,8 @@ class _ExactRule:
 @dataclass
 class _State:
     history: list[str] = field(default_factory=list)
+    binary_history: list[tuple[str, bytes]] = field(default_factory=list)
+    binary_history_bytes: int = 0
     errors: list[ScpiError] = field(default_factory=list)
 
 
@@ -96,7 +103,11 @@ class ScriptedScpiTransport:
         timeout_s: float = 5.0,
         sleep: Callable[[float], None] = time.sleep,
         fault_on_timeout: bool = True,
+        max_binary_history_bytes: int = 8 * 1024 * 1024,
     ) -> None:
+        if max_binary_history_bytes < 0:
+            raise ConfigurationError("max_binary_history_bytes must be non-negative")
+        self._max_binary_history_bytes = max_binary_history_bytes
         self._codec = codec if codec is not None else ScpiTextCodec()
         if not self._codec.command_terminator:
             raise ConfigurationError(
@@ -113,6 +124,7 @@ class ScriptedScpiTransport:
         self._unknown_command_error = unknown_command_error
         self._sleep = sleep
         self._exact: dict[str, _ExactRule] = {}
+        self._binary: dict[str, BinaryWriteHandler] = {}
         self._rules: list[_Rule] = []
         self._state = _State()
         self._pending: list[_PendingReply] = []
@@ -144,6 +156,11 @@ class ScriptedScpiTransport:
         )
         return self
 
+    def on_binary_write(self, command: str, handler: BinaryWriteHandler) -> ScriptedScpiTransport:
+        """Handle exact IEEE definite-length blocks without decoding the payload."""
+        self._binary[self._key(command)] = handler
+        return self
+
     def reply_block(self, command: str, payload: bytes) -> ScriptedScpiTransport:
         return self.on(command, self.block(payload))
 
@@ -164,9 +181,17 @@ class ScriptedScpiTransport:
         with self._inner.operation_lock():
             return list(self._state.history)
 
+    @property
+    def binary_history(self) -> list[tuple[str, bytes]]:
+        """Copies of (SCPI header, exact payload), separate from text history."""
+        with self._inner.operation_lock():
+            return list(self._state.binary_history)
+
     def clear_history(self) -> None:
         with self._inner.operation_lock():
             self._state.history.clear()
+            self._state.binary_history.clear()
+            self._state.binary_history_bytes = 0
 
     @property
     def inner(self) -> MockTransport:
@@ -225,11 +250,20 @@ class ScriptedScpiTransport:
         operation_id: str | None = None,
     ) -> WriteResult:
         with self._inner.operation_lock():
-            result = self._inner.write(data, timeout_s=timeout_s, operation_id=operation_id)
-            for command in self._split_program_message(data):
-                self._state.history.append(command)
-                self._serve(command)
-            return result
+            try:
+                result = self._inner.write(data, timeout_s=timeout_s, operation_id=operation_id)
+                for command, payload in self._split_outbound(data):
+                    if payload is None:
+                        self._state.history.append(command)
+                        self._serve(command)
+                    else:
+                        self._record_binary(command, payload)
+                        self._serve_binary(command, payload)
+                return result
+            except BaseException:
+                # A partial program message may have reached the simulated device.
+                self.invalidate()
+                raise
 
     def read(
         self,
@@ -266,6 +300,115 @@ class ScriptedScpiTransport:
             if direction in (FlushDirection.INPUT, FlushDirection.BOTH):
                 self._pending.clear()
             self._inner.flush(direction)
+
+    def _split_outbound(self, data: bytes) -> list[tuple[str, bytes | None]]:
+        """Separate commands while skipping the full declared binary payload.
+
+        Hashes inside quoted strings are not binary markers. Block arguments
+        are introduced by whitespace or comma and end at a SCPI separator.
+        """
+        if b"#" not in data:
+            return [(command, None) for command in self._split_program_message(data)]
+
+        terminator = self._codec.command_terminator
+        parts: list[tuple[bytes, bytes | None]] = []
+        start = 0
+        index = 0
+        quoted = False
+        while index < len(data):
+            if data[index] == 34:
+                if quoted and index + 1 < len(data) and data[index + 1] == 34:
+                    index += 2
+                    continue
+                quoted = not quoted
+                index += 1
+                continue
+
+            if not quoted and (data.startswith(terminator, index) or data[index] == 59):
+                segment = data[start:index].strip()
+                if segment:
+                    parts.append((segment, None))
+                index += len(terminator) if data.startswith(terminator, index) else 1
+                start = index
+                continue
+
+            if (
+                not quoted
+                and data[index] == 35
+                and index > start
+                and data[index - 1] in (32, 9, 44)
+            ):
+                if index + 2 > len(data):
+                    raise ProtocolError("binary block header is truncated")
+                digit = data[index + 1]
+                if digit == 48:
+                    raise UnsupportedOperationError(
+                        "indefinite-length binary blocks are unsupported"
+                    )
+                if not 49 <= digit <= 57:
+                    raise ProtocolError("binary block length digit count is invalid")
+                width = digit - 48
+                length_end = index + 2 + width
+                if length_end > len(data):
+                    raise ProtocolError("binary block length field is truncated")
+                length_field = data[index + 2 : length_end]
+                if any(not 48 <= byte <= 57 for byte in length_field):
+                    raise ProtocolError("binary block length field is not numeric")
+                size = int(length_field)
+                if size > DEFAULT_MAXIMUM_BLOCK_SIZE:
+                    raise ProtocolError("binary block exceeds maximum_size")
+                end = length_end + size
+                if end > len(data):
+                    raise ProtocolError("binary block payload is truncated")
+                prefix = data[start:index].strip()
+                if not prefix:
+                    raise ProtocolError("binary block has no SCPI command header")
+                parts.append((prefix, data[length_end:end]))
+                index = end
+                while index < len(data) and data[index] in (32, 9):
+                    index += 1
+                if index < len(data):
+                    if data.startswith(terminator, index):
+                        index += len(terminator)
+                    elif data[index] == 59:
+                        index += 1
+                    else:
+                        raise ProtocolError("binary block must end at a command separator")
+                start = index
+                continue
+
+            index += 1
+
+        tail = data[start:].strip()
+        if tail:
+            parts.append((tail, None))
+        headers = [part.decode(self._codec.encoding, errors="replace") for part, _ in parts]
+        resolved = self._inherit_header_paths(headers)
+        return [(command, payload) for command, (_, payload) in zip(resolved, parts, strict=True)]
+
+    def _record_binary(self, command: str, payload: bytes) -> None:
+        # The handler always receives the entire payload. History is intentionally
+        # bounded to prevent a 24/7 simulator from retaining unlimited waveforms.
+        if self._max_binary_history_bytes == 0 or len(payload) > self._max_binary_history_bytes:
+            return
+        while self._state.binary_history and (
+            len(self._state.binary_history) >= 256
+            or self._state.binary_history_bytes + len(payload) > self._max_binary_history_bytes
+        ):
+            _, discarded = self._state.binary_history.pop(0)
+            self._state.binary_history_bytes -= len(discarded)
+        self._state.binary_history.append((command, payload))
+        self._state.binary_history_bytes += len(payload)
+
+    def _serve_binary(self, command: str, payload: bytes) -> None:
+        handler = self._binary.get(self._key(command))
+        if handler is None:
+            if self._unknown_command_error is not None:
+                self._state.errors.append(self._unknown_command_error)
+            return
+        reply = _normalize(handler(command, payload), self._codec)
+        if reply is not None:
+            self._queue_reply(reply)
 
     def _split_program_message(self, data: bytes) -> list[str]:
         try:
@@ -329,6 +472,9 @@ class ScriptedScpiTransport:
         reply = self._resolve(command)
         if reply is None:
             return
+        self._queue_reply(reply)
+
+    def _queue_reply(self, reply: ScriptedReply) -> None:
         if reply.delay_s > 0:
             self._pending.append(_PendingReply(reply.delay_s, reply))
         else:

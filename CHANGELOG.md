@@ -6,6 +6,18 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 ## [Unreleased]
 
+## [0.1.0.dev8] - 2026-10-15
+
+### Added
+- Byte-aware scripted outbound IEEE-488.2 definite-length block parsing.
+- `on_binary_write(command, handler)` and `binary_history`, separate from text history.
+- Randomized, deterministic and concurrent regression tests for binary uploads.
+
+### Safety
+- Reject malformed/truncated/oversized/indefinite block framing and invalidate
+  the simulated transport on ambiguous write or handler failure.
+
+
 ## [0.1.0.dev7] - 2026-10-15
 
 ### Documentation
