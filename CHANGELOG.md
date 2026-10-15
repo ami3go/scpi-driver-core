@@ -9,7 +9,7 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 ## [0.1.0.dev10] - 2026-10-15
 
 ### Test and documentation
-- Add hardware-free, pinned N6700 driver compatibility CI for the old pinned core and hardened dev9 core across Python 3.10–3.13.
+- Add immutable N6700 old-core versus hardened-core CI on Python 3.10–3.13; all eight downstream jobs passed (406 passed, 43 skipped, 1 deselected per job) against repaired N6700 commit `29e8969f`, without temporary source changes. See `docs/n6700-core-compatibility.md`.
 - Document the conditional CORE-ARB-C decision not to add an unproven generic numeric-array abstraction.
 - Keep downstream dependency unchanged pending separate versioned PR and instrument qualification.
 
