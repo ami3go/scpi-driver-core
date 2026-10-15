@@ -66,8 +66,10 @@ def test_direct_binary_reader_shares_header_length_payload_and_terminator_budget
         "scpi_driver_core.scpi.binary_block.operation_deadline",
         lambda _transport, timeout_s: Deadline(timeout_s, clock=lambda: now[0]),
     )
-    with pytest.raises(TransportTimeoutError, match="deadline"):
+    with pytest.raises(TransportTimeoutError, match="terminator did not arrive") as caught:
         read_definite_length_block(transport, timeout_s=1.0, terminator=b"\n")
+    assert isinstance(caught.value.__cause__, TransportTimeoutError)
+    assert "deadline" in str(caught.value.__cause__)
     assert len(transport.seen_timeouts) == 3
     assert transport.seen_timeouts[0] == pytest.approx(1.0)
     assert transport.seen_timeouts[1] == pytest.approx(0.64)
