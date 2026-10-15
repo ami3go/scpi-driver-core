@@ -6,6 +6,23 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 ## [Unreleased]
 
+## [0.1.0.dev9] - 2026-10-15
+
+### Fixed
+- Shared monotonic deadlines now bound binary-block header, length, payload,
+  response terminator and the preceding SCPI command within one budget.
+- VISA and serial per-chunk reads/writes use the remaining budget instead of
+  resetting backend timeouts on progress.
+- TCP, UDP, VISA, serial, mock and scripted composite exchanges account for
+  write and read stages within one operation deadline.
+- Incomplete/framing-invalid binary reads fault the transport, including
+  standalone reader calls; no automatic replay of writes is introduced.
+
+### Added
+- Internal reusable deadline utility and fake-clock regression suite.
+- Finite default timeout resolution for built-in transports and wrappers.
+
+
 ## [0.1.0.dev8] - 2026-10-15
 
 ### Added
