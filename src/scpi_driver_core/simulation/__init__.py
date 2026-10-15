@@ -4,8 +4,8 @@ from scpi_driver_core.simulation.scripted import (
     DEFAULT_ERROR_QUERY,
     NO_ERROR,
     UNDEFINED_HEADER,
-    Handler,
     BinaryWriteHandler,
+    Handler,
     ScriptedReply,
     ScriptedScpiTransport,
 )
