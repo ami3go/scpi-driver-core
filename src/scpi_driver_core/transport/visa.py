@@ -97,6 +97,11 @@ class VisaTransport(TransportStateMachine):
         super().__init__(TransportDescriptor(kind="visa", address=resource_name, metadata=metadata))
 
     @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._timeout_s
+
+    @property
     def message_based(self) -> bool:
         """Whether this VISA address has a hardware/backend END message boundary."""
         name = self._resource_name.upper()
