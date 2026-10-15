@@ -338,7 +338,9 @@ class ScriptedScpiTransport:
                     raise ProtocolError("binary block header is truncated")
                 digit = data[index + 1]
                 if digit == 48:
-                    raise UnsupportedOperationError("indefinite-length binary blocks are unsupported")
+                    raise UnsupportedOperationError(
+                        "indefinite-length binary blocks are unsupported"
+                    )
                 if not 49 <= digit <= 57:
                     raise ProtocolError("binary block length digit count is invalid")
                 width = digit - 48
@@ -378,7 +380,7 @@ class ScriptedScpiTransport:
             parts.append((tail, None))
         headers = [part.decode(self._codec.encoding, errors="replace") for part, _ in parts]
         resolved = self._inherit_header_paths(headers)
-        return [(command, payload) for command, (_, payload) in zip(resolved, parts)]
+        return [(command, payload) for command, (_, payload) in zip(resolved, parts, strict=True)]
 
     def _serve_binary(self, command: str, payload: bytes) -> None:
         handler = self._binary.get(self._key(command))
