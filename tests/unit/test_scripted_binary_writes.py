@@ -3,7 +3,8 @@
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from scpi_driver_core.exceptions import (
     ProtocolError,
