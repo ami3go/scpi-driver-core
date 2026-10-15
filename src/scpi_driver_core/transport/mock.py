@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Final, Literal, NoReturn
 
 from scpi_driver_core.exceptions import ConfigurationError, TransportError, TransportTimeoutError
+from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
     FlushDirection,
     ReadMode,
@@ -189,12 +190,13 @@ class MockTransport(TransportStateMachine):
         replay_policy: ReplayPolicy = ReplayPolicy.NEVER,
         operation_id: str | None = None,
     ) -> bytes:
-        with self._lock:
+        with self._lock, self._faulting_io():
+            deadline = Deadline(self._effective_timeout(timeout_s))
             self.replay_policies.append(replay_policy)
-            self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
+            self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
             if self.on_transact_midpoint is not None:
                 self.on_transact_midpoint()
-            return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
+            return self.read(response, timeout_s=deadline.remaining(), operation_id=operation_id)
 
     def flush(self, direction: FlushDirection) -> None:
         with self._lock:
