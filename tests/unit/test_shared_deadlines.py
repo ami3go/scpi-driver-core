@@ -160,3 +160,22 @@ def test_visa_fragmented_reads_cannot_renew_the_timeout(
     with pytest.raises(TransportTimeoutError):
         transport.read(ReadRequest(mode=ReadMode.EXACT_LENGTH, length=10), timeout_s=1)
     assert transport.state is TransportState.FAULTED
+
+
+@pytest.mark.parametrize(
+    "request",
+    [
+        ReadRequest(mode=ReadMode.BACKEND_DEFINED_MESSAGE),
+        ReadRequest(mode=ReadMode.UP_TO_LENGTH, length=4),
+    ],
+)
+def test_visa_zero_progress_response_faults(
+    monkeypatch: pytest.MonkeyPatch, request: ReadRequest
+) -> None:
+    install_fake_pyvisa(monkeypatch)
+    transport = VisaTransport("GPIB0::22::INSTR")
+    transport.open()
+    monkeypatch.setattr(FakeVisaResource, "read_raw", lambda _resource: b"")
+    with pytest.raises(TransportTimeoutError, match="no progress"):
+        transport.read(request, timeout_s=0.2)
+    assert transport.state is TransportState.FAULTED
