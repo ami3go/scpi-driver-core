@@ -130,3 +130,31 @@ def test_concurrent_binary_uploads_are_serialized() -> None:
         list(pool.map(lambda payload: client.write_binary_block("DATA:ARB ", payload), payloads))
     assert sorted(seen) == sorted(payloads)
     assert sorted(value for _, value in transport.binary_history) == sorted(payloads)
+
+
+def test_history_is_bounded_but_handler_receives_full_payload() -> None:
+    transport = ScriptedScpiTransport(max_binary_history_bytes=3)
+    transport.open()
+    seen: list[bytes] = []
+    transport.on_binary_write("DATA:ARB", lambda _prefix, payload: seen.append(payload))
+    client = ScpiClient(transport)
+    client.write_binary_block("DATA:ARB ", b"one")
+    client.write_binary_block("DATA:ARB ", b"two")
+    client.write_binary_block("DATA:ARB ", b"larger-than-limit")
+    assert seen == [b"one", b"two", b"larger-than-limit"]
+    assert transport.binary_history == [("DATA:ARB", b"two")]
+
+
+def test_zero_retention_and_empty_uploads_are_bounded() -> None:
+    transport = ScriptedScpiTransport(max_binary_history_bytes=0)
+    transport.open()
+    transport.on_binary_write("DATA:ARB", lambda _prefix, _raw: None)
+    client = ScpiClient(transport)
+    for _ in range(5):
+        client.write_binary_block("DATA:ARB ", b"")
+    assert transport.binary_history == []
+
+
+def test_history_rejects_negative_retention_size() -> None:
+    with pytest.raises(Exception, match="max_binary_history_bytes"):
+        ScriptedScpiTransport(max_binary_history_bytes=-1)

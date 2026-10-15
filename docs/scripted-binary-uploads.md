@@ -12,7 +12,10 @@ assert sim.binary_history[0][1] == bytes(range(256))
 ```
 
 `history` contains text commands only; `binary_history` returns copies of
-(header, byte-preserved payload) tuples. `clear_history()` clears both.
+(header, byte-preserved payload) tuples, bounded by `max_binary_history_bytes` (8 MiB by default, with a
+256-entry cap). Oversized individual payloads go to the handler but are not
+retained in history. Set the retention limit to zero to disable capture.
+`clear_history()` clears both.
 
 A binary handler may return any existing scripted reply type. The declared
 payload length must fit `DEFAULT_MAXIMUM_BLOCK_SIZE`; malformed, truncated

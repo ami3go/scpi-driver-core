@@ -76,6 +76,7 @@ class _ExactRule:
 class _State:
     history: list[str] = field(default_factory=list)
     binary_history: list[tuple[str, bytes]] = field(default_factory=list)
+    binary_history_bytes: int = 0
     errors: list[ScpiError] = field(default_factory=list)
 
 
@@ -103,7 +104,11 @@ class ScriptedScpiTransport:
         timeout_s: float = 5.0,
         sleep: Callable[[float], None] = time.sleep,
         fault_on_timeout: bool = True,
+        max_binary_history_bytes: int = 8 * 1024 * 1024,
     ) -> None:
+        if max_binary_history_bytes < 0:
+            raise ConfigurationError("max_binary_history_bytes must be non-negative")
+        self._max_binary_history_bytes = max_binary_history_bytes
         self._codec = codec if codec is not None else ScpiTextCodec()
         if not self._codec.command_terminator:
             raise ConfigurationError(
@@ -192,6 +197,7 @@ class ScriptedScpiTransport:
         with self._inner.operation_lock():
             self._state.history.clear()
             self._state.binary_history.clear()
+            self._state.binary_history_bytes = 0
 
     @property
     def inner(self) -> MockTransport:
@@ -257,7 +263,7 @@ class ScriptedScpiTransport:
                         self._state.history.append(command)
                         self._serve(command)
                     else:
-                        self._state.binary_history.append((command, payload))
+                        self._record_binary(command, payload)
                         self._serve_binary(command, payload)
                 return result
             except BaseException:
@@ -394,6 +400,20 @@ class ScriptedScpiTransport:
         headers = [part.decode(self._codec.encoding, errors="replace") for part, _ in parts]
         resolved = self._inherit_header_paths(headers)
         return [(command, payload) for command, (_, payload) in zip(resolved, parts, strict=True)]
+
+    def _record_binary(self, command: str, payload: bytes) -> None:
+        # The handler always receives the entire payload. History is intentionally
+        # bounded to prevent a 24/7 simulator from retaining unlimited waveforms.
+        if self._max_binary_history_bytes == 0 or len(payload) > self._max_binary_history_bytes:
+            return
+        while self._state.binary_history and (
+            len(self._state.binary_history) >= 256
+            or self._state.binary_history_bytes + len(payload) > self._max_binary_history_bytes
+        ):
+            _, discarded = self._state.binary_history.pop(0)
+            self._state.binary_history_bytes -= len(discarded)
+        self._state.binary_history.append((command, payload))
+        self._state.binary_history_bytes += len(payload)
 
     def _serve_binary(self, command: str, payload: bytes) -> None:
         handler = self._binary.get(self._key(command))
