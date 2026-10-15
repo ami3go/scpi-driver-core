@@ -83,6 +83,11 @@ class UdpTransport(TransportStateMachine):
         )
 
     @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._timeout_s
+
+    @property
     def stale_datagrams_discarded(self) -> int:
         return self._stale_discarded
 
