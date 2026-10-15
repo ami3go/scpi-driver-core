@@ -44,7 +44,17 @@ def operation_deadline(transport: Transport, timeout_s: float | None) -> Deadlin
     """
     effective = timeout_s
     if effective is None:
-        effective = getattr(transport, "default_timeout_s", None)
-    if effective is None:
-        return None
+        # Transparent wrappers (e.g. traced transports) preserve the inner
+        # transport's configured default without changing the Transport protocol.
+        candidate: object = transport
+        for _ in range(8):
+            effective = getattr(candidate, "default_timeout_s", None)
+            if effective is not None:
+                break
+            nested = getattr(candidate, "inner", None)
+            if nested is None or nested is candidate:
+                return None
+            candidate = nested
+        if effective is None:
+            return None
     return Deadline(effective)
