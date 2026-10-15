@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Final
 
 from scpi_driver_core.exceptions import (
@@ -10,6 +11,7 @@ from scpi_driver_core.exceptions import (
     TransportTimeoutError,
     UnsupportedOperationError,
 )
+from scpi_driver_core.execution.deadline import Deadline, operation_deadline
 from scpi_driver_core.transport.base import Transport
 from scpi_driver_core.transport.models import ReadMode, ReadRequest
 
@@ -86,6 +88,7 @@ def read_definite_length_block(
     maximum_size: int = DEFAULT_MAXIMUM_BLOCK_SIZE,
     terminator: bytes | None = None,
     operation_id: str | None = None,
+    _deadline: Deadline | None = None,
 ) -> bytes:
     """Read one definite-length block from an already serialized transport.
 
@@ -97,20 +100,32 @@ def read_definite_length_block(
     if maximum_size <= 0:
         raise ConfigurationError(f"maximum_size must be positive, got {maximum_size}")
 
+    # A private supplied budget covers the preceding outbound write as well.
+    budget = _deadline if _deadline is not None else operation_deadline(transport, timeout_s)
+
     def read_exactly(count: int, what: str) -> bytes:
         request = ReadRequest(mode=ReadMode.EXACT_LENGTH, length=count, maximum_size=max(count, 1))
         try:
-            return transport.read(request, timeout_s=timeout_s, operation_id=operation_id)
+            remaining = budget.remaining() if budget is not None else timeout_s
+            return transport.read(request, timeout_s=remaining, operation_id=operation_id)
         except TransportTimeoutError as exc:
             raise TransportTimeoutError(
                 f"block {what} did not arrive: expected {count} bytes"
             ) from exc
 
-    count = _length_digit_count(read_exactly(2, "header"))
-    length = _declared_length(read_exactly(count, "length field"), count, maximum_size)
-    payload = read_exactly(length, "payload") if length else b""
-    if terminator:
-        trailing = read_exactly(len(terminator), "terminator")
-        if trailing != terminator:
-            raise ProtocolError(f"expected terminator {terminator!r}, got {trailing!r}")
-    return payload
+    try:
+        count = _length_digit_count(read_exactly(2, "header"))
+        length = _declared_length(read_exactly(count, "length field"), count, maximum_size)
+        payload = read_exactly(length, "payload") if length else b""
+        if terminator:
+            trailing = read_exactly(len(terminator), "terminator")
+            if trailing != terminator:
+                raise ProtocolError(f"expected terminator {terminator!r}, got {trailing!r}")
+        if budget is not None:
+            budget.remaining()
+        return payload
+    except BaseException:
+        # A direct caller also needs a faulted stream after malformed/late data.
+        with suppress(Exception):
+            transport.invalidate()
+        raise

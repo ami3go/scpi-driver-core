@@ -19,6 +19,7 @@ from scpi_driver_core.exceptions import (
     TransportTimeoutError,
     UnsupportedOperationError,
 )
+from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
     FlushDirection,
     ReadMode,
@@ -97,6 +98,11 @@ class VisaTransport(TransportStateMachine):
         super().__init__(TransportDescriptor(kind="visa", address=resource_name, metadata=metadata))
 
     @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._timeout_s
+
+    @property
     def message_based(self) -> bool:
         """Whether this VISA address has a hardware/backend END message boundary."""
         name = self._resource_name.upper()
@@ -153,15 +159,17 @@ class VisaTransport(TransportStateMachine):
         with self._lock:
             resource = self._require_open()
             sent = 0
+            deadline = Deadline(timeout)
             with self._faulting_io():
                 try:
-                    self._apply_timeout(resource, timeout * 1000.0)
                     while sent < len(data):
+                        self._apply_timeout(resource, deadline.remaining() * 1000.0)
                         count = resource.write_raw(data[sent:])
                         written = len(data) - sent if count is None else int(count)
                         if written <= 0:
                             raise TransportTimeoutError("VISA write made no progress")
                         sent += written
+                        deadline.remaining()
                 except Exception as exc:
                     if isinstance(exc, TransportError):
                         raise
@@ -179,10 +187,12 @@ class VisaTransport(TransportStateMachine):
         timeout = effective_timeout(timeout_s, self._timeout_s)
         with self._lock:
             resource = self._require_open()
+            deadline = Deadline(timeout)
             with self._faulting_io():
                 try:
-                    self._apply_timeout(resource, timeout * 1000.0)
-                    return self._read(resource, request)
+                    response = self._read(resource, request, deadline)
+                    deadline.remaining()
+                    return response
                 except Exception as exc:
                     if isinstance(exc, TransportError):
                         raise
@@ -199,8 +209,9 @@ class VisaTransport(TransportStateMachine):
     ) -> bytes:
         del replay_policy
         with self._lock, self._faulting_io():
-            self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
-            return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
+            deadline = Deadline(effective_timeout(timeout_s, self._timeout_s))
+            self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
+            return self.read(response, timeout_s=deadline.remaining(), operation_id=operation_id)
 
     def flush(self, direction: FlushDirection) -> None:
         """Discard local/VISA buffers without sending Device Clear."""
@@ -281,7 +292,7 @@ class VisaTransport(TransportStateMachine):
 
     # -- read modes -------------------------------------------------------
 
-    def _read(self, resource: Any, request: ReadRequest) -> bytes:
+    def _read(self, resource: Any, request: ReadRequest, deadline: Deadline) -> bytes:
         if request.mode is ReadMode.BACKEND_DEFINED_MESSAGE:
             if not self.message_based:
                 raise UnsupportedOperationError(
@@ -289,11 +300,12 @@ class VisaTransport(TransportStateMachine):
                 )
             if self._buffer:
                 return self._take(min(len(self._buffer), request.maximum_size))
-            return self._read_message_bounded(resource, request.maximum_size)
+            return self._read_message_bounded(resource, request.maximum_size, deadline)
 
         if request.mode is ReadMode.EXACT_LENGTH:
             assert request.length is not None
             while len(self._buffer) < request.length:
+                self._apply_timeout(resource, deadline.remaining() * 1000.0)
                 chunk = bytes(resource.read_bytes(request.length - len(self._buffer)))
                 if not chunk:
                     raise TransportTimeoutError("VISA exact-length read made no progress")
@@ -319,38 +331,46 @@ class VisaTransport(TransportStateMachine):
                     )
                 search_from = max(0, len(self._buffer) - len(request.terminator) + 1)
                 remaining = request.maximum_size - len(self._buffer)
-                self._buffer.extend(self._read_message_bounded(resource, remaining))
+                self._buffer.extend(self._read_message_bounded(resource, remaining, deadline))
 
         limit = request.maximum_size
         if request.mode is ReadMode.UP_TO_LENGTH:
             assert request.length is not None
             limit = min(request.length, limit)
         if not self._buffer:
-            self._buffer.extend(self._read_at_most(resource, limit))
+            self._buffer.extend(self._read_at_most(resource, limit, deadline))
         return self._take(min(len(self._buffer), limit))
 
-    def _read_at_most(self, resource: Any, maximum_size: int) -> bytes:
+    def _read_at_most(self, resource: Any, maximum_size: int, deadline: Deadline) -> bytes:
         """Read one bounded chunk/message fragment, waiting for at least one byte."""
         if maximum_size <= 0:
             return b""
         visalib = getattr(resource, "visalib", None)
         session = getattr(resource, "session", None)
+        self._apply_timeout(resource, deadline.remaining() * 1000.0)
         if visalib is not None and session is not None:
             data, _status = visalib.read(session, min(self._chunk_size, maximum_size))
+            if not data:
+                raise TransportTimeoutError("VISA read made no progress")
             return bytes(data)
         # Test doubles and unusual wrappers may not expose the low-level handle.
         data = bytes(resource.read_raw())
+        if not data:
+            raise TransportTimeoutError("VISA read made no progress")
         if len(data) > maximum_size:
             raise TransportError(f"VISA read exceeds maximum_size {maximum_size}")
         return data
 
-    def _read_message_bounded(self, resource: Any, maximum_size: int) -> bytes:
+    def _read_message_bounded(self, resource: Any, maximum_size: int, deadline: Deadline) -> bytes:
         """Read through the VISA low-level API so total allocation is bounded."""
         visalib = getattr(resource, "visalib", None)
         session = getattr(resource, "session", None)
         constants = _load_constants()
         if visalib is None or session is None or constants is None:
+            self._apply_timeout(resource, deadline.remaining() * 1000.0)
             data = bytes(resource.read_raw())
+            if not data:
+                raise TransportTimeoutError("VISA message read made no progress")
             if len(data) > maximum_size:
                 raise TransportError(
                     f"message of {len(data)} bytes exceeds maximum_size {maximum_size}"
@@ -363,7 +383,10 @@ class VisaTransport(TransportStateMachine):
             want = min(self._chunk_size, maximum_size + 1 - len(out))
             if want <= 0:
                 raise TransportError(f"VISA message exceeds maximum_size {maximum_size}")
+            self._apply_timeout(resource, deadline.remaining() * 1000.0)
             chunk, status = visalib.read(session, want)
+            if not chunk:
+                raise TransportTimeoutError("VISA message read made no progress")
             out.extend(chunk)
             if len(out) > maximum_size:
                 raise TransportError(f"VISA message exceeds maximum_size {maximum_size}")

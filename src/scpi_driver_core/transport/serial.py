@@ -14,6 +14,7 @@ from scpi_driver_core.exceptions import (
     TransportTimeoutError,
     UnsupportedOperationError,
 )
+from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
     FlushDirection,
     ReadMode,
@@ -99,6 +100,11 @@ class SerialTransport(TransportStateMachine):
             )
         )
 
+    @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._timeout_s
+
     def open(self) -> TransportDescriptor:
         with self._lock:
             if self.state is TransportState.OPEN:
@@ -180,14 +186,16 @@ class SerialTransport(TransportStateMachine):
         with self._lock:
             resource = self._require_open()
             sent = 0
+            deadline = Deadline(timeout)
             with self._faulting_io():
                 try:
-                    self._apply_timeouts(resource, write=timeout)
                     while sent < len(data):
+                        self._apply_timeouts(resource, write=deadline.remaining())
                         count = int(resource.write(data[sent:]))
                         if count <= 0:
                             raise TransportTimeoutError("serial write made no progress")
                         sent += count
+                        deadline.remaining()
                 except Exception as exc:
                     if isinstance(exc, TransportError):
                         raise
@@ -211,10 +219,12 @@ class SerialTransport(TransportStateMachine):
                 raise UnsupportedOperationError(
                     "serial is a byte stream without message boundaries"
                 )
+            deadline = Deadline(timeout)
             with self._faulting_io():
                 try:
-                    self._apply_timeouts(resource, read=timeout)
-                    return self._read(resource, request)
+                    result = self._read(resource, request, deadline)
+                    deadline.remaining()
+                    return result
                 except Exception as exc:
                     if isinstance(exc, TransportError):
                         raise
@@ -231,8 +241,9 @@ class SerialTransport(TransportStateMachine):
     ) -> bytes:
         del replay_policy
         with self._lock, self._faulting_io():
-            self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
-            return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
+            deadline = Deadline(effective_timeout(timeout_s, self._timeout_s))
+            self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
+            return self.read(response, timeout_s=deadline.remaining(), operation_id=operation_id)
 
     def flush(self, direction: FlushDirection) -> None:
         with self._lock:
@@ -246,9 +257,10 @@ class SerialTransport(TransportStateMachine):
                 except Exception as exc:
                     raise TransportError(f"serial flush failed: {exc}") from exc
 
-    def _read(self, resource: Any, request: ReadRequest) -> bytes:
+    def _read(self, resource: Any, request: ReadRequest, deadline: Deadline) -> bytes:
         if request.mode is ReadMode.EXACT_LENGTH:
             assert request.length is not None
+            self._apply_timeouts(resource, read=deadline.remaining())
             data = bytes(resource.read(request.length))
             if len(data) != request.length:
                 raise TransportTimeoutError(
@@ -258,6 +270,7 @@ class SerialTransport(TransportStateMachine):
 
         if request.mode is ReadMode.UNTIL_TERMINATOR:
             assert request.terminator is not None
+            self._apply_timeouts(resource, read=deadline.remaining())
             data = bytes(resource.read_until(request.terminator, request.maximum_size))
             if not data.endswith(request.terminator):
                 if len(data) >= request.maximum_size:
@@ -271,11 +284,15 @@ class SerialTransport(TransportStateMachine):
         else:
             limit = request.maximum_size
 
+        self._apply_timeouts(resource, read=deadline.remaining())
         first = bytes(resource.read(1))
         if not first:
             raise TransportTimeoutError("serial read timed out")
         waiting = min(int(resource.in_waiting), limit - 1)
-        return first + (bytes(resource.read(waiting)) if waiting else b"")
+        if waiting:
+            self._apply_timeouts(resource, read=deadline.remaining())
+            return first + bytes(resource.read(waiting))
+        return first
 
     def _require_open(self) -> Any:
         self._require_state_open()

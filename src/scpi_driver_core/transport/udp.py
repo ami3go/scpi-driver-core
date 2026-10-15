@@ -12,6 +12,7 @@ from scpi_driver_core.exceptions import (
     TransportTimeoutError,
     UnsupportedOperationError,
 )
+from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
     FlushDirection,
     ReadMode,
@@ -81,6 +82,11 @@ class UdpTransport(TransportStateMachine):
                 metadata={"validate_source": str(validate_source)},
             )
         )
+
+    @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._timeout_s
 
     @property
     def stale_datagrams_discarded(self) -> int:
@@ -189,14 +195,14 @@ class UdpTransport(TransportStateMachine):
         operation_id: str | None = None,
     ) -> bytes:
         del replay_policy
-        with self._lock:
+        with self._lock, self._faulting_io():
+            deadline = Deadline(effective_timeout(timeout_s, self._timeout_s))
             if self._drain_before_transact:
-                with self._faulting_io():
-                    stale = self._discard_stale_datagrams()
+                stale = self._discard_stale_datagrams()
                 self._stale_discarded += stale
                 self._drain_before_transact = False
-            self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
-            return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
+            self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
+            return self.read(response, timeout_s=deadline.remaining(), operation_id=operation_id)
 
     def flush(self, direction: FlushDirection) -> None:
         with self._lock:

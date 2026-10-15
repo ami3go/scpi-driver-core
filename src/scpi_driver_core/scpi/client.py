@@ -14,6 +14,7 @@ from contextlib import AbstractContextManager, contextmanager, suppress
 from typing import TypeVar
 
 from scpi_driver_core.exceptions import ConfigurationError, ScpiDriverError
+from scpi_driver_core.execution.deadline import operation_deadline
 from scpi_driver_core.execution.retry import RetryAttempt, RetryPolicy, run_with_retry
 from scpi_driver_core.scpi.binary_block import (
     DEFAULT_MAXIMUM_BLOCK_SIZE,
@@ -355,14 +356,19 @@ class ScpiClient:
 
         def action(operation_id: str, effective: float | None) -> bytes:
             with self._transport.operation_lock():
-                self._transport.write(outbound, timeout_s=effective, operation_id=operation_id)
+                deadline = operation_deadline(self._transport, effective)
                 try:
+                    write_timeout = deadline.remaining() if deadline is not None else effective
+                    self._transport.write(
+                        outbound, timeout_s=write_timeout, operation_id=operation_id
+                    )
                     return read_definite_length_block(
                         self._transport,
                         timeout_s=effective,
                         maximum_size=limit,
                         terminator=terminator,
                         operation_id=operation_id,
+                        _deadline=deadline,
                     )
                 except BaseException:
                     with suppress(Exception):
