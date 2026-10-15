@@ -167,6 +167,11 @@ class ScriptedScpiTransport:
             self._state.errors.append(error)
 
     @property
+    def default_timeout_s(self) -> float:
+        """Configured finite read/transaction budget for composite operations."""
+        return self._inner.default_timeout_s
+
+    @property
     def pending_errors(self) -> list[ScpiError]:
         with self._inner.operation_lock():
             return list(self._state.errors)
