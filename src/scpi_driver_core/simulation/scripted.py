@@ -391,10 +391,9 @@ class ScriptedScpiTransport:
         # bounded to prevent a 24/7 simulator from retaining unlimited waveforms.
         if self._max_binary_history_bytes == 0 or len(payload) > self._max_binary_history_bytes:
             return
-        while (
-            self._state.binary_history
-            and self._state.binary_history_bytes + len(payload)
-            > self._max_binary_history_bytes
+        while self._state.binary_history and (
+            len(self._state.binary_history) >= 256
+            or self._state.binary_history_bytes + len(payload) > self._max_binary_history_bytes
         ):
             _, discarded = self._state.binary_history.pop(0)
             self._state.binary_history_bytes -= len(discarded)
