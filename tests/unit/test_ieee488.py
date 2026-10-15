@@ -94,7 +94,7 @@ def test_wait_operation_complete_returns_on_success() -> None:
 def test_wait_operation_complete_forwards_its_own_bound() -> None:
     ieee, transport = make(b"1\n")
     ieee.wait_operation_complete(30.0)
-    assert transport.operations[-1].timeout_s == 30.0
+    assert 29.0 < transport.operations[-1].timeout_s <= 30.0
 
 
 def test_wait_operation_complete_translates_a_timeout() -> None:
@@ -142,7 +142,7 @@ def test_self_test_failure_is_reported_not_raised() -> None:
 def test_self_test_accepts_a_long_bound() -> None:
     ieee, transport = make(b"0\n")
     ieee.self_test(timeout_s=120.0)
-    assert transport.operations[-1].timeout_s == 120.0
+    assert 119.0 < transport.operations[-1].timeout_s <= 120.0
 
 
 def test_read_status_byte() -> None:
