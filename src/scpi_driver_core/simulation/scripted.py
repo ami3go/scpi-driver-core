@@ -158,7 +158,12 @@ class ScriptedScpiTransport:
         return self
 
     def on_binary_write(self, command: str, handler: BinaryWriteHandler) -> ScriptedScpiTransport:
-        """Handle exact IEEE definite-length blocks without decoding the payload."""
+        """Handle IEEE definite-length blocks without decoding the payload.
+
+        ``command`` is either the exact text preceding the block (e.g.
+        ``"DATA:ARB 1,"``) or just its header (``"DATA:ARB"``); an exact match
+        takes precedence. The handler receives the full preceding text.
+        """
         self._binary[self._key(command)] = handler
         return self
 
@@ -350,6 +355,8 @@ class ScriptedScpiTransport:
                 and data[index] == 35
                 and index > start
                 and data[index - 1] in (32, 9, 44)
+                # IEEE 488.2 non-decimal numerics (#H1F, #Q17, #B101) are text.
+                and data[index + 1 : index + 2].upper() not in (b"H", b"Q", b"B")
             ):
                 if index + 2 > len(data):
                     raise ProtocolError("binary block header is truncated")
@@ -395,6 +402,9 @@ class ScriptedScpiTransport:
         tail = data[start:].strip()
         if tail:
             parts.append((tail, None))
+        if all(payload is None for _, payload in parts):
+            # No block (e.g. only #H/#Q/#B numerics): keep strict text decoding.
+            return [(command, None) for command in self._split_program_message(data)]
         headers = [part.decode(self._codec.encoding, errors="replace") for part, _ in parts]
         resolved = self._inherit_header_paths(headers)
         return [(command, payload) for command, (_, payload) in zip(resolved, parts, strict=True)]
@@ -414,7 +424,11 @@ class ScriptedScpiTransport:
         self._state.binary_history_bytes += len(payload)
 
     def _serve_binary(self, command: str, payload: bytes) -> None:
+        # Exact "header args," registrations win; otherwise match the header alone
+        # so "DATA:ARB" also handles "DATA:ARB 1,#..." (args stay in `command`).
         handler = self._binary.get(self._key(command))
+        if handler is None:
+            handler = self._binary.get(self._key(command.split(maxsplit=1)[0]))
         if handler is None:
             if self._unknown_command_error is not None:
                 self._state.errors.append(self._unknown_command_error)

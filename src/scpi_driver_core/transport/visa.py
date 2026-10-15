@@ -304,9 +304,19 @@ class VisaTransport(TransportStateMachine):
 
         if request.mode is ReadMode.EXACT_LENGTH:
             assert request.length is not None
+            visalib = getattr(resource, "visalib", None)
+            session = getattr(resource, "session", None)
             while len(self._buffer) < request.length:
+                # One backend call per timeout update: PyVISA's read_bytes loops over
+                # chunks internally and would renew the VISA timeout for each one.
+                want = min(self._chunk_size, request.length - len(self._buffer))
                 self._apply_timeout(resource, deadline.remaining() * 1000.0)
-                chunk = bytes(resource.read_bytes(request.length - len(self._buffer)))
+                if visalib is not None and session is not None:
+                    data, _status = visalib.read(session, want)
+                    chunk = bytes(data)
+                else:
+                    # Test doubles and unusual wrappers may not expose the low-level handle.
+                    chunk = bytes(resource.read_bytes(want))
                 if not chunk:
                     raise TransportTimeoutError("VISA exact-length read made no progress")
                 self._buffer.extend(chunk)

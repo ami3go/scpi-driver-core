@@ -158,3 +158,47 @@ def test_zero_retention_and_empty_uploads_are_bounded() -> None:
 def test_history_rejects_negative_retention_size() -> None:
     with pytest.raises(Exception, match="max_binary_history_bytes"):
         ScriptedScpiTransport(max_binary_history_bytes=-1)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"*SRE #H20\n", b"*ESE #b00111101\n", b"STAT:OPER:ENAB #Q17\n", b"*SRE #h20;*ESE #B1\n"],
+)
+def test_non_decimal_numerics_are_text_not_binary_blocks(raw: bytes) -> None:
+    transport = ScriptedScpiTransport()
+    transport.open()
+    transport.write(raw)
+    expected = raw.decode().strip().split(";")
+    assert transport.history == expected
+    assert transport.binary_history == []
+    assert transport.state is TransportState.OPEN
+
+
+def test_non_decimal_numeric_and_binary_block_in_one_message() -> None:
+    transport = ScriptedScpiTransport()
+    transport.open()
+    transport.on_binary_write("DATA:ARB", lambda _prefix, _raw: None)
+    transport.write(b"*SRE #H20;:DATA:ARB #13a#H\n")
+    assert transport.history == ["*SRE #H20"]
+    assert transport.binary_history == [("DATA:ARB", b"a#H")]
+
+
+def test_header_registration_handles_block_with_arguments() -> None:
+    transport = ScriptedScpiTransport()
+    transport.open()
+    seen: list[tuple[str, bytes]] = []
+    transport.on_binary_write("ARB:DATA", lambda command, raw: seen.append((command, raw)))
+    transport.write(b"ARB:DATA 1,#14abcd\n")
+    assert seen == [("ARB:DATA 1,", b"abcd")]
+    assert transport.pending_errors == []
+
+
+def test_exact_binary_registration_takes_precedence_over_header() -> None:
+    transport = ScriptedScpiTransport()
+    transport.open()
+    seen: list[str] = []
+    transport.on_binary_write("ARB:DATA", lambda _command, _raw: seen.append("header"))
+    transport.on_binary_write("ARB:DATA 2,", lambda _command, _raw: seen.append("exact"))
+    transport.write(b"ARB:DATA 1,#11a\n")
+    transport.write(b"ARB:DATA 2,#11b\n")
+    assert seen == ["header", "exact"]

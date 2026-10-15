@@ -179,3 +179,51 @@ def test_visa_zero_progress_response_faults(
     with pytest.raises(TransportTimeoutError, match="no progress"):
         transport.read(read_request, timeout_s=0.2)
     assert transport.state is TransportState.FAULTED
+
+
+def test_visa_exact_read_bounds_each_backend_call_by_remaining_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PyVISA read_bytes renews the VISA timeout per chunk; core must not rely on it."""
+    install_fake_pyvisa(monkeypatch)
+    now = [0.0]
+    monkeypatch.setattr(
+        "scpi_driver_core.transport.visa.Deadline",
+        lambda timeout_s: Deadline(timeout_s, clock=lambda: now[0]),
+    )
+    transport = VisaTransport("GPIB0::22::INSTR", chunk_size=4)
+    transport.open()
+    resource = transport._resource
+    calls: list[tuple[int, float]] = []
+
+    class TricklingVisalib:
+        def read(self, _session: object, count: int) -> tuple[bytes, int]:
+            calls.append((count, resource.timeout))
+            now[0] += 0.3
+            return b"x" * count, 0
+
+    resource.visalib = TricklingVisalib()
+    resource.session = 1
+    with pytest.raises(TransportTimeoutError):
+        transport.read(ReadRequest(mode=ReadMode.EXACT_LENGTH, length=40), timeout_s=1)
+    assert [count for count, _ in calls] == [4, 4, 4, 4]
+    assert [timeout for _, timeout in calls] == pytest.approx([1000, 700, 400, 100])
+    assert transport.state is TransportState.FAULTED
+
+
+def test_visa_exact_read_fallback_requests_at_most_one_chunk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pyvisa(monkeypatch)
+    transport = VisaTransport("GPIB0::22::INSTR", chunk_size=3)
+    transport.open()
+    requested: list[int] = []
+
+    def chunked_read(_resource: FakeVisaResource, count: int) -> bytes:
+        requested.append(count)
+        return b"y" * count
+
+    monkeypatch.setattr(FakeVisaResource, "read_bytes", chunked_read)
+    data = transport.read(ReadRequest(mode=ReadMode.EXACT_LENGTH, length=8), timeout_s=1)
+    assert data == b"y" * 8
+    assert requested == [3, 3, 2]

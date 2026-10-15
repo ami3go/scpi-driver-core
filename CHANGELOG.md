@@ -6,6 +6,23 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 ## [Unreleased]
 
+## [0.1.0.dev11] - 2026-10-15
+
+### Fixed
+- `ScriptedScpiTransport` no longer treats IEEE 488.2 non-decimal numerics
+  (`#H20`, `#B1010`, `#Q17`) as binary blocks; dev8–dev10 rejected
+  commands such as `*SRE #H20` with `ProtocolError` and faulted the simulator.
+- VISA exact-length reads request at most one `chunk_size` per backend call
+  and re-apply the remaining deadline each time. PyVISA's `read_bytes`
+  renews the VISA timeout for every internal chunk, so large binary blocks
+  could previously block well past the operation deadline before failing.
+
+### Changed
+- `on_binary_write("DATA:ARB", ...)` also matches blocks with arguments before
+  them (`DATA:ARB 1,#...`); an exact `"DATA:ARB 1,"` registration still wins
+  and the handler receives the full preceding text.
+- N6700 compatibility CI now also tests the core revision under review.
+
 ## [0.1.0.dev10] - 2026-10-15
 
 ### Test and documentation
