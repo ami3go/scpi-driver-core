@@ -115,7 +115,8 @@ def test_timeout_is_converted_to_milliseconds(fake_backend: None) -> None:
 def test_per_call_timeout_is_converted_to_milliseconds(fake_backend: None) -> None:
     transport = opened(fake_backend, timeout_s=5.0)
     transport.write(b"*RST\n", timeout_s=0.25)
-    assert FakeVisaResource.instances[-1].timeout == 250.0
+    # Monotonic accounting subtracts elapsed Python time before configuring VISA.
+    assert 0 < FakeVisaResource.instances[-1].timeout <= 250.0
 
 
 def test_chunk_size_is_forwarded(fake_backend: None) -> None:
