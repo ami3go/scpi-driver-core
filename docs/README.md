@@ -137,3 +137,5 @@ migration is expected to expose any missing generic primitive.
 - AI/code-agent requirements: `AGENTS.md`
 - Contribution and quality gates: `CONTRIBUTING.md`
 - Detailed original architecture/acceptance specification: `task/SCPI_DRIVER_CORE_IMPLEMENTATION_TASK.md`
+
+For the staged core requirements supporting advanced N6700 Arb uploads, see [the N6700 Arb core-hardening task](../task/N6700_ARB_CORE_HARDENING_TASK.md). This is a plan, not an implemented feature or HIL qualification.

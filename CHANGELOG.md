@@ -6,6 +6,13 @@ The project follows Semantic Versioning once the public API reaches 1.0.0.
 
 ## [Unreleased]
 
+## [0.1.0.dev7] - 2026-10-15
+
+### Documentation
+- Added [N6700 Arb core-hardening implementation task](task/N6700_ARB_CORE_HARDENING_TASK.md) covering shared multi-stage deadlines, scripted outbound IEEE-488.2 binary block handling, optional generic numeric-vector facilities, and downstream compatibility checks.
+- Documented current capabilities versus proposed changes, code sketches, regression gates, staged PRs and cross-repository dependency coordination. **No core runtime behavior changed.**
+
+
 ## [0.1.0.dev6] - 2026-09-21
 
 ### Added

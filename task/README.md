@@ -5,6 +5,7 @@ The task directory contains the architectural specification used to build
 
 - `SCPI_DRIVER_CORE_IMPLEMENTATION_TASK.md` — original detailed architecture,
   phases, migration targets, and acceptance criteria.
+- `N6700_ARB_CORE_HARDENING_TASK.md` — cross-instrument timeout and binary-upload simulation hardening task required for advanced N6700 Arb integration.
 - `TEST_HARNESS_ADDENDUM.md` — current testing/quality-gate requirements added
   after the hardware-free Hypothesis, PyVISA-sim, and pytest-timeout harness was
   implemented.
