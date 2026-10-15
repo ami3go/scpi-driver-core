@@ -17,6 +17,12 @@ assert sim.binary_history[0][1] == bytes(range(256))
 retained in history. Set the retention limit to zero to disable capture.
 `clear_history()` clears both.
 
+Handlers are looked up by the exact text preceding the block (for example
+`"DATA:ARB 1,"`) and then by its header alone (`"DATA:ARB"`), so one
+header registration covers every argument combination; the handler receives
+the full preceding text. IEEE 488.2 non-decimal numerics such as `#H20`,
+`#B1010` and `#Q17` are ordinary text, not blocks.
+
 A binary handler may return any existing scripted reply type. The declared
 payload length must fit `DEFAULT_MAXIMUM_BLOCK_SIZE`; malformed, truncated
 and `#0` indefinite-length blocks are rejected. An interrupted binary write

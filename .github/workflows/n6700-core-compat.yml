@@ -18,7 +18,15 @@ jobs:
         core-ref:
           - ec19ab88906d8e6ac270b30d7615ce7e75dc6a08
           - 3d2c25c5e4e141749478f84631e8215d2984792d
+          # The revision under test (PR merge commit or dispatched branch).
+          - workspace
     steps:
+      - name: Check out this core revision
+        if: matrix.core-ref == 'workspace'
+        uses: actions/checkout@v4
+        with:
+          path: core
+
       - name: Fetch N6700 driver at a fixed revision
         uses: actions/checkout@v4
         with:
@@ -34,8 +42,12 @@ jobs:
       - name: Install isolated test dependencies and selected SCPI core
         run: |
           python -m pip install --upgrade pip
-          python -m pip install \
-            "scpi-driver-core[all] @ git+https://github.com/ami3go/scpi-driver-core@${{ matrix.core-ref }}"
+          if [ "${{ matrix.core-ref }}" = "workspace" ]; then
+            python -m pip install "./core[all]"
+          else
+            python -m pip install \
+              "scpi-driver-core[all] @ git+https://github.com/ami3go/scpi-driver-core@${{ matrix.core-ref }}"
+          fi
           python -m pip install \
             pytest pytest-cov pytest-timeout hypothesis pyvisa-sim \
             jsonschema PyYAML robotframework "typing-extensions>=4.8"
