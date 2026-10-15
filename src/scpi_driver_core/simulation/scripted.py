@@ -298,9 +298,7 @@ class ScriptedScpiTransport:
     ) -> bytes:
         del replay_policy
         with self._inner.operation_lock():
-            deadline = Deadline(
-                self._inner.default_timeout_s if timeout_s is None else timeout_s
-            )
+            deadline = Deadline(self._inner.default_timeout_s if timeout_s is None else timeout_s)
             try:
                 self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
                 return self.read(
