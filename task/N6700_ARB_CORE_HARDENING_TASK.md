@@ -1,6 +1,6 @@
 # Task: SCPI core readiness for N6700 arbitrary waveform generation
 
-**Task ID:** CORE-ARB-001 · **Prepared:** 2026-10-15 · **Status:** READY FOR IMPLEMENTATION; **not implemented**
+**Task ID:** CORE-ARB-001 · **Prepared:** 2026-10-15 · **Status:** CORE IMPLEMENTATION COMPLETE; HARDWARE QUALIFICATION OUTSTANDING
 **Repository:** https://github.com/ami3go/scpi-driver-core
 **Audited baseline:** `main@d850f88a78ddfbfa08b667c0be6cbb0bb4a01541`, package `0.1.0.dev6`
 **Companion task:** [keysight-n6700-driver Arb task](https://github.com/ami3go/keysight-n6700-driver/blob/main/docs/ARB_DRIVER_IMPLEMENTATION_TASK.md)
@@ -217,14 +217,16 @@ Required automation: Python 3.10–3.13 CI, Ruff/format, strict mypy, pytest uni
 
 Merge order: **A and B may run in parallel**; merge A then B (or reverse after rebasing), C only if justified by another concrete driver, then D. Synchronize release notes, `CHANGELOG.md`, documentation and version on **every** implementation PR. Do not merge red CI or revert existing safety invariants.
 
-### Definition of done (core scope)
+### Definition of done (core scope) — updated 2026-10-15
 
-- [ ] A: One shared monotonic total I/O deadline, compatibility retained, tests green
-- [ ] B: Outbound binary uploads parsed byte-exactly in scripted simulation, tests green
-- [ ] C: Either documented as unnecessary, or generic vector helper proven by at least two consumers
-- [ ] D: N6700 simulator and protocol suite green against exact reviewed core commit
-- [ ] No Keysight-specific safety semantics introduced into core
-- [ ] Version increments, changelog, review and CI links recorded for every PR
-- [ ] No physical HIL claim without separately authorized and retained evidence
+- [x] A: One monotonic I/O deadline and preserved compatibility: [PR #9](https://github.com/ami3go/scpi-driver-core/pull/9), merged `3d2c25c5e4e141749478f84631e8215d2984792d`, v0.1.0.dev9.
+- [x] B: Byte-accurate outbound scripted binary blocks: [PR #8](https://github.com/ami3go/scpi-driver-core/pull/8), merged `52c879a8be201781bc52e5b077e042c581b10b6c`, v0.1.0.dev8.
+- [x] C: Unnecessary generic numeric-vector API rejected after review; rationale in [compatibility report](../docs/n6700-core-compatibility.md).
+- [x] D: N6700 simulator/SCPI protocol suite verified against hardened core and original pin, [8-job matrix](https://github.com/ami3go/scpi-driver-core/actions/runs/38715855209).
+- [x] No Keysight-specific safety or Arb commands added in the core.
+- [x] Version increments, changelog and CI evidence for runtime PRs and compatibility PR #10; [core quality run](https://github.com/ami3go/scpi-driver-core/actions/runs/38715855316).
+- [x] No physical HIL qualification asserted or hardware operated.
+- [ ] Physical instrument qualification, separately authorized downstream work.
 
-**Task publication:** v0.1.0.dev7 is a **documentation-only** bump from dev6; these checkboxes intentionally remain open after publishing this specification.
+See [CORE-ARB-D detailed software evidence](../docs/n6700-core-compatibility.md) and downstream [N6700 metadata repair PR #19](https://github.com/ami3go/keysight-n6700-driver/pull/19).
+
