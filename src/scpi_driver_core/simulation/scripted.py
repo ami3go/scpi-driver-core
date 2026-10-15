@@ -151,9 +151,7 @@ class ScriptedScpiTransport:
         )
         return self
 
-    def on_binary_write(
-        self, command: str, handler: BinaryWriteHandler
-    ) -> ScriptedScpiTransport:
+    def on_binary_write(self, command: str, handler: BinaryWriteHandler) -> ScriptedScpiTransport:
         """Handle exact IEEE definite-length blocks without decoding the payload."""
         self._binary[self._key(command)] = handler
         return self
