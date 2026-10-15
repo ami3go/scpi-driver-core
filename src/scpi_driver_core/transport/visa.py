@@ -357,9 +357,7 @@ class VisaTransport(TransportStateMachine):
             raise TransportError(f"VISA read exceeds maximum_size {maximum_size}")
         return data
 
-    def _read_message_bounded(
-        self, resource: Any, maximum_size: int, deadline: Deadline
-    ) -> bytes:
+    def _read_message_bounded(self, resource: Any, maximum_size: int, deadline: Deadline) -> bytes:
         """Read through the VISA low-level API so total allocation is bounded."""
         visalib = getattr(resource, "visalib", None)
         session = getattr(resource, "session", None)
