@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import pytest
 
 from scpi_driver_core.exceptions import TransportTimeoutError
@@ -11,11 +9,11 @@ from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.scpi import ScpiClient
 from scpi_driver_core.scpi.binary_block import read_definite_length_block
 from scpi_driver_core.transport import MockTransport, ReadMode, ReadRequest, TransportState
+from scpi_driver_core.transport.visa import VisaTransport
 from tests.transport_contract.test_visa_transport_contract import (
     FakeVisaResource,
     install_fake_pyvisa,
 )
-from scpi_driver_core.transport.visa import VisaTransport
 
 
 def test_deadline_uses_one_monotonic_budget() -> None:
