@@ -11,6 +11,7 @@ from types import TracebackType
 from typing import Union
 
 from scpi_driver_core.exceptions import ConfigurationError, ProtocolError, UnsupportedOperationError
+from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.models import ScpiError
 from scpi_driver_core.scpi.binary_block import (
     DEFAULT_MAXIMUM_BLOCK_SIZE,
@@ -291,8 +292,17 @@ class ScriptedScpiTransport:
     ) -> bytes:
         del replay_policy
         with self._inner.operation_lock():
-            self.write(outbound, timeout_s=timeout_s, operation_id=operation_id)
-            return self.read(response, timeout_s=timeout_s, operation_id=operation_id)
+            deadline = Deadline(
+                self._inner.default_timeout_s if timeout_s is None else timeout_s
+            )
+            try:
+                self.write(outbound, timeout_s=deadline.remaining(), operation_id=operation_id)
+                return self.read(
+                    response, timeout_s=deadline.remaining(), operation_id=operation_id
+                )
+            except BaseException:
+                self.invalidate()
+                raise
 
     def flush(self, direction: FlushDirection) -> None:
         with self._inner.operation_lock():
