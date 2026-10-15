@@ -350,9 +350,13 @@ class VisaTransport(TransportStateMachine):
         self._apply_timeout(resource, deadline.remaining() * 1000.0)
         if visalib is not None and session is not None:
             data, _status = visalib.read(session, min(self._chunk_size, maximum_size))
+            if not data:
+                raise TransportTimeoutError("VISA read made no progress")
             return bytes(data)
         # Test doubles and unusual wrappers may not expose the low-level handle.
         data = bytes(resource.read_raw())
+        if not data:
+            raise TransportTimeoutError("VISA read made no progress")
         if len(data) > maximum_size:
             raise TransportError(f"VISA read exceeds maximum_size {maximum_size}")
         return data
@@ -365,6 +369,8 @@ class VisaTransport(TransportStateMachine):
         if visalib is None or session is None or constants is None:
             self._apply_timeout(resource, deadline.remaining() * 1000.0)
             data = bytes(resource.read_raw())
+            if not data:
+                raise TransportTimeoutError("VISA message read made no progress")
             if len(data) > maximum_size:
                 raise TransportError(
                     f"message of {len(data)} bytes exceeds maximum_size {maximum_size}"
@@ -379,7 +385,7 @@ class VisaTransport(TransportStateMachine):
                 raise TransportError(f"VISA message exceeds maximum_size {maximum_size}")
             self._apply_timeout(resource, deadline.remaining() * 1000.0)
             chunk, status = visalib.read(session, want)
-            if not chunk and status == max_count_status:
+            if not chunk:
                 raise TransportTimeoutError("VISA message read made no progress")
             out.extend(chunk)
             if len(out) > maximum_size:
