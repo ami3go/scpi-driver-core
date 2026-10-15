@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ami3go/keysight-n6700-driver
-          ref: 63eaf8f08ea77310039057b7e3e09abeb8306b04
+          ref: 29e8969f42713effedf08148f0708cbf04e4217f
           path: downstream
 
       - name: Python
@@ -42,30 +42,6 @@ jobs:
           python -m pip install --no-deps -e ./downstream
           python -m pip check
           python -c 'from importlib.metadata import version; print("Installed core:", version("scpi-driver-core")); print("N6700 driver:", version("keysight-n6700-driver"))'
-
-      - name: Normalize stale downstream generated lock for isolated compatibility tests
-        # The pinned N6700 commit has a pre-existing metadata-only mismatch:
-        # ai_contract.lock's hash differs from unchanged ai_contract.yaml.
-        # Both old and new cores fail the same unrelated test without this.
-        # Do not modify YAML, driver sources, or the downstream repository.
-        working-directory: downstream
-        run: |
-          python - <<'PY'
-          import hashlib
-          import json
-          from pathlib import Path
-
-          contract = Path("ai/ai_contract.yaml").read_bytes()
-          path = Path("ai/ai_contract.lock")
-          data = json.loads(path.read_text())
-          checksum = hashlib.sha256(contract).hexdigest()
-          if data["contract_sha256"] != checksum:
-              print("BASELINE FIXTURE FINDING: stale ai_contract.lock in pinned downstream commit")
-              print("Rewriting only ephemeral generated metadata SHA; no runtime code modified")
-              data["contract_sha256"] = checksum
-              path.write_text(json.dumps(data, indent=2) + "\n")
-          PY
-          git diff --name-only
 
       - name: Verify downstream simulator, transient, scope, digitizer, SCPI and integration
         working-directory: downstream
