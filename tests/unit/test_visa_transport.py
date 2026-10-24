@@ -467,7 +467,8 @@ def test_addressed_gtl_rejects_non_gpib(
 ) -> None:
 
     monkeypatch.setattr(
-        visa_module, "_load_constants",
+        visa_module,
+        "_load_constants",
         lambda: SimpleNamespace(RENLineOperation=SimpleNamespace(address_gtl=object())),
     )
     transport = VisaTransport("TCPIP0::localhost::inst0::INSTR")
@@ -482,7 +483,9 @@ def test_addressed_gtl_fault_marks_transport_faulted(
 ) -> None:
 
     ops = SimpleNamespace(address_gtl=object())
-    monkeypatch.setattr(visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops))
+    monkeypatch.setattr(
+        visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops)
+    )
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
 
