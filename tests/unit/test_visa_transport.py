@@ -440,3 +440,59 @@ def test_close_survives_a_backend_that_fails_to_close(fake_backend: None) -> Non
     FakeVisaResource.instances[-1].close = boom  # type: ignore[method-assign]
     transport.close()
     assert transport.state is TransportState.CLOSED
+
+
+def test_addressed_gtl_does_not_deassert_bus_ren(fake_backend: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+    import scpi_driver_core.transport.visa as visa_module
+
+    ops = SimpleNamespace(address_gtl=object(), deassert_gtl=object())
+    monkeypatch.setattr(visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops))
+    transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+    transport.go_to_local_addressed()
+    transport.go_to_local()
+    assert resource.ren_operations == [ops.address_gtl, ops.deassert_gtl]
+    assert bytes(resource.written) == b""
+
+
+def test_addressed_gtl_rejects_non_gpib(fake_backend: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+    import scpi_driver_core.transport.visa as visa_module
+    from scpi_driver_core.exceptions import UnsupportedOperationError
+
+    monkeypatch.setattr(
+        visa_module, "_load_constants",
+        lambda: SimpleNamespace(RENLineOperation=SimpleNamespace(address_gtl=object())),
+    )
+    transport = VisaTransport("TCPIP0::localhost::inst0::INSTR")
+    transport.open()
+    with pytest.raises(UnsupportedOperationError):
+        transport.go_to_local_addressed()
+    assert transport.state is TransportState.OPEN
+
+
+def test_addressed_gtl_fault_marks_transport_faulted(fake_backend: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+    import scpi_driver_core.transport.visa as visa_module
+
+    ops = SimpleNamespace(address_gtl=object())
+    monkeypatch.setattr(visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops))
+    transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+
+    def boom(_op: object) -> None:
+        raise FakeVisaIOError("VI_ERROR_IO", error_code=-1)
+
+    resource.control_ren = boom  # type: ignore[method-assign]
+    with pytest.raises(TransportError):
+        transport.go_to_local_addressed()
+    assert transport.state is TransportState.FAULTED
+
+
+def test_addressed_gtl_requires_open_session(fake_backend: None) -> None:
+    from scpi_driver_core.exceptions import NotConnectedError
+
+    transport = VisaTransport("GPIB0::22::INSTR")
+    with pytest.raises(NotConnectedError):
+        transport.go_to_local_addressed()
