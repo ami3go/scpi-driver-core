@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import importlib
+from types import SimpleNamespace
 
 import pytest
 
+import scpi_driver_core.transport.visa as visa_module
 from scpi_driver_core.exceptions import (
     ConfigurationError,
+    NotConnectedError,
     TransportError,
     TransportTimeoutError,
+    UnsupportedOperationError,
 )
 from scpi_driver_core.transport import (
     FlushDirection,
@@ -442,12 +446,14 @@ def test_close_survives_a_backend_that_fails_to_close(fake_backend: None) -> Non
     assert transport.state is TransportState.CLOSED
 
 
-def test_addressed_gtl_does_not_deassert_bus_ren(fake_backend: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    from types import SimpleNamespace
-    import scpi_driver_core.transport.visa as visa_module
+def test_addressed_gtl_does_not_deassert_bus_ren(
+    fake_backend: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
 
     ops = SimpleNamespace(address_gtl=object(), deassert_gtl=object())
-    monkeypatch.setattr(visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops))
+    monkeypatch.setattr(
+        visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops)
+    )
     transport = opened(fake_backend)
     resource = FakeVisaResource.instances[-1]
     transport.go_to_local_addressed()
@@ -456,10 +462,9 @@ def test_addressed_gtl_does_not_deassert_bus_ren(fake_backend: None, monkeypatch
     assert bytes(resource.written) == b""
 
 
-def test_addressed_gtl_rejects_non_gpib(fake_backend: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    from types import SimpleNamespace
-    import scpi_driver_core.transport.visa as visa_module
-    from scpi_driver_core.exceptions import UnsupportedOperationError
+def test_addressed_gtl_rejects_non_gpib(
+    fake_backend: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
 
     monkeypatch.setattr(
         visa_module, "_load_constants",
@@ -472,9 +477,9 @@ def test_addressed_gtl_rejects_non_gpib(fake_backend: None, monkeypatch: pytest.
     assert transport.state is TransportState.OPEN
 
 
-def test_addressed_gtl_fault_marks_transport_faulted(fake_backend: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    from types import SimpleNamespace
-    import scpi_driver_core.transport.visa as visa_module
+def test_addressed_gtl_fault_marks_transport_faulted(
+    fake_backend: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
 
     ops = SimpleNamespace(address_gtl=object())
     monkeypatch.setattr(visa_module, "_load_constants", lambda: SimpleNamespace(RENLineOperation=ops))
@@ -491,7 +496,6 @@ def test_addressed_gtl_fault_marks_transport_faulted(fake_backend: None, monkeyp
 
 
 def test_addressed_gtl_requires_open_session(fake_backend: None) -> None:
-    from scpi_driver_core.exceptions import NotConnectedError
 
     transport = VisaTransport("GPIB0::22::INSTR")
     with pytest.raises(NotConnectedError):
