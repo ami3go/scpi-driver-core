@@ -290,6 +290,36 @@ class VisaTransport(TransportStateMachine):
                 except Exception as exc:
                     raise _translate(exc, "go to local") from exc
 
+    def go_to_local_addressed(self) -> None:
+        """Send addressed IEEE-488 GTL without globally deasserting REN.
+
+        Unlike :meth:`go_to_local`, this targets the selected VISA/GPIB
+        resource and does not release remote control for every bus participant.
+        Never encode GTL as an instrument program-message string.
+        """
+        with self._lock:
+            resource = self._require_open()
+            constants = _load_constants()
+            if (
+                not self._resource_name.upper().startswith("GPIB")
+                or not self._resource_name.upper().endswith("::INSTR")
+                or constants is None
+                or not hasattr(resource, "control_ren")
+                or not hasattr(constants.RENLineOperation, "address_gtl")
+            ):
+                raise UnsupportedOperationError(
+                    "addressed GTL requires an addressed GPIB VISA instrument"
+                )
+            with self._faulting_io():
+                try:
+                    result = resource.control_ren(constants.RENLineOperation.address_gtl)
+                    if isinstance(result, int) and result < 0:
+                        raise TransportError(f"VISA addressed GTL failed with status {result}")
+                except TransportError:
+                    raise
+                except Exception as exc:
+                    raise _translate(exc, "addressed go to local") from exc
+
     # -- read modes -------------------------------------------------------
 
     def _read(self, resource: Any, request: ReadRequest, deadline: Deadline) -> bytes:
