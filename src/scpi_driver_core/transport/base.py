@@ -21,6 +21,7 @@ from scpi_driver_core.transport.models import (
 )
 
 __all__ = [
+    "SupportsAddressedLocalControl",
     "SupportsBusTrigger",
     "SupportsDeviceClear",
     "SupportsLocalControl",
@@ -48,6 +49,13 @@ class SupportsBusTrigger(Protocol):
     """Transport can issue its backend's bus-level trigger primitive."""
 
     def assert_trigger(self) -> None: ...
+
+
+@runtime_checkable
+class SupportsAddressedLocalControl(Protocol):
+    """Transport supports target-only IEEE-488 GTL without deasserting bus REN."""
+
+    def go_to_local_addressed(self) -> None: ...
 
 
 @runtime_checkable

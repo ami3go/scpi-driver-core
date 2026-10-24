@@ -1,6 +1,7 @@
 """Byte-oriented transport layer."""
 
 from scpi_driver_core.transport.base import (
+    SupportsAddressedLocalControl,
     SupportsBusTrigger,
     SupportsDeviceClear,
     SupportsLocalControl,
@@ -32,6 +33,7 @@ __all__ = [
     "ReadRequest",
     "ReplayPolicy",
     "SerialTransport",
+    "SupportsAddressedLocalControl",
     "SupportsBusTrigger",
     "SupportsDeviceClear",
     "SupportsLocalControl",

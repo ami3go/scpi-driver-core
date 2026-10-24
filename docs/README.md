@@ -139,3 +139,7 @@ migration is expected to expose any missing generic primitive.
 - Detailed original architecture/acceptance specification: `task/SCPI_DRIVER_CORE_IMPLEMENTATION_TASK.md`
 
 For the staged core requirements supporting advanced N6700 Arb uploads, see [the N6700 Arb core-hardening task](../task/N6700_ARB_CORE_HARDENING_TASK.md). This is a plan, not an implemented feature or HIL qualification.
+
+### Addressed IEEE-488 GTL (v0.1.0.dev12)
+
+`VisaTransport.go_to_local_addressed()` requests `RENLineOperation.address_gtl` on an explicitly opened GPIB `::INSTR` resource. It is opt-in and operates through VISA bus control, **not** instrument ASCII. The preexisting `go_to_local()` still requests `RENLineOperation.deassert_gtl`, which can affect other devices sharing REN. Verify hardware/controller support and local-state transitions before qualifying either operation on a real bus.

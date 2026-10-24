@@ -1,3 +1,10 @@
+## [0.1.0.dev12] - 2026-10-24
+
+- Expose optional, explicitly addressed IEEE-488 GTL on VISA instruments as `VisaTransport.go_to_local_addressed()` and `SupportsAddressedLocalControl`.
+- Retain existing `go_to_local()` deassert-REN behavior and all existing method signatures.
+- Restrict addressed GTL to GPIB INSTR resources; no ASCII command emission, no automatic bus operations.
+- Add offline dispatch, unsupported-backend, error, and locking/lifecycle tests. Hardware REN/EOI semantics still require HIL.
+
 # Changelog
 
 All notable changes to this project will be documented here.
