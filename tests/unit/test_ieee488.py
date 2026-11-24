@@ -219,7 +219,9 @@ def test_invalid_event_mask_no_io(mask: int) -> None:
     assert transport.written == b""
 
 
-@pytest.mark.parametrize("method", ["query_status_byte", "query_event_status_enable", "read_event_status"])
+@pytest.mark.parametrize(
+    "method", ["query_status_byte", "query_event_status_enable", "read_event_status"]
+)
 @pytest.mark.parametrize("reply", [b"-1\n", b"256\n", b"1.5\n"])
 def test_byte_register_out_of_range(method: str, reply: bytes) -> None:
     ieee, _ = make(reply)
