@@ -80,11 +80,28 @@ def test_duplicate_registration_is_rejected() -> None:
 
 def test_duplicate_can_be_replaced_deliberately() -> None:
     registry = SessionRegistry()
-    registry.register("psu", session("psu"))
+    original = opened("psu")
+    registry.register("psu", original)
     replacement = session("psu")
     registry.register("psu", replacement, replace=True)
     assert registry.get("psu") is replacement
+    assert original.is_connected is False
     assert len(registry) == 1
+
+
+def test_replace_keeps_original_registered_when_cleanup_fails() -> None:
+    registry = SessionRegistry()
+    original = opened("psu")
+    replacement = session("psu")
+
+    def boom() -> None:
+        raise TransportError("stuck")
+
+    original.transport.close = boom  # type: ignore[method-assign]
+    registry.register("psu", original)
+    with pytest.raises(TransportError, match="stuck"):
+        registry.register("psu", replacement, replace=True)
+    assert registry.get("psu") is original
 
 
 def test_same_session_cannot_be_registered_under_another_alias() -> None:
@@ -250,10 +267,11 @@ def test_disconnect_all_closes_the_rest_when_one_fails() -> None:
     with pytest.raises(TransportError, match="stuck"):
         registry.disconnect_all()
     assert healthy.is_connected is False
-    assert len(registry) == 0
+    assert registry.list_aliases() == ["psu"]
+    assert registry.get("psu") is stuck
 
 
-def test_disconnect_unregisters_even_if_closing_fails() -> None:
+def test_disconnect_keeps_session_registered_if_closing_fails() -> None:
     registry = SessionRegistry()
     made = opened("psu")
 
@@ -264,7 +282,8 @@ def test_disconnect_unregisters_even_if_closing_fails() -> None:
     registry.register("psu", made)
     with pytest.raises(TransportError):
         registry.disconnect("psu")
-    assert "psu" not in registry
+    assert "psu" in registry
+    assert registry.get("psu") is made
 
 
 def test_removing_a_non_active_session_leaves_active_alone() -> None:
@@ -293,9 +312,10 @@ def test_disconnect_all_raises_the_first_failure_of_several() -> None:
     registry.register("a", first_failing)
     registry.register("b", second_failing)
 
-    with pytest.raises(TransportError, match="first stuck"):
+    with pytest.raises(TransportError, match="first stuck") as caught:
         registry.disconnect_all()
-    assert len(registry) == 0
+    assert registry.list_aliases() == ["a", "b"]
+    assert len(getattr(caught.value, "additional_cleanup_errors", ())) == 1
 
 
 def test_registry_context_manager_disconnects_everything() -> None:
