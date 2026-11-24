@@ -6,6 +6,7 @@ from scpi_driver_core.exceptions import (
     ConfigurationError,
     IdentityError,
     SessionClosedError,
+    TransportCleanupError,
     TransportError,
 )
 from scpi_driver_core.execution.retry import RetryPolicy
@@ -384,6 +385,23 @@ def test_close_failure_does_not_lie_about_transport_state() -> None:
     with pytest.raises(TransportError):
         session.close()
     assert transport.state is TransportState.OPEN
+    assert session.health.connected is True
+    assert session.health.communication_ok is False
+    assert isinstance(session.health.last_error, TransportError)
+
+
+def test_context_manager_preserves_primary_when_cleanup_fails() -> None:
+    session, transport = make()
+
+    def fail_close() -> None:
+        raise TransportCleanupError("cleanup failed")
+
+    transport.close = fail_close  # type: ignore[method-assign]
+    with pytest.raises(ValueError, match="primary") as caught:
+        with session:
+            raise ValueError("primary")
+
+    assert isinstance(getattr(caught.value, "cleanup_error", None), TransportCleanupError)
     assert session.health.connected is True
 
 
