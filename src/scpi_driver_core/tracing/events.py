@@ -30,6 +30,7 @@ class TraceDirection(Enum):
     RX = "rx"
     ERROR = "error"
     FLUSH = "flush"
+    CONTROL = "control"
 
 
 @dataclass(frozen=True)
