@@ -52,6 +52,7 @@ def test_identity_acquires_client_lock_before_session_lock() -> None:
     """Regression: session->client ordering could deadlock retry recovery."""
     client = ScpiClient(MockTransport())
     session = ScpiSession("scope", client)
+    session.open()  # Identity access requires an open session; record only the operation under test.
     events: list[str] = []
     _install_lock_recorders(session, client, events)
     session._ieee488 = _StubIeee488()  # type: ignore[assignment]
