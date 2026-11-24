@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import importlib
-from contextlib import suppress
 from types import ModuleType
 from typing import Any
 
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     NotConnectedError,
+    TransportCleanupError,
     TransportError,
     TransportTimeoutError,
+    _attach_cleanup_error,
     UnsupportedOperationError,
 )
 from scpi_driver_core.execution.deadline import Deadline
@@ -153,11 +154,20 @@ class SerialTransport(TransportStateMachine):
                     if self._exclusive is not None and hasattr(resource, "exclusive"):
                         resource.exclusive = self._exclusive
             except Exception as exc:
+                primary = TransportError(f"serial open failed for {self._port}: {exc}")
                 if resource is not None:
-                    with suppress(Exception):
+                    try:
                         resource.close()
+                    except Exception as cleanup_cause:
+                        cleanup = TransportCleanupError(
+                            f"serial cleanup after failed open of {self._port} failed: "
+                            f"{cleanup_cause}"
+                        )
+                        cleanup.__cause__ = cleanup_cause
+                        self._resource = resource
+                        _attach_cleanup_error(primary, cleanup)
                 self._set_state(TransportState.FAULTED)
-                raise TransportError(f"serial open failed for {self._port}: {exc}") from exc
+                raise primary from exc
             self._resource = resource
             self._set_state(TransportState.OPEN)
             return self._descriptor
@@ -301,6 +311,13 @@ class SerialTransport(TransportStateMachine):
         return self._resource
 
     def _release_resource(self) -> None:
-        resource, self._resource = self._resource, None
-        if resource is not None:
+        resource = self._resource
+        if resource is None:
+            return
+        try:
             resource.close()
+        except Exception as exc:
+            raise TransportCleanupError(
+                f"serial close of {self._port} failed: {exc}"
+            ) from exc
+        self._resource = None
