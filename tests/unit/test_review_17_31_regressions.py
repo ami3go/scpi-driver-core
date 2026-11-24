@@ -142,9 +142,8 @@ def test_instrumented_context_preserves_body_exception_on_close_failure() -> Non
         raise TransportError("trace close failed")
 
     inner.close = boom  # type: ignore[method-assign]
-    with pytest.raises(ValueError, match="primary") as caught:
-        with transport:
-            raise ValueError("primary")
+    with pytest.raises(ValueError, match="primary") as caught, transport:
+        raise ValueError("primary")
 
     assert isinstance(getattr(caught.value, "cleanup_error", None), TransportError)
 
@@ -156,9 +155,8 @@ def test_scripted_context_preserves_body_exception_on_close_failure() -> None:
         raise TransportError("scripted close failed")
 
     transport.inner.close = boom  # type: ignore[method-assign]
-    with pytest.raises(ValueError, match="primary") as caught:
-        with transport:
-            raise ValueError("primary")
+    with pytest.raises(ValueError, match="primary") as caught, transport:
+        raise ValueError("primary")
 
     assert isinstance(getattr(caught.value, "cleanup_error", None), TransportError)
 
@@ -172,10 +170,12 @@ def test_registry_context_preserves_body_exception_on_disconnect_failure() -> No
         raise TransportError("registry close failed")
 
     transport.close = boom  # type: ignore[method-assign]
-    with pytest.raises(ValueError, match="primary") as caught:
-        with SessionRegistry() as registry:
-            registry.register("psu", session)
-            raise ValueError("primary")
+    with (
+        pytest.raises(ValueError, match="primary") as caught,
+        SessionRegistry() as registry,
+    ):
+        registry.register("psu", session)
+        raise ValueError("primary")
 
     assert isinstance(getattr(caught.value, "cleanup_error", None), TransportError)
 
@@ -194,9 +194,8 @@ class FailOnceFlushStream(StringIO):
 
 def test_jsonl_context_preserves_body_exception_on_finalize_failure() -> None:
     sink = JsonlTraceSink(FailOnceFlushStream())
-    with pytest.raises(ValueError, match="primary") as caught:
-        with sink:
-            raise ValueError("primary")
+    with pytest.raises(ValueError, match="primary") as caught, sink:
+        raise ValueError("primary")
     assert isinstance(getattr(caught.value, "cleanup_error", None), OSError)
 
 
