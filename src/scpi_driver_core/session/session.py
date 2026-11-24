@@ -228,7 +228,11 @@ class ScpiSession:
         with self._session_operation():
             try:
                 self._probe(timeout_s=timeout_s)
-            except ScpiDriverError:
+            except ScpiDriverError as error:
+                if isinstance(error, TransportError):
+                    self._health.record_failure(error)
+                else:
+                    self._health.record_protocol_failure(error)
                 return False
             return True
 
