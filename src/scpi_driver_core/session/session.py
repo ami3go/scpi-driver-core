@@ -144,11 +144,22 @@ class ScpiSession:
             self._validate_identity = validate_identity
 
     def _reopen_transport(self) -> None:
-        self.transport.open()
-        self._generation += 1
-        self._identity = None
-        self._health.record_connected()
-        self._publish_trace_context()
+        previous_state = self.transport.state
+        first_managed_generation = self._generation == 0
+        try:
+            self.transport.open()
+        except ScpiDriverError as error:
+            self._health.record_failure(error)
+            raise
+
+        acquired_generation = (
+            first_managed_generation or previous_state is not TransportState.OPEN
+        )
+        if acquired_generation:
+            self._generation += 1
+            self._identity = None
+            self._health.record_connected()
+            self._publish_trace_context()
 
     def recover_if_faulted(self) -> None:
         """Recover only a connection that failed during I/O.
@@ -239,6 +250,8 @@ class ScpiSession:
                 self._health.record_success()
             elif isinstance(error, TransportError):
                 self._health.record_failure(error)
+            else:
+                self._health.record_protocol_failure(error)
 
     def _probe(self, *, timeout_s: float | None = None) -> None:
         effective = self._communication_timeout_s if timeout_s is None else timeout_s
