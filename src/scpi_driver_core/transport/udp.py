@@ -11,8 +11,8 @@ from scpi_driver_core.exceptions import (
     TransportCleanupError,
     TransportError,
     TransportTimeoutError,
-    _attach_cleanup_error,
     UnsupportedOperationError,
+    _attach_cleanup_error,
 )
 from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
