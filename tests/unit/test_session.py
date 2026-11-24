@@ -488,3 +488,44 @@ def test_reconnecting_advances_the_traced_generation() -> None:
     session.close()
     session.open()
     assert tracer.context.session_generation == 2
+
+
+def test_failed_identity_refresh_does_not_reuse_stale_identity() -> None:
+    transport = ScriptedScpiTransport().on("*IDN?", "ACME,FIRST,S1,1")
+    session = ScpiSession("dut", ScpiClient(transport))
+    session.open()
+    assert session.get_identity().model == "FIRST"
+    transport.on("*IDN?", "malformed")
+    with pytest.raises(IdentityError):
+        session.get_identity(refresh=True)
+    transport.on("*IDN?", "ACME,SECOND,S2,2")
+    assert session.get_identity().model == "SECOND"
+    assert transport.history == ["*IDN?", "*IDN?", "*IDN?"]
+
+
+def test_identity_cache_cannot_authorize_disconnected_session() -> None:
+    transport = ScriptedScpiTransport().on("*IDN?", "ACME,FIRST,S1,1")
+    session = ScpiSession("dut", ScpiClient(transport))
+    session.open()
+    session.get_identity()
+    transport.inner.simulate_disconnect()
+    with pytest.raises(SessionClosedError):
+        session.get_identity()
+    assert transport.history == ["*IDN?"]
+    transport.on("*IDN?", "ACME,SECOND,S2,2")
+    session.recover_if_faulted()
+    assert session.get_identity().model == "SECOND"
+    assert transport.history == ["*IDN?", "*IDN?"]
+
+
+def test_identity_refresh_transport_failure_invalidates_cache() -> None:
+    transport = ScriptedScpiTransport().on("*IDN?", "ACME,FIRST,S1,1")
+    session = ScpiSession("dut", ScpiClient(transport))
+    session.open()
+    session.get_identity()
+    transport.inner.fail_next_read(TransportError("lost response"), fault=True)
+    with pytest.raises(TransportError):
+        session.get_identity(refresh=True)
+    with pytest.raises(SessionClosedError):
+        session.get_identity()
+    assert transport.history == ["*IDN?", "*IDN?"]
