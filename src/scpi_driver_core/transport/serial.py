@@ -317,7 +317,5 @@ class SerialTransport(TransportStateMachine):
         try:
             resource.close()
         except Exception as exc:
-            raise TransportCleanupError(
-                f"serial close of {self._port} failed: {exc}"
-            ) from exc
+            raise TransportCleanupError(f"serial close of {self._port} failed: {exc}") from exc
         self._resource = None
