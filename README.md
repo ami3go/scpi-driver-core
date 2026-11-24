@@ -6,7 +6,7 @@ The same concrete driver built on this package can be used unchanged from Robot 
 HardPy/pytest, plain Python, Jupyter, or a CLI. Nothing under `src/scpi_driver_core/`
 imports `robot`, `hardpy`, or `pytest`.
 
-Current development version: **0.1.0.dev5**.
+Current development version: **0.1.0.dev13**.
 
 ## Status
 
@@ -109,6 +109,10 @@ expectations.
   setup, and file transfers use the same contract as text commands.
 - Reads are explicitly bounded; `ReadRequest` rejects combinations that would permit an
   unbounded read or silently ignore fields.
+- Resource cleanup is observable: a failed backend release raises `TransportCleanupError`,
+  leaves the transport `FAULTED`, and retains backend ownership where possible so cleanup can
+  be retried. Successful repeated `close()` calls remain idempotent. VISA resource managers
+  are always borrowed and are never closed by an individual `VisaTransport`.
 - Manufacturer- and model-specific behavior stays in concrete driver packages. The core
   provides mechanisms, not instrument semantics.
 - Retries are explicit and limited to operations the caller has classified as safe to replay.

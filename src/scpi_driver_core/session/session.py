@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import threading
 from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager, suppress
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import replace
 from types import TracebackType
 
@@ -15,6 +15,7 @@ from scpi_driver_core.exceptions import (
     ScpiDriverError,
     SessionClosedError,
     TransportError,
+    _attach_cleanup_error,
 )
 from scpi_driver_core.models import Identity
 from scpi_driver_core.scpi.client import ScpiClient
@@ -128,11 +129,16 @@ class ScpiSession:
                     self._probe()
                 if validate_identity is not None:
                     validate_identity(self.get_identity(refresh=True))
-            except BaseException:
-                with suppress(Exception):
+            except BaseException as primary:
+                try:
                     self.transport.close()
+                except BaseException as cleanup:
+                    _attach_cleanup_error(primary, cleanup)
+                    if isinstance(cleanup, ScpiDriverError):
+                        self._health.record_failure(cleanup)
+                else:
+                    self._health.record_disconnected()
                 self._identity = None
-                self._health.record_disconnected()
                 raise
             self._probe_on_recover = probe
             self._validate_identity = validate_identity
@@ -166,20 +172,28 @@ class ScpiSession:
                     self._probe()
                 if self._validate_identity is not None:
                     self._validate_identity(self.get_identity(refresh=True))
-            except BaseException:
-                with suppress(Exception):
+            except BaseException as primary:
+                try:
                     self.transport.close()
+                except BaseException as cleanup:
+                    _attach_cleanup_error(primary, cleanup)
+                    if isinstance(cleanup, ScpiDriverError):
+                        self._health.record_failure(cleanup)
+                else:
+                    self._health.record_disconnected()
                 self._identity = None
-                self._health.record_disconnected()
                 raise
 
     def close(self) -> None:
         with self._session_operation():
             try:
                 self.transport.close()
-            finally:
+            except ScpiDriverError as error:
                 self._identity = None
-                self._health.record_disconnected()
+                self._health.record_failure(error)
+                raise
+            self._identity = None
+            self._health.record_disconnected()
 
     def __enter__(self) -> ScpiSession:
         self.open()
@@ -191,7 +205,13 @@ class ScpiSession:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.close()
+        if exc is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as cleanup:
+            _attach_cleanup_error(exc, cleanup)
 
     def check_communication(self, *, timeout_s: float | None = None) -> bool:
         with self._session_operation():

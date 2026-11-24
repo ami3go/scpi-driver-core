@@ -9,6 +9,7 @@ import scpi_driver_core.transport.visa as visa_module
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     NotConnectedError,
+    TransportCleanupError,
     TransportError,
     TransportTimeoutError,
     UnsupportedOperationError,
@@ -209,6 +210,86 @@ def test_reopen_from_faulted_closes_the_previous_resource(fake_backend: None) ->
     transport.open()
     assert transport.is_open is True
     assert FakeVisaResource.instances[-1] is not first
+
+
+def test_close_failure_is_typed_faults_and_retains_resource(fake_backend: None) -> None:
+    transport = opened(fake_backend)
+    manager = FakeResourceManager.instances[-1]
+    resource = FakeVisaResource.instances[-1]
+    backend_error = FakeVisaIOError("close failed", error_code=-1)
+    resource.fail_close = backend_error
+
+    with pytest.raises(TransportCleanupError, match="VISA close") as caught:
+        transport.close()
+
+    assert caught.value.__cause__ is backend_error
+    assert transport.state is TransportState.FAULTED
+    assert transport._resource is resource
+    assert resource.closed is False
+    assert manager.closed is False
+
+    transport.close()
+    assert transport.state is TransportState.CLOSED
+    assert transport._resource is None
+    assert resource.closed is True
+    assert resource.close_calls == 2
+
+
+def test_reopen_does_not_replace_resource_while_release_still_fails(fake_backend: None) -> None:
+    transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+    resource.fail_close = FakeVisaIOError("first close failed", error_code=-1)
+    with pytest.raises(TransportCleanupError):
+        transport.close()
+
+    resource.fail_close = FakeVisaIOError("retry close failed", error_code=-1)
+    with pytest.raises(TransportCleanupError):
+        transport.open()
+
+    assert transport.state is TransportState.FAULTED
+    assert transport._resource is resource
+    assert len(FakeVisaResource.instances) == 1
+
+
+def test_partial_open_preserves_primary_and_attaches_cleanup_failure(
+    fake_backend: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class ConfigFailingResource(FakeVisaResource):
+        def __init__(self, resource_name: str, **settings: object) -> None:
+            self._configured_chunk_size = 0
+            super().__init__(resource_name, **settings)
+            self.fail_close = FakeVisaIOError("cleanup failed", error_code=-2)
+
+        @property
+        def chunk_size(self) -> int:
+            return self._configured_chunk_size
+
+        @chunk_size.setter
+        def chunk_size(self, value: int) -> None:
+            if value:
+                raise FakeVisaIOError("chunk configuration failed", error_code=-3)
+            self._configured_chunk_size = value
+
+    def open_resource(
+        self: FakeResourceManager, resource_name: str, **settings: object
+    ) -> ConfigFailingResource:
+        self.opened.append(resource_name)
+        return ConfigFailingResource(resource_name, **settings)
+
+    monkeypatch.setattr(FakeResourceManager, "open_resource", open_resource)
+    transport = VisaTransport("GPIB0::22::INSTR")
+
+    with pytest.raises(TransportError, match="open") as caught:
+        transport.open()
+
+    cleanup = getattr(caught.value, "cleanup_error", None)
+    assert isinstance(cleanup, TransportCleanupError)
+    assert isinstance(cleanup.__cause__, FakeVisaIOError)
+    assert isinstance(caught.value.__cause__, FakeVisaIOError)
+    assert "chunk configuration failed" in str(caught.value.__cause__)
+    assert transport.state is TransportState.FAULTED
+    assert transport._resource is FakeVisaResource.instances[-1]
+    assert FakeResourceManager.instances[-1].closed is False
 
 
 def test_close_is_idempotent_and_closes_only_resource(fake_backend: None) -> None:
@@ -435,15 +516,18 @@ def test_device_clear_failure_faults_transport(fake_backend: None) -> None:
     assert transport.state is TransportState.FAULTED
 
 
-def test_close_survives_a_backend_that_fails_to_close(fake_backend: None) -> None:
+def test_backend_close_exception_is_never_silently_swallowed(fake_backend: None) -> None:
     transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+    backend_error = FakeVisaIOError("VI_ERROR_IO", error_code=-1)
+    resource.fail_close = backend_error
 
-    def boom() -> None:
-        raise FakeVisaIOError("VI_ERROR_IO", error_code=-1)
+    with pytest.raises(TransportCleanupError) as caught:
+        transport.close()
 
-    FakeVisaResource.instances[-1].close = boom  # type: ignore[method-assign]
-    transport.close()
-    assert transport.state is TransportState.CLOSED
+    assert caught.value.__cause__ is backend_error
+    assert transport.state is TransportState.FAULTED
+    assert transport._resource is resource
 
 
 def test_addressed_gtl_does_not_deassert_bus_ren(

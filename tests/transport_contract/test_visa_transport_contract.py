@@ -37,6 +37,8 @@ class FakeVisaResource:
         self.fail_read: Exception | None = None
         self.fail_flush: Exception | None = None
         self.fail_clear: Exception | None = None
+        self.fail_close: Exception | None = None
+        self.close_calls = 0
         self.flush_masks: list[Any] = []
         self.clears = 0
         self.closed = False
@@ -103,6 +105,10 @@ class FakeVisaResource:
         self.ren_operations.append(operation)
 
     def close(self) -> None:
+        self.close_calls += 1
+        if self.fail_close is not None:
+            error, self.fail_close = self.fail_close, None
+            raise error
         self.closed = True
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import Final
 
 from scpi_driver_core.exceptions import (
@@ -10,6 +9,7 @@ from scpi_driver_core.exceptions import (
     ProtocolError,
     TransportTimeoutError,
     UnsupportedOperationError,
+    _attach_cleanup_error,
 )
 from scpi_driver_core.execution.deadline import Deadline, operation_deadline
 from scpi_driver_core.transport.base import Transport
@@ -124,8 +124,10 @@ def read_definite_length_block(
         if budget is not None:
             budget.remaining()
         return payload
-    except BaseException:
+    except BaseException as primary:
         # A direct caller also needs a faulted stream after malformed/late data.
-        with suppress(Exception):
+        try:
             transport.invalidate()
+        except BaseException as cleanup:
+            _attach_cleanup_error(primary, cleanup)
         raise

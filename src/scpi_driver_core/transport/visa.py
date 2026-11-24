@@ -8,16 +8,17 @@ closing one transport closes only its resource, never the process-wide manager.
 from __future__ import annotations
 
 import importlib
-from contextlib import suppress
 from types import ModuleType
 from typing import Any, Final
 
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     NotConnectedError,
+    TransportCleanupError,
     TransportError,
     TransportTimeoutError,
     UnsupportedOperationError,
+    _attach_cleanup_error,
 )
 from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
@@ -134,10 +135,20 @@ class VisaTransport(TransportStateMachine):
                 resource.timeout = self._timeout_s * 1000.0
                 resource.chunk_size = self._chunk_size
             except Exception as exc:
+                primary = _translate(exc, f"open of {self._resource_name}")
                 if resource is not None:
-                    self._safely_close(resource)
+                    try:
+                        resource.close()
+                    except Exception as cleanup_cause:
+                        cleanup = TransportCleanupError(
+                            f"VISA cleanup after failed open of {self._resource_name} failed: "
+                            f"{cleanup_cause}"
+                        )
+                        cleanup.__cause__ = cleanup_cause
+                        self._resource = resource
+                        _attach_cleanup_error(primary, cleanup)
                 self._set_state(TransportState.FAULTED)
-                raise _translate(exc, f"open of {self._resource_name}") from exc
+                raise primary from exc
             self._resource = resource
             self._set_state(TransportState.OPEN)
             return self._descriptor
@@ -448,12 +459,14 @@ class VisaTransport(TransportStateMachine):
         self._buffer.clear()
 
     def _release_resource(self) -> None:
-        resource, self._resource = self._resource, None
-        if resource is not None:
-            self._safely_close(resource)
+        resource = self._resource
+        if resource is None:
+            return
+        try:
+            resource.close()
+        except Exception as exc:
+            raise TransportCleanupError(
+                f"VISA close of {self._resource_name} failed: {exc}"
+            ) from exc
+        self._resource = None
         # Never close ResourceManager: PyVISA shares it process-wide per library.
-
-    @staticmethod
-    def _safely_close(target: Any) -> None:
-        with suppress(Exception):
-            target.close()
