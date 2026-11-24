@@ -246,7 +246,14 @@ class ScpiSession:
 
     def get_identity(self, *, refresh: bool = False) -> Identity:
         with self._session_operation():
+            if not self.is_connected:
+                self._identity = None
+                raise SessionClosedError(
+                    f"session {self._alias!r} is not connected; open or recover explicitly"
+                )
             if self._identity is None or refresh:
+                # A failed refresh must never leave stale identity authorized.
+                self._identity = None
                 try:
                     self._identity = self._ieee488.identify()
                 except IdentityError as exc:
