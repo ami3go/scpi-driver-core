@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager, suppress
 from typing import TypeVar
 
-from scpi_driver_core.exceptions import ConfigurationError, ScpiDriverError
+from scpi_driver_core.exceptions import ConfigurationError, ScpiDriverError, _attach_cleanup_error
 from scpi_driver_core.execution.deadline import operation_deadline
 from scpi_driver_core.execution.retry import RetryAttempt, RetryPolicy, run_with_retry
 from scpi_driver_core.scpi.binary_block import (
@@ -370,9 +370,11 @@ class ScpiClient:
                         operation_id=operation_id,
                         _deadline=deadline,
                     )
-                except BaseException:
-                    with suppress(Exception):
+                except BaseException as primary:
+                    try:
                         self._transport.invalidate()
+                    except BaseException as cleanup:
+                        _attach_cleanup_error(primary, cleanup)
                     raise
 
         with self._lock:
