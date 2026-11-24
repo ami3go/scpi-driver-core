@@ -6,7 +6,7 @@ The same concrete driver built on this package can be used unchanged from Robot 
 HardPy/pytest, plain Python, Jupyter, or a CLI. Nothing under `src/scpi_driver_core/`
 imports `robot`, `hardpy`, or `pytest`.
 
-Current development version: **0.1.0.dev13**.
+Current development version: **0.1.0.dev14**.
 
 ## Status
 
