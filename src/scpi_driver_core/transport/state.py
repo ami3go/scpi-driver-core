@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Iterator
-from contextlib import AbstractContextManager, contextmanager, suppress
+from contextlib import AbstractContextManager, contextmanager
 from types import TracebackType
 from typing import TypeVar
 
-from scpi_driver_core.exceptions import NotConnectedError
+from scpi_driver_core.exceptions import NotConnectedError, _attach_cleanup_error
 from scpi_driver_core.transport.models import TransportDescriptor, TransportState
 
 __all__ = ["TransportStateMachine"]
@@ -59,16 +59,23 @@ class TransportStateMachine:
             yield
 
     def close(self) -> None:
-        """Release the resource. Idempotent, and always reaches ``CLOSED``."""
+        """Release the resource.
+
+        A successful close is idempotent. If release fails, ownership is
+        uncertain and the transport moves to ``FAULTED``; the cleanup error
+        propagates and a later explicit close/open may retry release.
+        """
         with self._lock:
             if self.state in (TransportState.CREATED, TransportState.CLOSED):
                 return
             self._set_state(TransportState.CLOSING)
             try:
                 self._release_resource()
-            finally:
                 self._on_closed()
-                self._set_state(TransportState.CLOSED)
+            except BaseException:
+                self._set_state(TransportState.FAULTED)
+                raise
+            self._set_state(TransportState.CLOSED)
 
     def invalidate(self) -> None:
         """Declare connection framing/state unusable and move to ``FAULTED``."""
@@ -80,18 +87,20 @@ class TransportStateMachine:
         """Release the resource and record uncertain session validity."""
         try:
             self._release_resource()
-        finally:
             self._on_closed()
+        finally:
             self._set_state(TransportState.FAULTED)
 
     @contextmanager
     def _faulting_io(self) -> Iterator[None]:
-        """Fault if *anything* escapes an exchange, including ``BaseException``."""
+        """Fault if *anything* escapes and retain any cleanup failure."""
         try:
             yield
-        except BaseException:
-            with suppress(Exception):
+        except BaseException as primary:
+            try:
                 self._fault()
+            except BaseException as cleanup:
+                _attach_cleanup_error(primary, cleanup)
             raise
 
     def _require_state_open(self) -> None:
@@ -110,7 +119,13 @@ class TransportStateMachine:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.close()
+        if exc is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as cleanup:
+            _attach_cleanup_error(exc, cleanup)
 
     def open(self) -> TransportDescriptor:
         """Acquire the backend resource."""
