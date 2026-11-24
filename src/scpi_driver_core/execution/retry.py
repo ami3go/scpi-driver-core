@@ -148,11 +148,7 @@ def run_with_retry(
         if delay > 0:
             sleep(delay)
 
-        if (
-            number > 1
-            and policy.max_elapsed_s is not None
-            and now() - start > policy.max_elapsed_s
-        ):
+        if number > 1 and policy.max_elapsed_s is not None and now() - start > policy.max_elapsed_s:
             break
 
         phase: RetryPhase = "operation"
