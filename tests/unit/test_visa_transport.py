@@ -291,6 +291,7 @@ def test_partial_open_preserves_primary_and_attaches_cleanup_failure(
     assert transport._resource is FakeVisaResource.instances[-1]
     assert FakeResourceManager.instances[-1].closed is False
 
+
 def test_close_is_idempotent_and_closes_only_resource(fake_backend: None) -> None:
     transport = opened(fake_backend)
     manager = FakeResourceManager.instances[-1]
