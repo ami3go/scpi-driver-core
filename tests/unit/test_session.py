@@ -5,6 +5,7 @@ import pytest
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     IdentityError,
+    ResponseParseError,
     SessionClosedError,
     TransportCleanupError,
     TransportError,
@@ -120,6 +121,16 @@ def test_check_communication_records_the_reason_for_failure() -> None:
     assert session.health.last_failure_monotonic is not None
 
 
+def test_check_communication_records_protocol_decode_failure() -> None:
+    session, transport = make(b"\xff\n")
+    session.open()
+
+    assert session.check_communication() is False
+    assert session.is_connected is True
+    assert session.health.communication_ok is False
+    assert isinstance(session.health.last_error, ResponseParseError)
+
+
 def test_health_query_is_selectable_by_the_driver() -> None:
     transport = MockTransport()
     transport.feed(b"1\n")
@@ -148,6 +159,27 @@ def test_generation_lets_a_reader_detect_a_reconnect() -> None:
     session.close()
     session.open()
     assert session.generation != observed
+
+
+def test_idempotent_open_does_not_create_a_false_generation() -> None:
+    session, transport = make()
+    session.open()
+    generation = session.generation
+    open_count = transport.open_count
+
+    session.open()
+
+    assert session.generation == generation
+    assert transport.open_count == open_count
+
+
+def test_idempotent_open_preserves_cached_identity() -> None:
+    session, transport = make(IDN)
+    session.open()
+    identity = session.get_identity()
+    session.open()
+    assert session.get_identity() is identity
+    assert transport.written == b"*IDN?\n"
 
 
 # -- recover_if_faulted ---------------------------------------------------
@@ -179,6 +211,19 @@ def test_recover_if_faulted_advances_the_generation() -> None:
     transport.simulate_disconnect()
     session.recover_if_faulted()
     assert session.generation != observed
+
+
+def test_failed_recovery_open_updates_health() -> None:
+    session, transport = make()
+    session.open()
+    transport.simulate_disconnect()
+    transport.fail_next_open(TransportError("still offline"))
+
+    with pytest.raises(TransportError, match="still offline"):
+        session.recover_if_faulted()
+
+    assert session.health.communication_ok is False
+    assert isinstance(session.health.last_error, TransportError)
 
 
 def test_recover_if_faulted_drops_the_cached_identity() -> None:
@@ -352,6 +397,8 @@ def test_a_failed_open_does_not_fall_back_to_anything() -> None:
     with pytest.raises(TransportError):
         session.open()
     assert session.is_connected is False
+    assert session.health.communication_ok is False
+    assert isinstance(session.health.last_error, TransportError)
 
 
 # -- closing --------------------------------------------------------------
