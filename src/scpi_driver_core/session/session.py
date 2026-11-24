@@ -152,9 +152,7 @@ class ScpiSession:
             self._health.record_failure(error)
             raise
 
-        acquired_generation = (
-            first_managed_generation or previous_state is not TransportState.OPEN
-        )
+        acquired_generation = first_managed_generation or previous_state is not TransportState.OPEN
         if acquired_generation:
             self._generation += 1
             self._identity = None
