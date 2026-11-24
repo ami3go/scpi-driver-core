@@ -61,10 +61,9 @@ class TransportCleanupError(TransportError):
 
 def _attach_cleanup_error(primary: BaseException, cleanup: BaseException) -> None:
     """Retain a cleanup failure without masking the primary exception."""
-    try:
-        setattr(primary, "cleanup_error", cleanup)
-    except Exception:
-        pass
+    attributes = getattr(primary, "__dict__", None)
+    if isinstance(attributes, dict):
+        attributes["cleanup_error"] = cleanup
     add_note = getattr(primary, "add_note", None)
     if callable(add_note):
         add_note(f"Cleanup also failed: {cleanup!r}")
