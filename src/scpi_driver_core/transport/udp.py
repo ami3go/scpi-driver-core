@@ -117,9 +117,7 @@ class UdpTransport(TransportStateMachine):
                 if isinstance(exc, OSError):
                     primary: BaseException = translate_socket_error(exc, "open")
                 else:
-                    primary = ConfigurationError(
-                        f"UDP open failed for {self._host!r}: {exc}"
-                    )
+                    primary = ConfigurationError(f"UDP open failed for {self._host!r}: {exc}")
                 if resource is not None:
                     try:
                         resource.close()
