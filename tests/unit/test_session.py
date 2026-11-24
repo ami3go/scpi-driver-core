@@ -397,9 +397,8 @@ def test_context_manager_preserves_primary_when_cleanup_fails() -> None:
         raise TransportCleanupError("cleanup failed")
 
     transport.close = fail_close  # type: ignore[method-assign]
-    with pytest.raises(ValueError, match="primary") as caught:
-        with session:
-            raise ValueError("primary")
+    with pytest.raises(ValueError, match="primary") as caught, session:
+        raise ValueError("primary")
 
     assert isinstance(getattr(caught.value, "cleanup_error", None), TransportCleanupError)
     assert session.health.connected is True
