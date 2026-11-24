@@ -1,4 +1,42 @@
-## [0.1.0.dev13] - 2026-11-24\n\n### Fixed\n- VISA resource close failures are now observable as `TransportCleanupError` with the original backend exception chained.\n- A failed resource release leaves the transport `FAULTED` rather than falsely reporting `CLOSED`.\n- VISA retains a resource handle until close succeeds, preventing silent handle loss and unsafe replacement after uncertain cleanup.\n- Partial VISA open failures preserve the primary open/configuration error and attach any cleanup failure as secondary evidence.\n- Session health no longer reports a successful disconnect when transport cleanup fails; context managers preserve primary exceptions.\n\n### Compatibility\n- Successful repeated `close()` remains idempotent.\n- PyVISA `ResourceManager` objects remain borrowed and are never closed by an individual transport.\n- No physical hardware behavior changed or was required for this fix; regression coverage uses fake VISA resources and normal CI.\n\n## [0.1.0.dev12] - 2026-10-24
+## [0.1.0.dev14] - 2026-11-24
+
+### Added
+- Preserve the post-dev13 session identity-cache hardening from PR #15: disconnected access and failed refreshes cannot leave stale identity authorized.
+- Preserve the post-dev13 IEEE-488.2 additions from PR #16: raw IDN/OPC compatibility accessors, explicit *STB? query support, event-status-enable helpers, and byte-register validation.
+- Add traced CONTROL events for optional bus capabilities, including addressed IEEE-488 GTL.
+
+### Fixed
+- Serial, TCP and UDP now retain backend ownership until cleanup succeeds, matching the VISA cleanup contract; cleanup failures raise `TransportCleanupError` and remain retryable.
+- Registry disconnect and replacement operations no longer orphan sessions when cleanup fails; failed sessions remain registered and inspectable.
+- Direct SCPI error-queue reads suppress automatic queue checking only for the queue operation itself, preventing recursive `SYST:ERR?` drains.
+- Instrumented, scripted, registry and JSONL context managers preserve a body exception when cleanup also fails.
+- JSONL finalization marks the sink closed only after flush/fsync/owned-stream close succeeds, allowing retry after durability failures.
+- Serial-poll status-byte reads are serialized under the client operation lock and validated as integers in 0..255.
+- Session health records transport-open/recovery failures and protocol/decode failures from communication checks.
+- Session generation advances only when a new/adopted transport generation is established, not on an idempotent repeated open.
+- Retry `max_elapsed_s` is rechecked after sleep and after recovery before a new operation starts.
+- Trace exception/error messages pass through the configured redaction policy and fail closed if redaction itself fails.
+- `ScpiTextCodec` validates `decode_errors` at construction and rejects custom terminators that embed CR/LF outside the supported CR/LF/CRLF forms.
+
+### Test and compatibility
+- Add regression coverage for issues #17 through #31, including injected resource-close failures, registry ownership, retry deadlines, trace finalization/redaction and control-capability tracing.
+- No physical HIL behavior is claimed by these software fixes; vendor VISA, serial-adapter and physical bus semantics remain separate HIL evidence.
+
+## [0.1.0.dev13] - 2026-11-24
+
+### Fixed
+- VISA resource close failures are now observable as `TransportCleanupError` with the original backend exception chained.
+- A failed resource release leaves the transport `FAULTED` rather than falsely reporting `CLOSED`.
+- VISA retains a resource handle until close succeeds, preventing silent handle loss and unsafe replacement after uncertain cleanup.
+- Partial VISA open failures preserve the primary open/configuration error and attach any cleanup failure as secondary evidence.
+- Session health no longer reports a successful disconnect when transport cleanup fails; context managers preserve primary exceptions.
+
+### Compatibility
+- Successful repeated `close()` remains idempotent.
+- PyVISA `ResourceManager` objects remain borrowed and are never closed by an individual transport.
+- No physical hardware behavior changed or was required for this fix; regression coverage uses fake VISA resources and normal CI.
+
+## [0.1.0.dev12] - 2026-10-24
 
 - Expose optional, explicitly addressed IEEE-488 GTL on VISA instruments as `VisaTransport.go_to_local_addressed()` and `SupportsAddressedLocalControl`.
 - Retain existing `go_to_local()` deassert-REN behavior and all existing method signatures.

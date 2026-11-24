@@ -148,12 +148,17 @@ def run_with_retry(
         if delay > 0:
             sleep(delay)
 
+        if number > 1 and policy.max_elapsed_s is not None and now() - start > policy.max_elapsed_s:
+            break
+
         phase: RetryPhase = "operation"
         try:
             if number > 1 and before_retry is not None:
                 phase = "recover"
                 before_retry()
                 phase = "operation"
+                if policy.max_elapsed_s is not None and now() - start > policy.max_elapsed_s:
+                    break
             result = operation()
         except retry_on as exc:
             last_error = exc

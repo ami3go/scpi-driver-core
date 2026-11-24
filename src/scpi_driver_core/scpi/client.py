@@ -91,6 +91,7 @@ class ScpiClient:
         self._error_queue: ScpiErrorQueue | None = None
         self._execution_policy = ScpiExecutionPolicy()
         self._checking_errors = False
+        self._error_check_suppression = 0
         self._minimum_interval_s = minimum_interval_s
         self._sleep = sleep
         self._now = now
@@ -170,7 +171,7 @@ class ScpiClient:
 
     def _check_errors(self, *, after_query: bool) -> None:
         queue = self._error_queue
-        if queue is None or self._checking_errors:
+        if queue is None or self._checking_errors or self._error_check_suppression:
             return
         policy = self._execution_policy
         wanted = (
@@ -194,6 +195,21 @@ class ScpiClient:
     def _operation_lock(self) -> Iterator[None]:
         with self._lock:
             yield
+
+    @contextmanager
+    def _suspend_error_checking(self) -> Iterator[None]:
+        """Internal guard for error-queue traffic.
+
+        Error-queue queries are normal SCPI queries for tracing, timeout and
+        health purposes, but they must never recursively trigger another
+        automatic error-queue check.
+        """
+        with self._lock:
+            self._error_check_suppression += 1
+            try:
+                yield
+            finally:
+                self._error_check_suppression -= 1
 
     def _execute(self, action: Callable[[str, float | None], _T], *, timeout_s: float | None) -> _T:
         if timeout_s is not None and not (timeout_s > 0 and timeout_s != float("inf")):

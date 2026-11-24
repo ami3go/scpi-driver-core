@@ -6,6 +6,7 @@ from scpi_driver_core.exceptions import (
     ConfigurationError,
     OperationTimeoutError,
     ResponseParseError,
+    TransportError,
     TransportTimeoutError,
 )
 from scpi_driver_core.models import Identity, SelfTestResult
@@ -66,10 +67,16 @@ class Ieee4882:
         return SelfTestResult(code=parse_int(raw), raw=raw)
 
     def read_status_byte(self, *, timeout_s: float | None = None) -> int:
-        """Use serial poll where exposed, otherwise fall back to ``*STB?``."""
+        """Use serialized serial poll where exposed, otherwise fall back to ``*STB?``."""
         serial_poll = getattr(self._client.transport, "read_status_byte", None)
         if callable(serial_poll):
-            return int(serial_poll(timeout_s=timeout_s))
+            with self._client.operation_lock():
+                value = serial_poll(timeout_s=timeout_s)
+            if type(value) is not int or not 0 <= value <= 255:
+                raise TransportError(
+                    f"serial poll returned invalid status byte {value!r}; expected integer 0..255"
+                )
+            return value
         return self.query_status_byte(timeout_s=timeout_s)
 
     def read_event_status(self, *, timeout_s: float | None = None) -> int:

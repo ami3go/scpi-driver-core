@@ -36,6 +36,12 @@ class ScpiTextCodec:
             codecs.lookup(self.encoding)
         except LookupError as exc:
             raise ConfigurationError(f"unknown encoding {self.encoding!r}") from exc
+        try:
+            codecs.lookup_error(self.decode_errors)
+        except LookupError as exc:
+            raise ConfigurationError(
+                f"unknown decode error handler {self.decode_errors!r}"
+            ) from exc
         if self.maximum_command_size <= 0:
             raise ConfigurationError(
                 f"maximum_command_size must be positive, got {self.maximum_command_size}"
@@ -44,12 +50,13 @@ class ScpiTextCodec:
             raise ConfigurationError(
                 f"maximum_response_size must be positive, got {self.maximum_response_size}"
             )
-        if b"\r" in self.command_terminator or b"\n" in self.command_terminator:
-            return
-        if self.command_terminator and any(
-            token in self.command_terminator for token in (b"\r", b"\n")
+        if self.command_terminator not in (b"", b"\r", b"\n", b"\r\n") and (
+            b"\r" in self.command_terminator or b"\n" in self.command_terminator
         ):
-            raise ConfigurationError("command terminator must be a valid byte sequence")
+            raise ConfigurationError(
+                "custom command terminator must not embed CR or LF; "
+                "use CR, LF, CRLF, or a delimiter without line breaks"
+            )
 
     def encode_command(self, command: str) -> bytes:
         """Encode one command and terminate it exactly once.

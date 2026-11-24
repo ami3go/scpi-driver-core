@@ -8,9 +8,11 @@ import time
 from scpi_driver_core.exceptions import (
     ConfigurationError,
     NotConnectedError,
+    TransportCleanupError,
     TransportError,
     TransportTimeoutError,
     UnsupportedOperationError,
+    _attach_cleanup_error,
 )
 from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.transport.models import (
@@ -112,12 +114,23 @@ class UdpTransport(TransportStateMachine):
                     resource.bind(self._local_bind)
                 resource.settimeout(self._timeout_s)
             except (OSError, UnicodeError, ValueError) as exc:
-                if resource is not None:
-                    resource.close()
-                self._set_state(TransportState.FAULTED)
                 if isinstance(exc, OSError):
-                    raise translate_socket_error(exc, "open") from exc
-                raise ConfigurationError(f"UDP open failed for {self._host!r}: {exc}") from exc
+                    primary: BaseException = translate_socket_error(exc, "open")
+                else:
+                    primary = ConfigurationError(f"UDP open failed for {self._host!r}: {exc}")
+                if resource is not None:
+                    try:
+                        resource.close()
+                    except OSError as cleanup_cause:
+                        cleanup = TransportCleanupError(
+                            f"UDP cleanup after failed open of {self._host}:{self._port} "
+                            f"failed: {cleanup_cause}"
+                        )
+                        cleanup.__cause__ = cleanup_cause
+                        self._socket = resource
+                        _attach_cleanup_error(primary, cleanup)
+                self._set_state(TransportState.FAULTED)
+                raise primary from exc
             self._socket = resource
             self._remote = (str(remote[0]), int(remote[1]))
             self._set_state(TransportState.OPEN)
@@ -262,7 +275,15 @@ class UdpTransport(TransportStateMachine):
         return self._socket, self._remote
 
     def _release_resource(self) -> None:
-        resource, self._socket = self._socket, None
-        self._remote = None
-        if resource is not None:
+        resource = self._socket
+        if resource is None:
+            self._remote = None
+            return
+        try:
             resource.close()
+        except OSError as exc:
+            raise TransportCleanupError(
+                f"UDP close of {self._host}:{self._port} failed: {exc}"
+            ) from exc
+        self._socket = None
+        self._remote = None

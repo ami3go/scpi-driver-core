@@ -10,7 +10,12 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Union
 
-from scpi_driver_core.exceptions import ConfigurationError, ProtocolError, UnsupportedOperationError
+from scpi_driver_core.exceptions import (
+    ConfigurationError,
+    ProtocolError,
+    UnsupportedOperationError,
+    _attach_cleanup_error,
+)
 from scpi_driver_core.execution.deadline import Deadline
 from scpi_driver_core.models import ScpiError
 from scpi_driver_core.scpi.binary_block import (
@@ -251,7 +256,13 @@ class ScriptedScpiTransport:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.close()
+        if exc is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as cleanup:
+            _attach_cleanup_error(exc, cleanup)
 
     def write(
         self,

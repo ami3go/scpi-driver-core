@@ -117,9 +117,11 @@ class Tracer:
                 response_command = self._commands.pop(operation_id, None)
             elif direction is TraceDirection.ERROR and operation_id is not None:
                 # A failed transaction is complete from the tracer's point of view.
-                self._commands.pop(operation_id, None)
+                response_command = self._commands.pop(operation_id, None)
 
         text, event_data, redacted = self._render(direction, data, command=response_command)
+        error_message, error_redacted = self._render_error(error, command=response_command)
+        redacted = redacted or error_redacted
         with self._lock:
             self._sequence += 1
             event = ProtocolTraceEvent(
@@ -136,7 +138,7 @@ class Tracer:
                 text=text,
                 redacted=redacted,
                 error_category=type(error).__name__ if error is not None else None,
-                error_message=str(error) if error is not None else None,
+                error_message=error_message,
             )
 
         try:
@@ -148,6 +150,26 @@ class Tracer:
             if dropped == 1 or dropped % 1000 == 0:
                 logger.warning("trace observer failed (%d dropped): %r", dropped, exc)
         return event
+
+    def _render_error(
+        self,
+        error: BaseException | None,
+        *,
+        command: str | None,
+    ) -> tuple[str | None, bool]:
+        if error is None:
+            return None, False
+        source = str(error)
+        if self._redactor is None:
+            return source, False
+        try:
+            rendered = self._redactor.redact_command(source)
+            rendered = self._redactor.redact_response(rendered, command=command)
+        except Exception:
+            # An audit redactor must fail closed: logging may degrade, but a
+            # secret must never be emitted because the redactor itself failed.
+            return "***", True
+        return rendered, rendered != source
 
     def _decode_source(self, data: bytes) -> str | None:
         if not data:

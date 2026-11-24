@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from types import TracebackType
 
-from scpi_driver_core.exceptions import ConfigurationError
+from scpi_driver_core.exceptions import ConfigurationError, _attach_cleanup_error
 from scpi_driver_core.session.session import ScpiSession
 
 __all__ = ["DEFAULT_ALIAS", "SessionRegistry", "normalize_alias"]
@@ -47,10 +47,19 @@ class SessionRegistry:
                 existing is session for known, existing in self._sessions.items() if known != key
             ):
                 raise ConfigurationError("this session is already registered under another alias")
-            if key in self._sessions and not replace:
-                raise ConfigurationError(
-                    f"alias {key!r} is already registered; disconnect it first or pass replace=True"
-                )
+            existing = self._sessions.get(key)
+            if existing is not None:
+                if existing is session:
+                    return
+                if not replace:
+                    raise ConfigurationError(
+                        f"alias {key!r} is already registered; disconnect it first "
+                        "or pass replace=True"
+                    )
+                # Replacement transfers ownership only after the old session
+                # has released its transport successfully. A failed close
+                # leaves the old registry entry intact and inspectable.
+                existing.close()
             self._sessions[key] = session
             if self._active is None:
                 self._active = key
@@ -104,23 +113,43 @@ class SessionRegistry:
             return [self._sessions[key] for key in sorted(self._sessions)]
 
     def disconnect(self, alias: str) -> None:
-        session = self.remove(alias)
-        session.close()
+        key = normalize_alias(alias)
+        with self._lock:
+            session = self.get(key)
+            session.close()
+            # Only successful cleanup transfers ownership out of the registry.
+            if self._sessions.get(key) is session:
+                del self._sessions[key]
+                if self._active == key:
+                    self._active = None
 
     def disconnect_all(self) -> None:
         with self._lock:
-            sessions = list(dict.fromkeys(self._sessions.values()))
-            self._sessions.clear()
-            self._active = None
-        first_error: BaseException | None = None
-        for session in sessions:
-            try:
-                session.close()
-            except BaseException as exc:
-                if first_error is None:
-                    first_error = exc
-        if first_error is not None:
-            raise first_error
+            first_error: BaseException | None = None
+            additional_errors: list[BaseException] = []
+            for key, session in list(self._sessions.items()):
+                try:
+                    session.close()
+                except BaseException as exc:
+                    if first_error is None:
+                        first_error = exc
+                    else:
+                        additional_errors.append(exc)
+                    continue
+                if self._sessions.get(key) is session:
+                    del self._sessions[key]
+                    if self._active == key:
+                        self._active = None
+
+            if first_error is not None:
+                attributes = getattr(first_error, "__dict__", None)
+                if isinstance(attributes, dict) and additional_errors:
+                    attributes["additional_cleanup_errors"] = tuple(additional_errors)
+                add_note = getattr(first_error, "add_note", None)
+                if callable(add_note):
+                    for extra in additional_errors:
+                        add_note(f"Additional registry cleanup failure: {extra!r}")
+                raise first_error
 
     def __enter__(self) -> SessionRegistry:
         return self
@@ -131,7 +160,13 @@ class SessionRegistry:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.disconnect_all()
+        if exc is None:
+            self.disconnect_all()
+            return
+        try:
+            self.disconnect_all()
+        except BaseException as cleanup:
+            _attach_cleanup_error(exc, cleanup)
 
     def _known(self) -> str:
         return ", ".join(sorted(self._sessions)) or "none"

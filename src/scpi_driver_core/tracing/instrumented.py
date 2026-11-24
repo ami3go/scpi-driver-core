@@ -8,6 +8,7 @@ from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Any
 
+from scpi_driver_core.exceptions import _attach_cleanup_error
 from scpi_driver_core.tracing.events import TraceContext, TraceDirection
 from scpi_driver_core.tracing.observer import Tracer
 from scpi_driver_core.transport.base import Transport
@@ -22,7 +23,15 @@ from scpi_driver_core.transport.models import (
 
 __all__ = ["InstrumentedTransport"]
 
-_CAPABILITY_NAMES = frozenset({"device_clear", "read_status_byte", "assert_trigger", "go_to_local"})
+_CAPABILITY_NAMES = frozenset(
+    {
+        "device_clear",
+        "read_status_byte",
+        "assert_trigger",
+        "go_to_local",
+        "go_to_local_addressed",
+    }
+)
 
 
 class InstrumentedTransport:
@@ -133,7 +142,13 @@ class InstrumentedTransport:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.close()
+        if exc is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as cleanup:
+            _attach_cleanup_error(exc, cleanup)
 
     def write(
         self,
@@ -251,10 +266,31 @@ class InstrumentedTransport:
         )
 
     def __getattr__(self, name: str) -> Any:
-        """Forward optional bus capabilities only when the inner transport has them."""
-        if name in _CAPABILITY_NAMES:
-            return getattr(self._inner, name)
-        raise AttributeError(name)
+        """Forward and trace optional bus capabilities only when supported."""
+        if name not in _CAPABILITY_NAMES:
+            raise AttributeError(name)
+        target = getattr(self._inner, name)
+        if not callable(target):
+            return target
+
+        def traced_capability(*args: Any, **kwargs: Any) -> Any:
+            started = self._clock()
+            marker = name.encode("ascii")
+            try:
+                result = target(*args, **kwargs)
+            except BaseException as exc:
+                self._fail(TraceDirection.CONTROL, started, exc, data=marker)
+                raise
+            self._tracer.emit(
+                TraceDirection.CONTROL,
+                data=marker,
+                descriptor=self._inner.descriptor,
+                context=self._context,
+                duration_s=self._clock() - started,
+            )
+            return result
+
+        return traced_capability
 
     def _fail(
         self,

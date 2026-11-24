@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import pytest
 
 from scpi_driver_core.exceptions import (
@@ -7,6 +9,7 @@ from scpi_driver_core.exceptions import (
     IdentityError,
     OperationTimeoutError,
     ResponseParseError,
+    TransportError,
     TransportTimeoutError,
 )
 from scpi_driver_core.scpi import ScpiClient
@@ -201,6 +204,44 @@ def test_explicit_status_query_never_serial_polls(monkeypatch: pytest.MonkeyPatc
     assert ieee.read_status_byte() == 7
     assert ieee.query_status_byte() == 64
     assert transport.written == b"*STB?\n"
+
+
+@pytest.mark.parametrize("value", [-1, 256, True, 1.5, "64"])
+def test_serial_poll_rejects_invalid_status_bytes(
+    monkeypatch: pytest.MonkeyPatch, value: object
+) -> None:
+    ieee, transport = make()
+    monkeypatch.setattr(transport, "read_status_byte", lambda **_: value, raising=False)
+    with pytest.raises(TransportError, match="status byte"):
+        ieee.read_status_byte()
+
+
+def test_serial_poll_is_serialized_by_client_operation_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ieee, transport = make()
+    called = threading.Event()
+    done = threading.Event()
+    result: list[int] = []
+
+    def serial_poll(**_: object) -> int:
+        called.set()
+        return 64
+
+    monkeypatch.setattr(transport, "read_status_byte", serial_poll, raising=False)
+
+    def worker() -> None:
+        result.append(ieee.read_status_byte())
+        done.set()
+
+    with ieee.client.operation_lock():
+        thread = threading.Thread(target=worker)
+        thread.start()
+        assert called.wait(timeout=0.05) is False
+
+    assert done.wait(timeout=1.0)
+    thread.join(timeout=1.0)
+    assert result == [64]
 
 
 @pytest.mark.parametrize("mask", [0, 255])
