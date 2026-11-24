@@ -120,9 +120,7 @@ class Tracer:
                 response_command = self._commands.pop(operation_id, None)
 
         text, event_data, redacted = self._render(direction, data, command=response_command)
-        error_message, error_redacted = self._render_error(
-            error, command=response_command
-        )
+        error_message, error_redacted = self._render_error(error, command=response_command)
         redacted = redacted or error_redacted
         with self._lock:
             self._sequence += 1
