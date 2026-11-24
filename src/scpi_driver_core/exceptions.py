@@ -26,6 +26,7 @@ __all__ = [
     "ScpiErrorQueueError",
     "ScpiTimeoutError",
     "SessionClosedError",
+    "TransportCleanupError",
     "TransportError",
     "TransportTimeoutError",
     "UnsupportedOperationError",
@@ -46,6 +47,27 @@ class ScpiTimeoutError(ScpiDriverError):
 
 class TransportError(ScpiDriverError):
     """Failure in the byte-oriented transport layer."""
+
+
+class TransportCleanupError(TransportError):
+    """A backend resource could not be released with certainty.
+
+    The original backend exception remains available through normal exception
+    chaining. When cleanup fails while another exception is already active,
+    the cleanup error is attached to that primary exception as cleanup_error
+    instead of replacing it.
+    """
+
+
+def _attach_cleanup_error(primary: BaseException, cleanup: BaseException) -> None:
+    """Retain a cleanup failure without masking the primary exception."""
+    try:
+        setattr(primary, "cleanup_error", cleanup)
+    except Exception:
+        pass
+    add_note = getattr(primary, "add_note", None)
+    if callable(add_note):
+        add_note(f"Cleanup also failed: {cleanup!r}")
 
 
 class NotConnectedError(TransportError):
