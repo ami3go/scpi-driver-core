@@ -151,7 +151,7 @@ def run_with_retry(
         if (
             number > 1
             and policy.max_elapsed_s is not None
-            and now() - start >= policy.max_elapsed_s
+            and now() - start > policy.max_elapsed_s
         ):
             break
 
@@ -163,7 +163,7 @@ def run_with_retry(
                 phase = "operation"
                 if (
                     policy.max_elapsed_s is not None
-                    and now() - start >= policy.max_elapsed_s
+                    and now() - start > policy.max_elapsed_s
                 ):
                     break
             result = operation()
