@@ -223,6 +223,32 @@ def test_the_check_does_not_trigger_another_check() -> None:
     assert transport.written == b"VOLT 1\nSYST:ERR?\n"
 
 
+def test_direct_drain_is_non_recursive_with_query_checking_enabled() -> None:
+    client, transport = make(b'-113,"Undefined header"\n', NO_ERROR)
+    queue = ScpiErrorQueue(client)
+    client.enable_error_checking(
+        queue,
+        ScpiExecutionPolicy(check_error_queue_after_query=True),
+    )
+
+    errors = queue.drain()
+
+    assert [error.code for error in errors] == [-113]
+    assert transport.written == b"SYST:ERR?\nSYST:ERR?\n"
+
+
+def test_direct_read_one_is_non_recursive_with_query_checking_enabled() -> None:
+    client, transport = make(NO_ERROR)
+    queue = ScpiErrorQueue(client)
+    client.enable_error_checking(
+        queue,
+        ScpiExecutionPolicy(check_error_queue_after_query=True),
+    )
+
+    assert queue.read_one().code == 0
+    assert transport.written == b"SYST:ERR?\n"
+
+
 def test_checking_can_be_turned_back_off() -> None:
     client, transport = make(NO_ERROR, b"1.5\n")
     queue = ScpiErrorQueue(client)
