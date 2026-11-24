@@ -64,7 +64,8 @@ class ScpiErrorQueue:
         return error.code in self.no_error_codes
 
     def read_one(self, *, timeout_s: float | None = None) -> ScpiError:
-        return parse_scpi_error(self.client.query(self.command, timeout_s=timeout_s))
+        with self.client.operation_lock(), self.client._suspend_error_checking():
+            return parse_scpi_error(self.client.query(self.command, timeout_s=timeout_s))
 
     def drain(
         self, *, max_entries: int | None = None, timeout_s: float | None = None
@@ -75,7 +76,7 @@ class ScpiErrorQueue:
             raise ConfigurationError(f"max_entries must be positive, got {limit}")
 
         collected: list[ScpiError] = []
-        with self.client.operation_lock():
+        with self.client.operation_lock(), self.client._suspend_error_checking():
             for _ in range(limit):
                 reply = self.client.query(self.command, timeout_s=timeout_s)
                 try:
