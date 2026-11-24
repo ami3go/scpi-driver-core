@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from scpi_driver_core.exceptions import (
+    ConfigurationError,
     IdentityError,
     OperationTimeoutError,
     ResponseParseError,
@@ -185,3 +186,66 @@ def test_nothing_is_sent_on_construction() -> None:
     transport.open()
     Ieee4882(ScpiClient(transport))
     assert transport.written == b""
+
+
+def test_explicit_raw_compatibility() -> None:
+    ieee, transport = make(b"legacy-id\n", b"+1\n")
+    assert ieee.identify_raw() == "legacy-id"
+    assert ieee.operation_complete_raw() == "+1"
+    assert transport.written == b"*IDN?\n*OPC?\n"
+
+
+def test_explicit_status_query_never_serial_polls(monkeypatch: pytest.MonkeyPatch) -> None:
+    ieee, transport = make(b"64\n")
+    monkeypatch.setattr(transport, "read_status_byte", lambda **_: 7, raising=False)
+    assert ieee.read_status_byte() == 7
+    assert ieee.query_status_byte() == 64
+    assert transport.written == b"*STB?\n"
+
+
+@pytest.mark.parametrize("mask", [0, 255])
+def test_event_status_enable_mask(mask: int) -> None:
+    ieee, transport = make(f"{mask}\n".encode())
+    ieee.set_event_status_enable(mask)
+    assert ieee.query_event_status_enable() == mask
+    assert transport.written == f"*ESE {mask}\n*ESE?\n".encode()
+
+
+@pytest.mark.parametrize("mask", [True, 1.5, -1, 256, "1"])
+def test_invalid_event_mask_no_io(mask: int) -> None:
+    ieee, transport = make()
+    with pytest.raises(ConfigurationError):
+        ieee.set_event_status_enable(mask)
+    assert transport.written == b""
+
+
+@pytest.mark.parametrize("method", ["query_status_byte", "query_event_status_enable", "read_event_status"])
+@pytest.mark.parametrize("reply", [b"-1\n", b"256\n", b"1.5\n"])
+def test_byte_register_out_of_range(method: str, reply: bytes) -> None:
+    ieee, _ = make(reply)
+    with pytest.raises(ResponseParseError):
+        getattr(ieee, method)()
+
+
+def test_save_recall_exact_commands() -> None:
+    ieee, transport = make()
+    ieee.save(1)
+    ieee.recall(2)
+    assert transport.written == b"*SAV 1\n*RCL 2\n"
+
+
+@pytest.mark.parametrize("method", ["save", "recall"])
+@pytest.mark.parametrize("slot", [-1, True, 1.5, "1"])
+def test_save_recall_reject_lossy_slot(method: str, slot: int) -> None:
+    ieee, transport = make()
+    with pytest.raises(ConfigurationError):
+        getattr(ieee, method)(slot)
+    assert transport.written == b""
+
+
+def test_lost_event_status_not_replayed() -> None:
+    ieee, transport = make()
+    transport.fail_next_read(TransportTimeoutError("lost ESR"), fault=True)
+    with pytest.raises(TransportTimeoutError):
+        ieee.read_event_status()
+    assert transport.written == b"*ESR?\n"
