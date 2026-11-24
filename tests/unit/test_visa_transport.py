@@ -516,15 +516,18 @@ def test_device_clear_failure_faults_transport(fake_backend: None) -> None:
     assert transport.state is TransportState.FAULTED
 
 
-def test_close_survives_a_backend_that_fails_to_close(fake_backend: None) -> None:
+def test_backend_close_exception_is_never_silently_swallowed(fake_backend: None) -> None:
     transport = opened(fake_backend)
+    resource = FakeVisaResource.instances[-1]
+    backend_error = FakeVisaIOError("VI_ERROR_IO", error_code=-1)
+    resource.fail_close = backend_error
 
-    def boom() -> None:
-        raise FakeVisaIOError("VI_ERROR_IO", error_code=-1)
+    with pytest.raises(TransportCleanupError) as caught:
+        transport.close()
 
-    FakeVisaResource.instances[-1].close = boom  # type: ignore[method-assign]
-    transport.close()
-    assert transport.state is TransportState.CLOSED
+    assert caught.value.__cause__ is backend_error
+    assert transport.state is TransportState.FAULTED
+    assert transport._resource is resource
 
 
 def test_addressed_gtl_does_not_deassert_bus_ren(
