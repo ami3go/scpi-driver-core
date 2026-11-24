@@ -157,10 +157,7 @@ def run_with_retry(
                 phase = "recover"
                 before_retry()
                 phase = "operation"
-                if (
-                    policy.max_elapsed_s is not None
-                    and now() - start > policy.max_elapsed_s
-                ):
+                if policy.max_elapsed_s is not None and now() - start > policy.max_elapsed_s:
                     break
             result = operation()
         except retry_on as exc:
