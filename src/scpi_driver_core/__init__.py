@@ -13,6 +13,7 @@ from scpi_driver_core.exceptions import (
     ScpiErrorQueueError,
     ScpiTimeoutError,
     SessionClosedError,
+    TransportCleanupError,
     TransportError,
     TransportTimeoutError,
     UnsupportedOperationError,
@@ -37,9 +38,10 @@ __all__ = [
     "SessionClosedError",
     "SessionHealth",
     "SessionRegistry",
+    "TransportCleanupError",
     "TransportError",
     "TransportTimeoutError",
     "UnsupportedOperationError",
 ]
 
-__version__ = "0.1.0.dev12"
+__version__ = "0.1.0.dev13"
