@@ -127,7 +127,13 @@ class JsonlTraceSink:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.close()
+        if exc is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as cleanup:
+            _attach_cleanup_error(exc, cleanup)
 
 
 def _descriptor_record(descriptor: Any) -> Mapping[str, Any]:
