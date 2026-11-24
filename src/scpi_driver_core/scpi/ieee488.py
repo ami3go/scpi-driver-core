@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from scpi_driver_core.exceptions import (
-    ConfigurationError, OperationTimeoutError, ResponseParseError, TransportTimeoutError,
+    ConfigurationError,
+    OperationTimeoutError,
+    ResponseParseError,
+    TransportTimeoutError,
 )
 from scpi_driver_core.models import Identity, SelfTestResult
 from scpi_driver_core.scpi.client import ScpiClient
