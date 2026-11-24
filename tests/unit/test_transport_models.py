@@ -205,8 +205,8 @@ def test_state_machine_requires_a_release_hook() -> None:
         machine.close()
 
 
-def test_state_machine_reaches_closed_even_if_release_fails() -> None:
-    """Leaving it in CLOSING would strand it in a state nothing exits."""
+def test_state_machine_faults_if_release_fails() -> None:
+    """A failed release is uncertain ownership, never a successful CLOSED state."""
     from scpi_driver_core.transport.state import TransportStateMachine
 
     class Stuck(TransportStateMachine):
@@ -217,4 +217,4 @@ def test_state_machine_reaches_closed_even_if_release_fails() -> None:
     machine._state = TransportState.OPEN
     with pytest.raises(RuntimeError):
         machine.close()
-    assert machine.state is TransportState.CLOSED
+    assert machine.state is TransportState.FAULTED
