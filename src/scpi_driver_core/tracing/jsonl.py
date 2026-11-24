@@ -11,7 +11,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import IO, Any, Final
 
-from scpi_driver_core.exceptions import ConfigurationError
+from scpi_driver_core.exceptions import ConfigurationError, _attach_cleanup_error
 from scpi_driver_core.tracing.events import ProtocolTraceEvent
 
 __all__ = ["SCHEMA_VERSION", "JsonlTraceSink"]
@@ -108,12 +108,15 @@ class JsonlTraceSink:
         with self._lock:
             if self._closed:
                 return
-            self._closed = True
+            # Finalization is transactional from the sink's point of view:
+            # a failure leaves the sink open so callers can retry and Tracer
+            # can account for any subsequent write failures.
             self._stream.flush()
             if self._fsync_each_event:
                 os.fsync(self._stream.fileno())
             if self._owns_stream:
                 self._stream.close()
+            self._closed = True
 
     def __enter__(self) -> JsonlTraceSink:
         return self
