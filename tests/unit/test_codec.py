@@ -22,6 +22,22 @@ def test_rejects_unknown_encoding() -> None:
         ScpiTextCodec(encoding="definitely-not-an-encoding")
 
 
+def test_rejects_unknown_decode_error_handler() -> None:
+    with pytest.raises(ConfigurationError, match="decode error handler"):
+        ScpiTextCodec(decode_errors="definitely-not-an-error-handler")
+
+
+@pytest.mark.parametrize("terminator", [b"X\n", b"\rX", b"X\r\n"])
+def test_rejects_custom_terminator_that_embeds_line_breaks(terminator: bytes) -> None:
+    with pytest.raises(ConfigurationError, match="terminator"):
+        ScpiTextCodec(command_terminator=terminator)
+
+
+def test_accepts_custom_terminator_without_line_breaks() -> None:
+    codec = ScpiTextCodec(command_terminator=b";")
+    assert codec.encode_command("*IDN?") == b"*IDN?;"
+
+
 @pytest.mark.parametrize("size", [0, -1])
 def test_rejects_nonpositive_limits(size: int) -> None:
     with pytest.raises(ConfigurationError):
