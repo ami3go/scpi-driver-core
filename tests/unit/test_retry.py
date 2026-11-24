@@ -311,6 +311,52 @@ def test_max_elapsed_s_raises_the_last_real_error_not_a_timeout_wrapper() -> Non
     assert caught.value is final
 
 
+def test_max_elapsed_s_is_rechecked_after_sleep_overshoot() -> None:
+    clock = FakeClock()
+    calls = [0]
+    first = TransportError("first")
+
+    def operation() -> str:
+        calls[0] += 1
+        raise first
+
+    def oversleep(seconds: float) -> None:
+        clock.elapsed += seconds + 1.0
+
+    policy = RetryPolicy(attempts=3, initial_delay_s=0.5, max_elapsed_s=1.0)
+    with pytest.raises(TransportError) as caught:
+        run_with_retry(operation, policy=policy, sleep=oversleep, now=clock.now)
+
+    assert caught.value is first
+    assert calls[0] == 1
+
+
+def test_max_elapsed_s_is_rechecked_after_recovery() -> None:
+    clock = FakeClock()
+    calls = [0]
+    first = TransportError("first")
+
+    def operation() -> str:
+        calls[0] += 1
+        raise first
+
+    def recover() -> None:
+        clock.elapsed += 2.0
+
+    policy = RetryPolicy(attempts=3, initial_delay_s=0.0, max_elapsed_s=1.0)
+    with pytest.raises(TransportError) as caught:
+        run_with_retry(
+            operation,
+            policy=policy,
+            sleep=clock.sleep,
+            now=clock.now,
+            before_retry=recover,
+        )
+
+    assert caught.value is first
+    assert calls[0] == 1
+
+
 def test_without_max_elapsed_s_the_deadline_never_triggers() -> None:
     clock = FakeClock()
     calls = [0]
